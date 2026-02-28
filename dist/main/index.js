@@ -2561,6 +2561,7 @@ class SettingsManager {
 }
 logger.setEnabled(false);
 let mainWindow = null;
+let settingsWindow = null;
 ipcMain.handle("window:minimize", () => {
   if (mainWindow) {
     mainWindow.minimize();
@@ -2598,6 +2599,38 @@ ipcMain.handle("window:resize", (event, width, height) => {
     const finalWidth = Math.min(constrainedWidth, maxWidth);
     const finalHeight = Math.min(constrainedHeight, maxHeight);
     mainWindow.setSize(finalWidth, finalHeight);
+  }
+});
+function createSettingsWindow() {
+  if (settingsWindow) {
+    settingsWindow.focus();
+    return;
+  }
+  settingsWindow = new BrowserWindow({
+    width: 600,
+    height: 400,
+    title: "设置",
+    resizable: true,
+    minimizable: false,
+    maximizable: false,
+    modal: false,
+    parent: mainWindow,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+  settingsWindow.loadURL(`file://${__dirname}/../../dist/renderer/index.html#/settings`);
+  settingsWindow.on("closed", () => {
+    settingsWindow = null;
+  });
+}
+ipcMain.handle("window:open-settings", () => {
+  createSettingsWindow();
+});
+ipcMain.handle("window:close-settings", () => {
+  if (settingsWindow) {
+    settingsWindow.close();
   }
 });
 ipcMain.handle("window:get-state", () => {

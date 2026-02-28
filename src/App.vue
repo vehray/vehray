@@ -2,14 +2,64 @@
   <el-container class="app-container">
     <!-- 自定义窗口栏 -->
     <el-header class="custom-titlebar" id="custom-titlebar">
-      <!-- 左侧：应用标题（可拖拽区域） -->
-      <div class="app-title" id="drag-region">
-        <el-icon class="app-icon"><DataAnalysis /></el-icon>
-        <h1 class="title">LINAnalyzer</h1>
+      <!-- 左侧：应用标题和菜单栏（可拖拽区域） -->
+      <div class="app-title-and-menu" id="drag-region">
+        <!-- 应用标题 -->
+        <div class="app-title">
+          <el-icon class="app-icon"><DataAnalysis /></el-icon>
+          <h1 class="title">LINAnalyzer</h1>
+        </div>
+        
+        <!-- 菜单栏 -->
+        <div class="menu-bar">
+          <div class="menu-item">
+            <span>文件</span>
+            <div class="menu-dropdown">
+              <div class="menu-dropdown-item">新建</div>
+              <div class="menu-dropdown-item">打开</div>
+              <div class="menu-dropdown-item">保存</div>
+              <div class="menu-dropdown-item">退出</div>
+            </div>
+          </div>
+          <div class="menu-item">
+            <span>编辑</span>
+            <div class="menu-dropdown">
+              <div class="menu-dropdown-item">复制</div>
+              <div class="menu-dropdown-item">粘贴</div>
+              <div class="menu-dropdown-item">删除</div>
+            </div>
+          </div>
+          <div class="menu-item">
+            <span>视图</span>
+            <div class="menu-dropdown">
+              <div class="menu-dropdown-item">工具栏</div>
+              <div class="menu-dropdown-item">状态栏</div>
+              <div class="menu-dropdown-item">重置布局</div>
+            </div>
+          </div>
+          <div class="menu-item">
+            <span>工具</span>
+            <div class="menu-dropdown">
+              <div class="menu-dropdown-item">从机扫描</div>
+              <div class="menu-dropdown-item">爆破发送</div>
+              <div class="menu-dropdown-item">设备管理</div>
+            </div>
+          </div>
+          <div class="menu-item">
+            <span>帮助</span>
+            <div class="menu-dropdown">
+              <div class="menu-dropdown-item">关于</div>
+              <div class="menu-dropdown-item">文档</div>
+            </div>
+          </div>
+        </div>
       </div>
       
       <!-- 右侧：窗口控制按钮 -->
       <div class="window-controls">
+        <button class="window-btn settings-btn" @click="openSettingsWindow" title="设置">
+          <el-icon><Setting /></el-icon>
+        </button>
         <button class="window-btn minimize-btn" @click="minimizeWindow" title="最小化">
           <span class="btn-icon">_</span>
         </button>
@@ -21,6 +71,8 @@
         </button>
       </div>
     </el-header>
+
+
 
     <!-- 主内容区域 -->
     <div class="main-content-container">
@@ -647,8 +699,6 @@
                             </el-select>
                           </div>
                           
-
-                          
                           <!-- 开始/结束按钮 -->
                           <el-button 
                             :type="isScheduleSending ? 'danger' : 'success'" 
@@ -663,8 +713,22 @@
                             </el-icon>
                             {{ isScheduleSending ? '结束' : '开始' }}
                           </el-button>
-                          
-
+                        </div>
+                        
+                        <!-- 操作按钮 -->
+                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                          <el-button type="success" size="small" @click="showBatchAddDialog">
+                            <el-icon><Plus /></el-icon> 批量添加
+                          </el-button>
+                          <el-button type="primary" size="small" @click="showAddFrameDialog">
+                            <el-icon><Plus /></el-icon> 添加帧
+                          </el-button>
+                          <el-button type="warning" size="small" @click="clearScheduleFrames" :disabled="scheduleFrames.length === 0">
+                            <el-icon><Delete /></el-icon> 清空列表
+                          </el-button>
+                          <el-button type="info" size="small" @click="showBatchOperationDialog">
+                            <el-icon><Operation /></el-icon> 批量修改
+                          </el-button>
                         </div>
                         
                         <!-- 发送状态 -->
@@ -676,31 +740,6 @@
                             当前发送: {{ currentScheduleFrame }}
                           </span>
                         </div>
-                      </div>
-                    </div>
-                    
-                    <!-- 列表操作按钮区 -->
-                    <div style="background-color: #f5f7fa; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
-                      <div style="display: flex; align-items: center; gap: 12px;">
-                        <!-- 批量修改按钮 -->
-                        <el-button type="info" size="small" @click="showBatchOperationDialog">
-                          <el-icon><Operation /></el-icon> 批量修改
-                        </el-button>
-                        
-                        <!-- 批量添加按钮 -->
-                        <el-button type="success" size="small" @click="showBatchAddDialog">
-                          <el-icon><Plus /></el-icon> 批量添加
-                        </el-button>
-                        
-                        <!-- 添加帧按钮 -->
-                        <el-button type="primary" size="small" @click="showAddFrameDialog">
-                          <el-icon><Plus /></el-icon> 添加帧
-                        </el-button>
-                        
-                        <!-- 清空列表按钮 -->
-                        <el-button type="warning" size="small" @click="clearScheduleFrames" :disabled="scheduleFrames.length === 0">
-                          <el-icon><Delete /></el-icon> 清空列表
-                        </el-button>
                       </div>
                     </div>
                     
@@ -1612,6 +1651,25 @@
         </el-form>
       </div>
     </el-drawer>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+      <div class="status-left">
+        <span class="status-item">设备: {{ selectedDeviceForSendObj?.name || '未选择' }}</span>
+        <span class="status-item">波特率: {{ sendConfig.baudRate || '未设置' }}</span>
+        <span class="status-item">连接状态: <el-tag :type="selectedDeviceForSendObj?.status.serialConnected ? 'success' : 'warning'">
+          {{ selectedDeviceForSendObj?.status.serialConnected ? '已连接' : '未连接' }}
+        </el-tag></span>
+      </div>
+      <div class="status-center">
+        <span class="status-item">{{ openedTabs.length }} 个标签页</span>
+      </div>
+      <div class="status-right">
+        <span class="status-item">帧数量: {{ scheduleFrames.length }}</span>
+        <span class="status-item">追踪记录: {{ receivedFrames.length }}</span>
+        <span class="status-item">{{ new Date().toLocaleTimeString() }}</span>
+      </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -6915,6 +6973,10 @@ html, body {
   box-shadow: none;
 }
 
+.settings-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
 .window-btn:active {
   background-color: rgba(255, 255, 255, 0.3);
   transform: none;
@@ -6960,8 +7022,16 @@ html, body {
   align-items: center;
   padding: 0 12px; /* 只在左侧添加内边距 */
   white-space: nowrap;
-  overflow: hidden;
+  /* 移除overflow: hidden，确保下拉菜单能正确显示 */
   text-overflow: ellipsis;
+}
+
+.app-title-and-menu {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
 }
 
 .app-title {
@@ -6993,6 +7063,8 @@ html, body {
   padding: 0 0 0 12px; /* 左侧12px内边距，右侧0内边距，确保窗口控制按钮与边缘贴合 */
   display: flex;
   align-items: center;
+  background-color: var(--fluent-surface);
+  border-bottom: 1px solid var(--fluent-border);
 }
 
 /* 调整主内容区域高度，适配新的标题栏高度 */
@@ -7403,9 +7475,178 @@ body.dragging {
   gap: 12px;
   padding: 16px;
   background-color: var(--fluent-surface);
-  border-radius: 8px;
+}
+
+/* 菜单栏 */
+.menu-bar {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fluent-text-primary);
+  z-index: 9998;
+  position: relative;
+}
+
+.menu-item {
+  position: relative;
+  padding: 0 8px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  -webkit-app-region: no-drag;
+  border-radius: 4px;
+}
+
+.menu-item:hover {
+  background-color: var(--fluent-surface-hover);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background-color: var(--fluent-background);
   border: 1px solid var(--fluent-border);
-  margin-top: 16px;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  min-width: 120px;
+  display: none;
+  -webkit-app-region: no-drag;
+  margin-top: 2px;
+}
+
+.menu-item:hover .menu-dropdown {
+  display: block;
+}
+
+.menu-dropdown-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  font-size: 13px;
+  -webkit-app-region: no-drag;
+}
+
+.menu-dropdown-item:hover {
+  background-color: var(--fluent-surface-hover);
+}
+
+/* 工具栏 */
+.toolbar {
+  background-color: var(--fluent-background);
+  border-bottom: 1px solid var(--fluent-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  height: 44px;
+  gap: 8px;
+  z-index: 90;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 状态栏 */
+.status-bar {
+  background-color: var(--fluent-surface);
+  border-top: 1px solid var(--fluent-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 28px;
+  font-size: 12px;
+  color: var(--fluent-text-secondary);
+  z-index: 80;
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-center {
+  display: flex;
+  align-items: center;
+}
+
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-item {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-item .el-tag {
+  font-size: 11px;
+  padding: 0 6px;
+  height: 18px;
+  line-height: 16px;
+}
+
+/* 调整主内容容器高度 */
+.main-content-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background-color: var(--fluent-background);
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+/* 调整内容区域 */
+.content {
+  flex: 1;
+  padding: 16px;
+  overflow: hidden;
+  background-color: var(--fluent-background);
+  display: flex;
+  flex-direction: column;
+  min-width: 400px;
+}
+
+/* 调整应用容器布局 */
+.app-container {
+  width: 100%;
+  height: 100vh;
+  background-color: var(--fluent-background);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  margin: 0;
+  padding: 0;
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
 }
 
 /* 表单元素间距 */
