@@ -1,0 +1,38 @@
+{
+  "name": "linanalyzer",
+  "version": "1.0.0",
+  "description": "LIN Analyzer - A professional LIN bus communication tool",
+  "main": "src/main/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "electron-vite preview",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "electron",
+    "cross-platform"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/electron": "^1.4.38",
+    "@types/node": "^25.0.10",
+    "@vitejs/plugin-vue": "^6.0.3",
+    "@vue/tsconfig": "^0.8.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^40.0.0",
+    "electron-vite": "^5.0.0",
+    "typescript": "^5.9.3",
+    "vue": "^3.5.27",
+    "vue-tsc": "^3.2.2",
+    "wait-on": "^9.0.3"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "element-plus": "^2.13.1",
+    "serialport": "^13.0.0"
+  }
+}
