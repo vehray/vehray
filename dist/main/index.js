@@ -1,4 +1,4 @@
-import { BrowserWindow, app, ipcMain } from "electron";
+import { BrowserWindow, app, ipcMain, Menu } from "electron";
 import * as path from "path";
 import path__default from "path";
 import { fileURLToPath } from "url";
@@ -99,15 +99,28 @@ function createWindow() {
     logger.error("app-window.ts: 检查预加载脚本文件时出错:", error instanceof Error ? error.message : String(error));
   });
   const mainWindow2 = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1e3,
+    height: 700,
+    minWidth: 1e3,
+    minHeight: 600,
     title: "LINAnalyzer",
     frame: false,
     // 移除默认系统边框
     titleBarStyle: "hidden",
     // 隐藏默认标题栏
-    trafficLightPosition: { x: 10, y: 10 },
-    // macOS交通灯位置
+    // 在Windows/Linux上添加窗口控件，设置透明背景和高度为40px，只显示关闭按钮
+    ...process.platform !== "darwin" ? {
+      titleBarOverlay: {
+        height: 40,
+        // 与非原生顶栏高度一致
+        color: "transparent",
+        // 透明背景
+        symbolColor: "#333",
+        // 按钮图标颜色
+        buttons: ["close"]
+        // 只显示关闭按钮
+      }
+    } : {},
     backgroundColor: "#f5f7fa",
     // 设置背景色
     webPreferences: {
@@ -190,6 +203,101 @@ function createWindow() {
   }
   mainWindow2.webContents.openDevTools({ mode: "detach" });
   return mainWindow2;
+}
+function createChildWindow(parentWindow, options) {
+  const { width = 600, height = 400, title = "设置" } = options || {};
+  const preloadPath = path__default.resolve(process.cwd(), "dist/preload/index.mjs");
+  const childWindow = new BrowserWindow({
+    width,
+    height,
+    title,
+    parent: parentWindow,
+    modal: false,
+    // 移除modal属性，允许拖拽
+    frame: false,
+    // 移除默认系统边框
+    titleBarStyle: "hidden",
+    // 隐藏默认标题栏
+    // 在Windows/Linux上添加窗口控件，设置透明背景和高度为40px，只显示关闭按钮
+    ...process.platform !== "darwin" ? {
+      titleBarOverlay: {
+        height: 40,
+        // 与非原生顶栏高度一致
+        color: "transparent",
+        // 透明背景
+        symbolColor: "#333",
+        // 按钮图标颜色
+        buttons: ["close"]
+        // 只显示关闭按钮
+      }
+    } : {},
+    backgroundColor: "#f5f7fa",
+    // 设置背景色
+    minWidth: 1e3,
+    // 最小宽度
+    minHeight: 600,
+    // 最小高度
+    webPreferences: {
+      // 预加载脚本配置
+      preload: preloadPath,
+      // 安全配置
+      contextIsolation: true,
+      nodeIntegration: false,
+      // 沙盒配置 - Electron 40+可能需要
+      sandbox: false,
+      // 允许运行ES模块格式的预加载脚本
+      webSecurity: true,
+      // 添加调试日志
+      devTools: true
+    },
+    // 高DPI支持
+    useContentSize: true,
+    // 使用内容尺寸而不是窗口尺寸
+    autoHideMenuBar: true,
+    // 自动隐藏菜单栏
+    show: false
+    // 延迟显示窗口，确保渲染完成
+  });
+  childWindow.once("ready-to-show", () => {
+    childWindow.show();
+  });
+  childWindow.webContents.on("did-finish-load", () => {
+    childWindow.webContents.setZoomFactor(1);
+  });
+  childWindow.setMenu(null);
+  const isDev = process.env.NODE_ENV === "development";
+  if (isDev) {
+    const vitePorts = [5173, 5174, 5175, 5176, 5177];
+    let currentPortIndex = 0;
+    const tryLoadVite = () => {
+      if (currentPortIndex >= vitePorts.length) {
+        logger.error("所有Vite端口都尝试失败，无法加载开发服务器");
+        return;
+      }
+      const vitePort = vitePorts[currentPortIndex];
+      const viteUrl = `http://localhost:${vitePort}?window=settings`;
+      logger.info(`Trying to load Vite development server for child window: ${viteUrl}`);
+      childWindow.webContents.removeAllListeners("did-fail-load");
+      childWindow.webContents.removeAllListeners("did-finish-load");
+      childWindow.webContents.once("did-fail-load", (event, errorCode, errorDescription) => {
+        logger.error(`Child window page load failed: ${errorDescription} (Error code: ${errorCode})`);
+        currentPortIndex++;
+        logger.info(`Trying alternative port ${vitePorts[currentPortIndex]}`);
+        tryLoadVite();
+      });
+      childWindow.webContents.once("did-finish-load", () => {
+        logger.info("Child window page loaded successfully");
+      });
+      childWindow.loadURL(viteUrl);
+    };
+    tryLoadVite();
+  } else {
+    const rendererHtmlPath = path__default.resolve(process.cwd(), "dist/renderer/index.html");
+    logger.debug("app-window.ts: 子窗口渲染进程HTML路径:", rendererHtmlPath);
+    childWindow.loadFile(rendererHtmlPath, { query: { window: "settings" } });
+  }
+  childWindow.webContents.openDevTools({ mode: "detach" });
+  return childWindow;
 }
 const LIN_FRAME_LENGTH = 16;
 const LIN_MODE_COMMAND = 17;
@@ -2581,9 +2689,11 @@ ipcMain.handle("window:close", () => {
     mainWindow.close();
   }
 });
-ipcMain.handle("window:start-drag", () => {
-  if (mainWindow) {
-    mainWindow.startDragging();
+ipcMain.handle("window:start-drag", (event, mousePos) => {
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (window) {
+    window.focus();
+    window.startDragging();
   }
 });
 ipcMain.handle("window:resize", (event, width, height) => {
@@ -2601,38 +2711,6 @@ ipcMain.handle("window:resize", (event, width, height) => {
     mainWindow.setSize(finalWidth, finalHeight);
   }
 });
-function createSettingsWindow() {
-  if (settingsWindow) {
-    settingsWindow.focus();
-    return;
-  }
-  settingsWindow = new BrowserWindow({
-    width: 600,
-    height: 400,
-    title: "设置",
-    resizable: true,
-    minimizable: false,
-    maximizable: false,
-    modal: false,
-    parent: mainWindow,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  });
-  settingsWindow.loadURL(`file://${__dirname}/../../dist/renderer/index.html#/settings`);
-  settingsWindow.on("closed", () => {
-    settingsWindow = null;
-  });
-}
-ipcMain.handle("window:open-settings", () => {
-  createSettingsWindow();
-});
-ipcMain.handle("window:close-settings", () => {
-  if (settingsWindow) {
-    settingsWindow.close();
-  }
-});
 ipcMain.handle("window:get-state", () => {
   if (mainWindow) {
     return {
@@ -2645,6 +2723,7 @@ ipcMain.handle("window:get-state", () => {
 });
 process.env.NODE_ENV = process.env.NODE_ENV || "development";
 app.on("ready", async () => {
+  Menu.setApplicationMenu(null);
   if (process.platform === "win32") {
     try {
       const { execSync } = require2("child_process");
@@ -2655,6 +2734,38 @@ app.on("ready", async () => {
   mainWindow = createWindow();
   if (mainWindow) {
     SerialPortManager.initializePortMonitoring(mainWindow);
+  }
+  if (mainWindow) {
+    mainWindow.on("focus", () => {
+      if (settingsWindow && settingsWindow.isVisible()) {
+        settingsWindow.flashFrame(true);
+        setTimeout(() => {
+          if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.flashFrame(false);
+          }
+        }, 1e3);
+      }
+    });
+  }
+  if (mainWindow) {
+    mainWindow.on("mousedown", () => {
+      if (settingsWindow && settingsWindow.isVisible()) {
+        settingsWindow.flashFrame(true);
+        setTimeout(() => {
+          if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.flashFrame(false);
+          }
+        }, 1e3);
+      }
+    });
+  }
+  if (mainWindow) {
+    mainWindow.on("close", (event) => {
+      if (settingsWindow && !settingsWindow.isDestroyed()) {
+        settingsWindow.close();
+        settingsWindow = null;
+      }
+    });
   }
   mainWindow.webContents.once("did-finish-load", () => {
     SerialPort.list().then((ports) => {
@@ -2748,4 +2859,30 @@ ipcMain.handle("fs:writeSettings", (event, settings) => {
 });
 ipcMain.handle("fs:readSettings", () => {
   return SettingsManager.readSettings();
+});
+ipcMain.handle("settings:open", () => {
+  if (!mainWindow) {
+    return { success: false, message: "主窗口未初始化" };
+  }
+  if (settingsWindow) {
+    settingsWindow.close();
+    settingsWindow = null;
+  }
+  settingsWindow = createChildWindow(mainWindow, {
+    width: 800,
+    height: 500,
+    title: "设置"
+  });
+  settingsWindow.on("closed", () => {
+    settingsWindow = null;
+  });
+  return { success: true, message: "设置窗口已打开" };
+});
+ipcMain.handle("settings:close", () => {
+  if (settingsWindow) {
+    settingsWindow.close();
+    settingsWindow = null;
+    return { success: true, message: "设置窗口已关闭" };
+  }
+  return { success: false, message: "设置窗口未打开" };
 });

@@ -1,6 +1,6 @@
 @echo off
 REM 设置Node.js路径
-set NODE_HOME=E:\ad_project\trae_projects\demo\nodejs\node-v20.15.1-win-x64
+set NODE_HOME=E:\ad_project\trae_projects\demo\node-v20.20.2-win-x64
 set PATH=%NODE_HOME%;%PATH%
 
 REM 检查是否有命令参数

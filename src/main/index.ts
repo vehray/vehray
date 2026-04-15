@@ -1,5 +1,5 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
-import { createWindow } from './modules/app-window.ts';
+import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { createWindow, createChildWindow } from './modules/app-window.ts';
 import { SerialPortManager } from './modules/serial-manager.ts';
 import { LinControllerManager } from './modules/lin-controller.ts';
 import { SettingsManager } from './modules/settings-manager.ts';
@@ -12,6 +12,7 @@ logger.setEnabled(false);
 
 // 全局变量
 let mainWindow: BrowserWindow | null = null;
+let settingsWindow: BrowserWindow | null = null;
 
 // 窗口控制IPC处理
 ipcMain.handle('window:minimize', () => {
@@ -36,9 +37,14 @@ ipcMain.handle('window:close', () => {
   }
 });
 
-ipcMain.handle('window:start-drag', () => {
-  if (mainWindow) {
-    mainWindow.startDragging();
+ipcMain.handle('window:start-drag', (event, mousePos) => {
+  // 获取发送事件的窗口
+  const window = BrowserWindow.fromWebContents(event.sender);
+  if (window) {
+    // 在Electron中，startDragging()方法会自动处理鼠标位置
+    // 但我们可以确保窗口在拖拽前是激活状态
+    window.focus();
+    window.startDragging();
   }
 });
 
@@ -85,6 +91,9 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
 // 应用事件处理
 app.on('ready', async () => {
+  // 禁用原生菜单，使用Element Plus组件实现的菜单
+  Menu.setApplicationMenu(null);
+  
   // 创建窗口前设置编码
   if (process.platform === 'win32') {
     // 在Windows平台上，设置CMD编码为UTF-8
@@ -101,6 +110,49 @@ app.on('ready', async () => {
   // 初始化串口监控
   if (mainWindow) {
     SerialPortManager.initializePortMonitoring(mainWindow);
+  }
+  
+  // 监听主窗口焦点事件，当设置窗口打开时让其闪烁
+  if (mainWindow) {
+    mainWindow.on('focus', () => {
+      if (settingsWindow && settingsWindow.isVisible()) {
+        // 让设置窗口闪烁，模拟Windows默认行为
+        settingsWindow.flashFrame(true);
+        // 1秒后停止闪烁
+        setTimeout(() => {
+          if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.flashFrame(false);
+          }
+        }, 1000);
+      }
+    });
+  }
+  
+  // 监听主窗口鼠标按下事件，当设置窗口打开时让其闪烁
+  if (mainWindow) {
+    mainWindow.on('mousedown', () => {
+      if (settingsWindow && settingsWindow.isVisible()) {
+        // 让设置窗口闪烁，模拟Windows默认行为
+        settingsWindow.flashFrame(true);
+        // 1秒后停止闪烁
+        setTimeout(() => {
+          if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.flashFrame(false);
+          }
+        }, 1000);
+      }
+    });
+  }
+  
+  // 监听主窗口关闭事件，确保在主窗口关闭前关闭设置窗口
+  if (mainWindow) {
+    mainWindow.on('close', (event) => {
+      if (settingsWindow && !settingsWindow.isDestroyed()) {
+        // 先关闭设置窗口
+        settingsWindow.close();
+        settingsWindow = null;
+      }
+    });
   }
   
   // 窗口加载完成后，主动发送串口列表给渲染进程
@@ -220,4 +272,40 @@ ipcMain.handle('fs:writeSettings', (event, settings) => {
 
 ipcMain.handle('fs:readSettings', () => {
   return SettingsManager.readSettings();
+});
+
+// 设置窗口IPC处理
+ipcMain.handle('settings:open', () => {
+  if (!mainWindow) {
+    return { success: false, message: '主窗口未初始化' };
+  }
+  
+  // 如果设置窗口已经存在，先关闭它
+  if (settingsWindow) {
+    settingsWindow.close();
+    settingsWindow = null;
+  }
+  
+  // 创建新的设置窗口作为主窗口的子窗口
+  settingsWindow = createChildWindow(mainWindow, {
+    width: 800,
+    height: 500,
+    title: '设置'
+  });
+  
+  // 监听设置窗口关闭事件
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
+  
+  return { success: true, message: '设置窗口已打开' };
+});
+
+ipcMain.handle('settings:close', () => {
+  if (settingsWindow) {
+    settingsWindow.close();
+    settingsWindow = null;
+    return { success: true, message: '设置窗口已关闭' };
+  }
+  return { success: false, message: '设置窗口未打开' };
 });

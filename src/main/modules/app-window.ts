@@ -51,12 +51,22 @@ export function createWindow(): BrowserWindow {
   // 创建浏览器窗口时添加详细的webPreferences配置
   // 确保与Electron 40+兼容
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1000,
+    height: 700,
+    minWidth: 1000,
+    minHeight: 600,
     title: 'LINAnalyzer',
     frame: false, // 移除默认系统边框
     titleBarStyle: 'hidden', // 隐藏默认标题栏
-    trafficLightPosition: { x: 10, y: 10 }, // macOS交通灯位置
+    // 在Windows/Linux上添加窗口控件，设置透明背景和高度为40px，只显示关闭按钮
+    ...(process.platform !== 'darwin' ? { 
+      titleBarOverlay: {
+        height: 40, // 与非原生顶栏高度一致
+        color: 'transparent', // 透明背景
+        symbolColor: '#333', // 按钮图标颜色
+        buttons: ['close'] // 只显示关闭按钮
+      } 
+    } : {}),
     backgroundColor: '#f5f7fa', // 设置背景色
     webPreferences: {
       // 预加载脚本配置
@@ -174,4 +184,125 @@ export function createWindow(): BrowserWindow {
   mainWindow.webContents.openDevTools({ mode: 'detach' });
 
   return mainWindow;
+}
+
+// 创建子窗口函数
+export function createChildWindow(parentWindow: BrowserWindow, options?: { width?: number, height?: number, title?: string }): BrowserWindow {
+  const { width = 600, height = 400, title = '设置' } = options || {};
+  
+  // 正确计算预加载脚本路径
+  const preloadPath = path.resolve(process.cwd(), 'dist/preload/index.mjs');
+  
+  // 创建子窗口
+  const childWindow = new BrowserWindow({
+    width,
+    height,
+    title,
+    parent: parentWindow,
+    modal: false, // 移除modal属性，允许拖拽
+    frame: false, // 移除默认系统边框
+    titleBarStyle: 'hidden', // 隐藏默认标题栏
+    // 在Windows/Linux上添加窗口控件，设置透明背景和高度为40px，只显示关闭按钮
+    ...(process.platform !== 'darwin' ? { 
+      titleBarOverlay: {
+        height: 40, // 与非原生顶栏高度一致
+        color: 'transparent', // 透明背景
+        symbolColor: '#333', // 按钮图标颜色
+        buttons: ['close'] // 只显示关闭按钮
+      } 
+    } : {}),
+    backgroundColor: '#f5f7fa', // 设置背景色
+    minWidth: 1000, // 最小宽度
+    minHeight: 600, // 最小高度
+    webPreferences: {
+      // 预加载脚本配置
+      preload: preloadPath,
+      
+      // 安全配置
+      contextIsolation: true,
+      nodeIntegration: false,
+      
+      // 沙盒配置 - Electron 40+可能需要
+      sandbox: false,
+      
+      // 允许运行ES模块格式的预加载脚本
+      webSecurity: true,
+      
+      // 添加调试日志
+      devTools: true
+    },
+    // 高DPI支持
+    useContentSize: true, // 使用内容尺寸而不是窗口尺寸
+    autoHideMenuBar: true, // 自动隐藏菜单栏
+    show: false // 延迟显示窗口，确保渲染完成
+  });
+  
+  // 启用高DPI支持
+  childWindow.once('ready-to-show', () => {
+    childWindow.show();
+  });
+  
+  // 设置窗口的DPI感知
+  childWindow.webContents.on('did-finish-load', () => {
+    childWindow.webContents.setZoomFactor(1.0);
+  });
+  
+  // 移除默认菜单栏
+  childWindow.setMenu(null);
+  
+  // 根据环境变量决定加载方式
+  const isDev = process.env.NODE_ENV === 'development';
+  
+  if (isDev) {
+    // 开发模式：加载Vite开发服务器
+    // 尝试从环境变量获取Vite端口，或者使用默认端口5173
+    const vitePorts = [5173, 5174, 5175, 5176, 5177];
+    let currentPortIndex = 0;
+    
+    // 递归尝试加载不同端口
+    const tryLoadVite = () => {
+      if (currentPortIndex >= vitePorts.length) {
+        logger.error('所有Vite端口都尝试失败，无法加载开发服务器');
+        return;
+      }
+      
+      const vitePort = vitePorts[currentPortIndex];
+      const viteUrl = `http://localhost:${vitePort}?window=settings`;
+      logger.info(`Trying to load Vite development server for child window: ${viteUrl}`);
+      
+      // 清除之前的事件监听器
+      childWindow.webContents.removeAllListeners('did-fail-load');
+      childWindow.webContents.removeAllListeners('did-finish-load');
+      
+      // 监听加载失败事件
+      childWindow.webContents.once('did-fail-load', (event, errorCode, errorDescription) => {
+        logger.error(`Child window page load failed: ${errorDescription} (Error code: ${errorCode})`);
+        currentPortIndex++;
+        logger.info(`Trying alternative port ${vitePorts[currentPortIndex]}`);
+        tryLoadVite(); // 尝试下一个端口
+      });
+      
+      // 监听加载完成事件
+      childWindow.webContents.once('did-finish-load', () => {
+        logger.info('Child window page loaded successfully');
+      });
+      
+      // 尝试加载URL
+      childWindow.loadURL(viteUrl);
+    };
+    
+    // 开始尝试加载Vite开发服务器
+    tryLoadVite();
+  } else {
+    // 生产模式：加载本地文件
+    // 使用process.cwd()获取项目根目录，确保路径正确
+    const rendererHtmlPath = path.resolve(process.cwd(), 'dist/renderer/index.html');
+    logger.debug('app-window.ts: 子窗口渲染进程HTML路径:', rendererHtmlPath);
+    childWindow.loadFile(rendererHtmlPath, { query: { window: 'settings' } });
+  }
+  
+  // 确保开发者工具打开，便于查看渲染进程日志
+  childWindow.webContents.openDevTools({ mode: 'detach' });
+
+  return childWindow;
 }

@@ -19,7 +19,7 @@
       :hover-text-color="'#111827'"
       @select="handleSelect"
     >
-      <!-- 遍历菜单项，支持子菜单 -->
+      <!-- 遍历菜单项，支持三级子菜单 -->
       <template v-for="item in menuItems" :key="item.key">
         <!-- 有子菜单的项 -->
         <el-sub-menu v-if="item.children && item.children.length > 0" :index="item.key">
@@ -28,14 +28,29 @@
             <span>{{ item.label }}</span>
           </template>
           <!-- 子菜单项 -->
-          <el-menu-item
-            v-for="child in item.children"
-            :key="child.key"
-            :index="child.key"
-          >
-            <el-icon :size="16"><component :is="child.icon" /></el-icon>
-            <template #title>{{ child.label }}</template>
-          </el-menu-item>
+          <template v-for="child in item.children" :key="child.key">
+            <!-- 子菜单项有孙子菜单 -->
+            <el-sub-menu v-if="child.children && child.children.length > 0" :index="child.key">
+              <template #title>
+                <el-icon :size="16"><component :is="child.icon" /></el-icon>
+                <span>{{ child.label }}</span>
+              </template>
+              <!-- 孙子菜单项 -->
+              <el-menu-item
+                v-for="grandchild in child.children"
+                :key="grandchild.key"
+                :index="grandchild.key"
+              >
+                <el-icon :size="14"><component :is="grandchild.icon" /></el-icon>
+                <template #title>{{ grandchild.label }}</template>
+              </el-menu-item>
+            </el-sub-menu>
+            <!-- 子菜单项没有孙子菜单 -->
+            <el-menu-item v-else :index="child.key">
+              <el-icon :size="16"><component :is="child.icon" /></el-icon>
+              <template #title>{{ child.label }}</template>
+            </el-menu-item>
+          </template>
         </el-sub-menu>
         <!-- 无子菜单的项 -->
         <el-menu-item v-else :index="item.key">

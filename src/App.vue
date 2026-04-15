@@ -1,139 +1,156 @@
 <template>
-  <el-container class="app-container">
-    <!-- 自定义窗口栏 -->
-    <el-header class="custom-titlebar" id="custom-titlebar">
-      <!-- 左侧：应用标题和菜单栏（可拖拽区域） -->
-      <div class="app-title-and-menu" id="drag-region">
-        <!-- 应用标题 -->
-        <div class="app-title">
-          <el-icon class="app-icon"><DataAnalysis /></el-icon>
-          <h1 class="title">LINAnalyzer</h1>
+  <el-container class="app-container" @mousedown="startWindowDrag">
+    <!-- 检查是否在设置窗口中 -->
+    <template v-if="isSettingsWindow">
+      <!-- 设置窗口内容 -->
+      <div class="settings-window" @mousedown="startWindowDrag">
+        <!-- 窗口标题栏 -->
+        <div 
+          class="window-titlebar"
+        >
+          <!-- 左侧：标题 -->
+          <div class="window-title-container">
+            <div class="window-title">设置</div>
+          </div>
         </div>
         
-        <!-- 菜单栏 -->
-        <div class="menu-bar">
-          <div class="menu-item">
-            <span>文件</span>
-            <div class="menu-dropdown">
-              <div class="menu-dropdown-item">新建</div>
-              <div class="menu-dropdown-item">打开</div>
-              <div class="menu-dropdown-item">保存</div>
-              <div class="menu-dropdown-item">退出</div>
-            </div>
-          </div>
-          <div class="menu-item">
-            <span>编辑</span>
-            <div class="menu-dropdown">
-              <div class="menu-dropdown-item">复制</div>
-              <div class="menu-dropdown-item">粘贴</div>
-              <div class="menu-dropdown-item">删除</div>
-            </div>
-          </div>
-          <div class="menu-item">
-            <span>视图</span>
-            <div class="menu-dropdown">
-              <div class="menu-dropdown-item">工具栏</div>
-              <div class="menu-dropdown-item">状态栏</div>
-              <div class="menu-dropdown-item">重置布局</div>
-            </div>
-          </div>
-          <div class="menu-item">
-            <span>工具</span>
-            <div class="menu-dropdown">
-              <div class="menu-dropdown-item">从机扫描</div>
-              <div class="menu-dropdown-item">爆破发送</div>
-              <div class="menu-dropdown-item">设备管理</div>
-            </div>
-          </div>
-          <div class="menu-item">
-            <span>帮助</span>
-            <div class="menu-dropdown">
-              <div class="menu-dropdown-item">关于</div>
-              <div class="menu-dropdown-item">文档</div>
-            </div>
+        <!-- 窗口内容 -->
+        <div class="window-content" @mousedown.stop>
+          <el-tabs v-model="activeTab" type="border-card">
+            
+            <!-- 语言选择模块 -->
+            <el-tab-pane label="语言">
+              <div class="settings-section">
+                <h3 class="section-title">语言选择</h3>
+                <div class="language-options">
+                  <el-radio-group v-model="language" @change="handleLanguageChange">
+                    <el-radio-button label="zh-CN">中文</el-radio-button>
+                    <el-radio-button label="en-US">English</el-radio-button>
+                  </el-radio-group>
+                </div>
+                <div class="setting-description">
+                  选择应用程序的显示语言
+                </div>
+              </div>
+            </el-tab-pane>
+            
+            <!-- 主题切换模块 -->
+            <el-tab-pane label="主题">
+              <div class="settings-section">
+                <h3 class="section-title">主题切换</h3>
+                <div class="theme-options">
+                  <el-radio-group v-model="theme" @change="handleThemeChange">
+                    <el-radio-button label="light">浅色主题</el-radio-button>
+                    <el-radio-button label="dark">深色主题</el-radio-button>
+                  </el-radio-group>
+                </div>
+                <div class="setting-description">
+                  选择应用程序的显示主题
+                </div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+        
+        <!-- 底部按钮栏 -->
+        <div class="settings-footer" @mousedown.stop>
+          <div class="settings-buttons">
+            <el-button type="success" @click="confirmSettings">确认</el-button>
+            <el-button @click="closeSettingsWindow">取消</el-button>
+            <el-button type="primary" @click="applySettings">应用</el-button>
           </div>
         </div>
       </div>
-      
-      <!-- 右侧：窗口控制按钮 -->
-      <div class="window-controls">
-        <button class="window-btn settings-btn" @click="openSettingsWindow" title="设置">
-          <el-icon><Setting /></el-icon>
-        </button>
-        <button class="window-btn minimize-btn" @click="minimizeWindow" title="最小化">
-          <span class="btn-icon">_</span>
-        </button>
-        <button class="window-btn maximize-btn" @click="maximizeWindow" :title="windowState.isMaximized ? '还原' : '最大化'">
-          <span class="btn-icon">{{ windowState.isMaximized ? '▢' : '□' }}</span>
-        </button>
-        <button class="window-btn close-btn" @click="closeWindow" title="关闭">
-          <span class="btn-icon">×</span>
-        </button>
+    </template>
+    <template v-else>
+      <!-- 应用标题栏 -->
+      <div class="app-header">
+        <!-- 左侧：Logo 和 菜单栏 -->
+        <div class="app-header-left">
+          <!-- 左侧：Logo -->
+          <div class="app-logo">
+            <el-icon :size="24"><DataAnalysis /></el-icon>
+          </div>
+          
+          <!-- 菜单栏 -->
+          <div class="menu-bar">
+            <el-menu mode="horizontal" background-color="transparent" text-color="#333" active-text-color="#0078d4" :ellipsis="false">
+              <el-sub-menu index="1">
+                <template #title>文件</template>
+                  <el-sub-menu index="1-1">
+                    <template #title>新建</template>
+                    <el-menu-item index="1-1-1" @click="createReverseProject">新建逆向分析项目</el-menu-item>
+                  </el-sub-menu>
+                <el-menu-item index="1-2">打开项目</el-menu-item>
+                <el-menu-item index="1-3">保存项目</el-menu-item>
+                <el-menu-item index="1-4">退出</el-menu-item>
+              </el-sub-menu>
+              <el-menu-item index="2">编辑</el-menu-item>
+              <el-menu-item index="3">视图</el-menu-item>
+              <el-menu-item index="4" @click="openDeviceManagement">设备</el-menu-item>
+              <el-sub-menu index="5">
+                <template #title>工具箱</template>
+                <el-sub-menu index="5-1">
+                  <template #title>逆向分析工具</template>
+                  <el-sub-menu index="5-1-1">
+                    <template #title>LIN总线逆向分析</template>
+                    <el-menu-item index="5-1-1-1" @click="openSlaveScanner">从机扫描</el-menu-item>
+                    <el-menu-item index="5-1-1-2" @click="openScheduleTables">列表收发</el-menu-item>
+                    <el-menu-item index="5-1-1-3" @click="openBruteForce">爆破发送</el-menu-item>
+                  </el-sub-menu>
+                </el-sub-menu>
+              </el-sub-menu>
+              <el-menu-item index="6">帮助</el-menu-item>
+            </el-menu>
+          </div>
+        </div>
+        
+        <!-- 拖拽区域（放在中间，确保有足够空间） -->
+        <div class="drag-area"></div>
+        
+        <!-- 右侧：搜索和设置按钮 -->
+        <div class="app-header-right">
+          <div class="search-container">
+            <el-input
+              v-model="searchQuery"
+              placeholder="搜索..."
+              size="small"
+              prefix-icon="Search"
+              style="width: 120px"
+            />
+          </div>
+          <button class="header-btn settings-btn" @click="openSettingsWindow" title="设置">
+            <el-icon><Setting /></el-icon>
+          </button>
+          <button class="header-btn login-btn" @click="handleLogin" title="登录">
+            <el-icon><UserFilled /></el-icon>
+          </button>
+        </div>
       </div>
-    </el-header>
 
 
 
-    <!-- 主内容区域 -->
-    <div class="main-content-container">
-      <!-- 左侧导航菜单 -->
-      <div class="navigation-sidebar" 
-           :style="{ width: `${sidebarWidth}px` }"
-           :class="{ 'collapsed': isMenuCollapsed }">
-        <NavigationMenu
-          :menu-items="buttonBarItems"
-          :active-key="activeTab"
-          :is-collapsed="isMenuCollapsed"
-          :auto-collapse="true"
-          :auto-collapse-threshold="1024"
-          @select="handleMenuSelect"
-          @toggle-collapse="toggleMenuCollapse"
-          @settings-click="openSettingsWindow"
-          @resize="handleNavigationResize"
-        />
-      </div>
-      
-      <!-- 中间主内容区 -->
-      <div class="content" style="height: 100%; display: flex; flex-direction: column;">
-        <!-- 上下垂直容器 -->
-        <div class="content-vertical-container" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
-          <!-- 上部标签页区域 -->
-          <div class="content-top" :style="{ height: `${contentHeight}px` }" style="flex-shrink: 0;">
-            <!-- 标签页 -->
-            <div class="tabs-container overflow-auto">
-          <el-tabs v-model="activeTab" type="card" @tab-remove="removeTab" class="main-tabs">
-            <el-tab-pane
-              v-for="tab in openedTabs"
-              :key="tab.key"
-              :label="tab.label"
-              :name="tab.key"
-              :closable="!tab.isFixed"
-            >
+      <!-- 主内容区域 -->
+      <div class="main-content-container" @mousedown.stop>
+        <!-- 主内容区 -->
+        <div class="content" style="height: 100%; display: flex; flex-direction: column;">
+          <!-- 上下垂直容器 -->
+          <div class="content-vertical-container" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+            <!-- 上部标签页区域 -->
+            <div class="content-top" :style="{ height: `${contentHeight}px` }" style="flex-shrink: 0;">
+              <!-- 标签页 -->
+              <div class="tabs-container overflow-auto">
+            <el-tabs v-model="activeTab" type="card" @tab-remove="removeTab" class="main-tabs">
+              <el-tab-pane
+                v-for="tab in openedTabs"
+                :key="tab.key"
+                :label="tab.label"
+                :name="tab.key"
+                :closable="!tab.isFixed"
+              >
               <!-- 串口配置 -->
               <div v-if="tab.key === 'serialConfig'" class="tab-pane">
-                <ContentContainer>
-                  <h2 class="tab-title">硬件连接</h2>
-                  <el-card shadow="hover" class="config-card">
-                    <div class="hardware-moved-notice">
-                      <el-alert
-                        title="硬件连接功能已迁移"
-                        type="info"
-                        :closable="false"
-                        show-icon
-                      >
-                        <template #default>
-                          <div class="notice-content">
-                            <p>硬件连接功能已迁移至 <strong>设备列表</strong> 中统一管理。</p>
-                            <p class="mt-2">请点击左侧导航菜单中的 <strong>设备管理</strong> - <strong>设备列表</strong> 打开设备列表页面。</p>
-                            <el-button type="primary" size="small" @click="handleDeviceList" class="mt-3">
-                            打开设备列表
-                            </el-button>
-                          </div>
-                        </template>
-                      </el-alert>
-                    </div>
-                  </el-card>
-                </ContentContainer>
+         
               </div>
               
               <!-- 主机收发 -->
@@ -316,25 +333,6 @@
                 </ContentContainer>
               </div>
               
-              <!-- 数据追踪（已移动到下部区域） -->
-              <div v-else-if="tab.key === 'trace'" class="tab-pane">
-                <ContentContainer>
-                  <el-alert
-                    title="数据追踪功能已移动"
-                    type="info"
-                    :closable="false"
-                    show-icon
-                  >
-                    <template #default>
-                      <div class="notice-content">
-                        <p>数据追踪功能已移动到下部区域显示。</p>
-                        <p class="mt-2">请在下方查看数据追踪表格和记录。</p>
-                      </div>
-                    </template>
-                  </el-alert>
-                </ContentContainer>
-              </div>
-              
               <!-- 操作日志 -->
               <div v-else-if="tab.key === 'logs'" class="tab-pane">
                 <ContentContainer>
@@ -358,7 +356,6 @@
               <!-- 设备列表 -->
               <div v-else-if="tab.key === 'deviceList'" class="tab-pane">
                 <ContentContainer>
-                  <h2 class="tab-title">设备列表</h2>
                   <div class="device-list-container" style="height: 100%; display: flex; flex-direction: column;">
                     <!-- 设备操作按钮和搜索 -->
                     <div class="device-actions mb-4" style="display: flex; justify-content: space-between; align-items: center;">
@@ -1271,24 +1268,16 @@
           
 
     </div>
+    </template>
     
-    <!-- 设置窗口 -->
-    <SettingsWindow
-      :visible="isSettingsWindowVisible"
-      @close="closeSettingsWindow"
-      @language-change="handleLanguageChange"
-      @theme-change="handleThemeChange"
-    />
-    
-    <!-- 设备管理抽屉 -->
-    <el-drawer
+    <!-- 设备管理弹窗 -->
+    <el-dialog
       v-model="deviceDialogVisible"
       :title="deviceDialogTitle"
-      direction="rtl"
-      size="25%"
-      class="resizable-drawer"
+      width="30%"
+      destroy-on-close
+      :append-to-body="false"
     >
-      <div class="drawer-resize-handle" @mousedown="startResize('deviceDialog', $event)"></div>
       <el-form :model="currentDevice" label-width="100px">
         <el-form-item label="设备名称">
           <el-input v-model="currentDevice.name" placeholder="请输入设备名称" />
@@ -1348,7 +1337,7 @@
           <el-button type="primary" @click="saveDevice">保存</el-button>
         </span>
       </template>
-    </el-drawer>
+    </el-dialog>
 
     <!-- 设备详情抽屉 -->
     <el-drawer
@@ -1653,7 +1642,7 @@
     </el-drawer>
 
     <!-- 状态栏 -->
-    <div class="status-bar">
+    <div class="status-bar" v-if="!isSettingsWindow">
       <div class="status-left">
         <span class="status-item">设备: {{ selectedDeviceForSendObj?.name || '未选择' }}</span>
         <span class="status-item">波特率: {{ sendConfig.baudRate || '未设置' }}</span>
@@ -1670,6 +1659,9 @@
         <span class="status-item">{{ new Date().toLocaleTimeString() }}</span>
       </div>
     </div>
+    
+    <!-- 底部预留区域 -->
+    <div class="bottom-reserve-area" v-if="!isSettingsWindow"></div>
 </template>
 
 <script setup lang="ts">
@@ -1679,7 +1671,7 @@ import { EditPen, Setting, Upload, DataAnalysis, DocumentCopy, Refresh, Delete, 
 import { deviceManagerViewModel } from './viewmodels/DeviceManagerViewModel';
 import ContentContainer from './components/ContentContainer.vue';
 import NavigationMenu from './components/NavigationMenu.vue';
-import SettingsWindow from './components/SettingsWindow.vue';
+
 import DataTraceTable from './components/DataTraceTable.vue';
 
 // 标签页管理
@@ -1687,9 +1679,10 @@ const activeTab = ref('dataSend');
 const openedTabs = ref([
   { key: 'dataSend', label: '主机收发', icon: Upload, isFixed: false },
   { key: 'logs', label: '操作日志', icon: DocumentCopy, isFixed: false },
-  { key: 'scheduleTables', label: '列表收发', icon: List, isFixed: false },
-  { key: 'trace', label: '数据追踪', icon: DataAnalysis, isFixed: false }
+  { key: 'scheduleTables', label: '列表收发', icon: List, isFixed: false }
 ]);
+
+
 
 // 按钮栏配置
 const buttonBarItems = [
@@ -1703,6 +1696,23 @@ const buttonBarItems = [
       { key: 'scheduleTables', label: '列表收发', icon: List },
       { key: 'bruteForce', label: '爆破发送', icon: DataAnalysis },
       { key: 'trace', label: '数据追踪', icon: DataAnalysis }
+    ]
+  },
+  {
+    key: 'reverseAnalysis',
+    label: '逆向分析工具',
+    icon: DataAnalysis,
+    children: [
+      {
+        key: 'linAnalysis',
+        label: 'LIN总线逆向分析',
+        icon: Monitor,
+        children: [
+          { key: 'slaveScan', label: '从机扫描', icon: Setting },
+          { key: 'scheduleTables', label: '列表收发', icon: List },
+          { key: 'bruteForce', label: '爆破发送', icon: DataAnalysis }
+        ]
+      }
     ]
   },
   {
@@ -1722,8 +1732,7 @@ const hardwareTab = ref('0');
 // 主机收发标签页
 const dataSendTab = ref('0');
 
-// 导航菜单折叠状态
-const isMenuCollapsed = ref(false);
+
 
 // 设备管理
 const deviceManager = deviceManagerViewModel;
@@ -1813,7 +1822,7 @@ const handleDeviceSearch = () => {
 };
 
 // Splitter 相关状态
-const sidebarWidth = ref(200);
+
 const propertiesWidth = ref(300);
 const contentHeight = ref(600);
 const isDragging = ref(false);
@@ -1830,13 +1839,8 @@ let contentBottomResizeObserver: ResizeObserver | null = null;
 // 初始化 Splitter 状态
 const initSplitterState = () => {
   // 从本地存储加载面板宽度和高度
-  const savedSidebarWidth = localStorage.getItem('sidebarWidth');
   const savedPropertiesWidth = localStorage.getItem('propertiesWidth');
   const savedContentHeight = localStorage.getItem('contentHeight');
-  
-  if (savedSidebarWidth) {
-    sidebarWidth.value = parseInt(savedSidebarWidth);
-  }
   
   if (savedPropertiesWidth) {
     propertiesWidth.value = parseInt(savedPropertiesWidth);
@@ -1849,7 +1853,6 @@ const initSplitterState = () => {
 
 // 保存 Splitter 状态
 const saveSplitterState = () => {
-  localStorage.setItem('sidebarWidth', sidebarWidth.value.toString());
   localStorage.setItem('propertiesWidth', propertiesWidth.value.toString());
   localStorage.setItem('contentHeight', contentHeight.value.toString());
 };
@@ -1863,7 +1866,6 @@ let lastDragTime = 0;
 const DRAG_THROTTLE = 16; // 约60fps
 
 // 非响应式变量，用于拖拽过程中的临时存储
-let tempSidebarWidth = 0;
 let tempPropertiesWidth = 0;
 let tempContentHeight = 0;
 
@@ -1885,7 +1887,6 @@ const startDrag = (type: string, event: MouseEvent) => {
   }
   
   // 初始化临时变量
-  tempSidebarWidth = sidebarWidth.value;
   tempPropertiesWidth = propertiesWidth.value;
   tempContentHeight = contentHeight.value;
   
@@ -1924,19 +1925,7 @@ const onDrag = (event: MouseEvent) => {
   
   // 使用 requestAnimationFrame 优化渲染性能
   requestAnimationFrame(() => {
-    if (dragType.value === 'sidebar') {
-      const newWidth = event.clientX - dragContainerRect.left;
-      // 确保最小宽度为80px，防止盖住导航按钮
-      const minWidth = 80;
-      if (newWidth >= minWidth) {
-        tempSidebarWidth = newWidth;
-        // 直接更新DOM样式，避免响应式更新开销
-        const sidebar = document.querySelector('.navigation-sidebar');
-        if (sidebar) {
-          sidebar.style.width = `${newWidth}px`;
-        }
-      }
-    } else if (dragType.value === 'properties') {
+    if (dragType.value === 'properties') {
       const newWidth = dragContainerRect.right - event.clientX;
       if (newWidth >= minPropertiesWidth) {
         tempPropertiesWidth = newWidth;
@@ -1987,20 +1976,8 @@ const endDrag = () => {
     document.removeEventListener('mouseleave', endDrag);
     
     // 更新响应式变量
-    sidebarWidth.value = tempSidebarWidth;
     propertiesWidth.value = tempPropertiesWidth;
     contentHeight.value = tempContentHeight;
-    
-    // 同步导航菜单折叠状态
-    // 当侧边栏宽度小于100px时，自动折叠导航菜单
-    // 当侧边栏宽度大于100px时，自动展开导航菜单
-    if (dragType.value === 'sidebar') {
-      const collapseThreshold = 100;
-      const newCollapsedState = sidebarWidth.value < collapseThreshold;
-      if (newCollapsedState !== isMenuCollapsed.value) {
-        isMenuCollapsed.value = newCollapsedState;
-      }
-    }
     
     isDragging.value = false;
     dragType.value = '';
@@ -2025,7 +2002,6 @@ const endDrag = () => {
 
 // 重置布局
 const resetLayout = () => {
-  sidebarWidth.value = 200;
   propertiesWidth.value = 300;
   contentHeight.value = 600;
   saveSplitterState();
@@ -2035,96 +2011,49 @@ const resetLayout = () => {
 initSplitterState();
 
 // 设置窗口状态
-const isSettingsWindowVisible = ref(false);
+const isSettingsWindow = ref(false);
+const language = ref('zh-CN');
+
+// 搜索查询
+const searchQuery = ref('');
+
+// 检查是否是设置窗口
+const checkIfSettingsWindow = () => {
+  // 检查URL参数
+  const urlParams = new URLSearchParams(window.location.search);
+  const windowType = urlParams.get('window');
+  console.log('Window type:', windowType);
+  // 只有在明确指定为设置窗口时才设置为true，否则默认为false
+  isSettingsWindow.value = windowType === 'settings';
+  console.log('isSettingsWindow:', isSettingsWindow.value);
+};
+
+// 调用检查函数
+checkIfSettingsWindow();
+
+
 
 // 自动重连功能
 const autoReconnect = ref(false);
 let reconnectInterval: number | null = null;
+const theme = ref('light');
 
-// 窗口状态管理
-const windowState = reactive({
-  isMaximized: false,
-  isMinimized: false,
-  bounds: {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0
-  }
-});
-
-// 窗口控制方法
-const minimizeWindow = async () => {
-  await window.electron.ipcRenderer.invoke('window:minimize');
-  updateWindowState();
-  // 触发窗口状态变化回调
-  onWindowStateChange('minimize');
-};
-
-const maximizeWindow = async () => {
-  await window.electron.ipcRenderer.invoke('window:maximize');
-  updateWindowState();
-  // 触发窗口状态变化回调
-  onWindowStateChange(windowState.isMaximized ? 'maximize' : 'unmaximize');
-};
-
-const closeWindow = () => {
-  window.electron.ipcRenderer.invoke('window:close');
-  // 触发窗口状态变化回调
-  onWindowStateChange('close');
-};
-
-// 更新窗口状态
-const updateWindowState = async () => {
-  const state = await window.electron.ipcRenderer.invoke('window:get-state');
-  if (state) {
-    windowState.isMaximized = state.isMaximized;
-    windowState.isMinimized = state.isMinimized;
-    windowState.bounds = state.bounds;
-  }
-};
-
-// 窗口状态变化回调函数
-const onWindowStateChange = (event: string) => {
-  console.log('窗口状态变化:', event, windowState);
+// 开始窗口拖拽
+const startWindowDrag = (event: MouseEvent) => {
+  // 通知主进程开始拖拽窗口，并传递鼠标位置
+  window.electron.ipcRenderer.invoke('window:start-drag', {
+    x: event.screenX,
+    y: event.screenY
+  });
   
-  // 自定义的状态变化处理逻辑
-  switch (event) {
-    case 'minimize':
-      console.log('窗口最小化');
-      // 可以添加最小化时的处理逻辑
-      break;
-    case 'maximize':
-      console.log('窗口最大化');
-      // 可以添加最大化时的处理逻辑
-      break;
-    case 'unmaximize':
-      console.log('窗口还原');
-      // 可以添加还原时的处理逻辑
-      break;
-    case 'close':
-      console.log('窗口关闭');
-      // 可以添加关闭时的处理逻辑
-      break;
-    case 'resize':
-      console.log('窗口调整大小:', windowState.bounds.width, 'x', windowState.bounds.height);
-      // 可以添加调整大小时的处理逻辑
-      break;
-    default:
-      break;
-  }
-  
-  // 触发自定义事件，允许其他组件监听窗口状态变化
-  // 这里可以使用Vue的事件系统或其他状态管理方案
+  // 防止默认行为
+  event.preventDefault();
+  event.stopPropagation();
 };
 
-// 窗口调整方法
-const resizeWindow = async (width: number, height: number) => {
-  await window.electron.ipcRenderer.invoke('window:resize', width, height);
-  updateWindowState();
-  // 触发窗口状态变化回调
-  onWindowStateChange('resize');
-};
+
+
+
 
 // 标签页操作
 const openTab = (button: any) => {
@@ -2174,27 +2103,7 @@ const handleMenuSelect = (key: string) => {
   }
 };
 
-// 切换导航菜单折叠状态
-const toggleMenuCollapse = () => {
-  isMenuCollapsed.value = !isMenuCollapsed.value;
-  // 同步更新侧边栏宽度，确保Splitter位置与导航菜单宽度一致
-  sidebarWidth.value = isMenuCollapsed.value ? 64 : 200;
-  // 保存到本地存储
-  localStorage.setItem('sidebarWidth', sidebarWidth.value.toString());
-};
 
-// 处理导航菜单大小调整
-const handleNavigationResize = (newWidth: number) => {
-  sidebarWidth.value = newWidth;
-  // 保存到本地存储
-  localStorage.setItem('sidebarWidth', sidebarWidth.value.toString());
-  // 同步更新导航菜单折叠状态
-  const collapseThreshold = 100;
-  const newCollapsedState = sidebarWidth.value < collapseThreshold;
-  if (newCollapsedState !== isMenuCollapsed.value) {
-    isMenuCollapsed.value = newCollapsedState;
-  }
-};
 
 // 设备管理相关方法
 
@@ -2221,6 +2130,33 @@ const showAddDeviceDialog = () => {
   };
   deviceDialogTitle.value = '添加设备';
   deviceDialogVisible.value = true;
+};
+
+// 创建项目
+const createProject = () => {
+  // 打开创建项目对话框或实现创建项目的逻辑
+  ElMessage.info('创建项目功能待实现');
+};
+
+// 打开设备管理
+const openDeviceManagement = () => {
+  // 打开设备管理页面或功能
+  openTab({ key: 'deviceList', label: '设备列表', icon: List, isFixed: false });
+};
+
+// 打开从机扫描工具
+const openSlaveScanner = () => {
+  openTab({ key: 'slaveScan', label: '从机扫描', icon: Setting, isFixed: false });
+};
+
+// 打开列表收发
+const openScheduleTables = () => {
+  openTab({ key: 'scheduleTables', label: '列表收发', icon: List, isFixed: false });
+};
+
+// 打开爆破发送
+const openBruteForce = () => {
+  openTab({ key: 'bruteForce', label: '爆破发送', icon: DataAnalysis, isFixed: false });
 };
 
 // 显示设备详情抽屉
@@ -2676,14 +2612,33 @@ const updateDeviceAutoReconnect = (deviceId, value) => {
 };
 
 // 打开设置窗口
-const openSettingsWindow = () => {
-  isSettingsWindowVisible.value = true;
+const openSettingsWindow = async () => {
+  try {
+    const result = await window.electron.ipcRenderer.invoke('settings:open');
+    console.log('设置窗口打开结果:', result);
+  } catch (error) {
+    console.error('打开设置窗口失败:', error);
+  }
+};
+
+// 处理登录
+const handleLogin = () => {
+  // 这里可以添加登录逻辑
+  console.log('登录按钮点击');
+  // 例如：打开登录对话框或跳转到登录页面
 };
 
 // 关闭设置窗口
-const closeSettingsWindow = () => {
-  isSettingsWindowVisible.value = false;
+const closeSettingsWindow = async () => {
+  try {
+    const result = await window.electron.ipcRenderer.invoke('settings:close');
+    console.log('设置窗口关闭结果:', result);
+  } catch (error) {
+    console.error('关闭设置窗口失败:', error);
+  }
 };
+
+
 
 // 打开设备列表标签页
 const handleDeviceList = () => {
@@ -2703,23 +2658,40 @@ const handleDeviceList = () => {
 };
 
 // 处理语言变更
-const handleLanguageChange = (language: string) => {
+const handleLanguageChange = (languageValue: string) => {
+  language.value = languageValue;
   // 这里可以添加语言切换逻辑
-  console.log('Language changed to:', language);
-  localStorage.setItem('language', language);
+  console.log('Language changed to:', languageValue);
+  localStorage.setItem('language', languageValue);
 };
 
 // 处理主题变更
-const handleThemeChange = (theme: string) => {
+const handleThemeChange = (themeValue: string) => {
+  theme.value = themeValue;
   // 这里可以添加主题切换逻辑
-  console.log('Theme changed to:', theme);
-  localStorage.setItem('theme', theme);
+  console.log('Theme changed to:', themeValue);
+  localStorage.setItem('theme', themeValue);
   // 应用主题到文档
-  if (theme === 'dark') {
+  if (themeValue === 'dark') {
     document.documentElement.classList.add('dark-theme');
   } else {
     document.documentElement.classList.remove('dark-theme');
   }
+};
+
+// 应用设置
+const applySettings = () => {
+  console.log('应用设置');
+  // 这里可以添加应用设置的逻辑
+  // 例如，重新加载应用或更新相关组件
+};
+
+// 确认设置
+const confirmSettings = () => {
+  console.log('确认设置');
+  // 这里可以添加保存设置的逻辑
+  // 例如，将设置保存到文件或数据库
+  closeSettingsWindow();
 };
 
 const removeTab = (targetName: string) => {
@@ -3954,23 +3926,6 @@ const clearBruteForceResults = () => {
   bruteForceResults.value = [];
   addLog('Brute force results cleared', 'info');
   ElMessage.success('爆破结果已清空');
-};
-
-// 打开数据追踪标签页
-const openTraceTab = () => {
-  // 检查数据追踪标签页是否已打开
-  const existingTab = openedTabs.value.find(tab => tab.key === 'trace');
-  if (!existingTab) {
-    // 添加新标签页
-    openedTabs.value.push({
-      key: 'trace',
-      label: '数据追踪',
-      icon: DataAnalysis,
-      isFixed: false
-    });
-  }
-  // 激活标签页
-  activeTab.value = 'trace';
 };
 
 // 导出爆破结果
@@ -6029,7 +5984,7 @@ html, body {
 /* 应用容器 */
 .app-container {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   background-color: var(--fluent-background);
   display: flex;
   flex-direction: column;
@@ -6897,84 +6852,395 @@ html, body {
   scrollbar-color: var(--fluent-border) var(--fluent-surface);
 }
 
-/* 自定义标题栏 */
-.custom-titlebar {
-  background-color: var(--fluent-titlebar-bg);
-  color: var(--fluent-titlebar-text);
+/* 应用标题栏 */
+.app-header {
+  background-color: #f0f0f0;
+  color: #333;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-shadow: var(--fluent-shadow);
-  overflow: hidden;
-  -webkit-app-region: no-drag;
+  overflow: visible;
   user-select: none;
-  height: 36px; /* 更紧凑的标题栏高度 */
-  padding: 0; /* 实现边缘到边缘效果 */
-  border-bottom: 1px solid var(--fluent-primary-pressed);
+  padding: 0 16px;
+  height: 40px;
+  position: relative;
+  flex-direction: row;
 }
 
-/* 窗口控制按钮 */
-.window-controls {
+/* 拖拽区域 - 放在中间，占据剩余空间 */
+.drag-area {
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
+  z-index: 1;
+  background-color: transparent;
+  min-width: 100px; /* 确保拖拽区域有最小宽度 */
+}
+
+/* 确保拖拽区域不会覆盖菜单和按钮 */
+.app-header-left,
+.app-header-right {
+  position: relative;
+  z-index: 2;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0; /* 防止左右区域被压缩 */
+}
+
+/* 确保菜单项本身不是拖拽区域 */
+.menu-bar .el-menu-item, .menu-bar .el-sub-menu__title {
+  -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 3;
+}
+
+/* 菜单栏 - 宽度自适应，不折叠 */
+.menu-bar {
+  flex: 0 0 auto;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 3;
+  -webkit-app-region: no-drag;
+  min-width: auto;
+  width: auto;
+}
+
+/* 应用标题栏左侧 */
+.app-header-left {
   display: flex;
   align-items: center;
   gap: 0;
+  flex: 0 0 auto;
   -webkit-app-region: no-drag;
-  margin: 0;
+  overflow: visible;
+  z-index: 2;
+  position: relative;
+}
+
+/* 应用Logo */
+.app-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0078d4;
+  font-weight: bold;
+  font-size: 16px;
+  -webkit-app-region: no-drag;
+  margin-right: 16px;
+  z-index: 2;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* 菜单栏 */
+.menu-bar {
+  display: flex;
+  align-items: center;
+  -webkit-app-region: no-drag;
+  flex: 0 0 auto;
+  z-index: 3;
+  position: relative;
+}
+
+.menu-bar .el-menu {
+  border-bottom: none;
+  height: 40px;
+  min-width: auto;
+  width: auto;
+  flex-wrap: nowrap;
+}
+
+.menu-bar .el-menu-item {
+  height: 40px;
+  line-height: 40px;
+  padding: 0 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 确保按钮和输入框不是拖拽区域 */
+.header-controls,
+.menu-bar,
+.search-container,
+.header-btn,
+.el-input {
+  -webkit-app-region: no-drag;
+  z-index: 2;
+  position: relative;
+}
+
+/* 右侧搜索和设置按钮 */
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  -webkit-app-region: no-drag;
+  padding-right: 130px; /* 增加右侧padding，确保设置按钮不被原生窗口控制按钮盖住 */
+  z-index: 2;
+  position: relative;
+  flex-shrink: 0; /* 防止右侧区域被压缩 */
+}
+
+/* 设置按钮 */
+.header-btn.settings-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #333;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  margin-left: 5px;
+}
+
+.header-btn.settings-btn:hover {
+  background-color: #e0e0e0;
+  border: 1px solid #e0e0e0;
+  color: #333;
+}
+
+/* 登录按钮 */
+.header-btn.login-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid #e0e0e0;
+  border-radius: 50%;
+  color: #333;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  margin-left: 5px;
+}
+
+.header-btn.login-btn:hover {
+  background-color: #f5f5f5;
+  border: 1px solid #d0d0d0;
+  color: #333;
+}
+
+/* 下拉菜单样式 */
+.el-dropdown-menu {
+  border-radius: 4px;
+  box-shadow: var(--fluent-shadow-hover);
+  border: 1px solid var(--fluent-border);
+}
+
+.el-dropdown-item {
+  padding: 8px 16px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.el-dropdown-item:hover {
+  background-color: var(--fluent-surface-hover);
+  color: var(--fluent-primary);
+}
+
+/* 按钮样式优化 */
+.el-button {
+  border-radius: 4px;
+  transition: all 0.2s ease-in-out;
+}
+
+.el-button:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--fluent-primary);
+  --el-button-border-color: var(--fluent-primary);
+  --el-button-hover-bg-color: var(--fluent-primary-hover);
+  --el-button-hover-border-color: var(--fluent-primary-hover);
+}
+
+.el-button--primary.is-plain {
+  --el-button-bg-color: transparent;
+  --el-button-border-color: var(--fluent-primary);
+  --el-button-text-color: var(--fluent-primary);
+  --el-button-hover-bg-color: rgba(0, 120, 212, 0.1);
+  --el-button-hover-border-color: var(--fluent-primary-hover);
+  --el-button-hover-text-color: var(--fluent-primary-hover);
+}
+
+/* 搜索容器 */
+.search-container {
+  display: flex;
+  align-items: center;
+}
+
+.search-container .el-input {
+  border-radius: 4px;
+  border: 1px solid var(--fluent-border);
+  transition: all 0.2s ease-in-out;
+}
+
+.search-container .el-input:hover {
+  border-color: var(--fluent-border-hover);
+}
+
+.search-container .el-input:focus-within {
+  border-color: var(--fluent-primary);
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+/* 设置窗口 */
+.settings-window {
+  position: relative;
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--fluent-border);
+  pointer-events: auto;
+  opacity: 1;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  /* 移除可能导致延迟的硬件加速属性 */
+  will-change: auto;
+  transform: none;
+  backface-visibility: visible;
+  perspective: none;
+}
+
+/* 窗口标题栏 */
+.window-titlebar {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
   padding: 0;
-  border-radius: 0;
-  order: 3;
+  background-color: #f3f2f1;
+  border-bottom: 1px solid var(--fluent-border);
+  cursor: move;
+  border-radius: 4px 4px 0 0;
+  opacity: 1;
+  -webkit-app-region: drag;
+  height: 40px;
+}
+
+/* 带Logo的标题 */
+.window-title-container {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  -webkit-app-region: drag;
+}
+
+.window-title {
+  font-weight: 600;
+  color: var(--fluent-text-primary);
+  font-size: 14px;
+}
+
+.window-controls {
+  display: flex;
+  align-items: stretch;
+  -webkit-app-region: no-drag;
 }
 
 .window-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
   border-radius: 0;
-  color: var(--fluent-titlebar-text);
-  font-size: 12px;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  color: var(--fluent-text-secondary);
+  transition: all 0.2s;
   -webkit-app-region: no-drag;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* 跨平台样式调整 */
-@media (max-width: 768px) {
-  .window-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 12px;
-  }
-}
-
-/* macOS 特定样式 */
-@media (max-width: 1024px) and (-webkit-max-device-pixel-ratio: 2) {
-  .window-controls {
-    /* macOS 样式调整 */
-  }
-}
-
-/* Linux 特定样式 */
-@media (min-width: 1025px) and (hover: hover) {
-  .window-btn:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-  }
 }
 
 .window-btn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  transform: none;
-  box-shadow: none;
+  background-color: var(--fluent-surface-hover);
+  color: var(--fluent-text-primary);
 }
 
-.settings-btn:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+/* 关闭按钮悬停样式 */
+.close-btn:hover {
+  background-color: #e81123;
+  color: white;
+  border-radius: 0 4px 0 0;
+}
+
+/* 窗口内容 */
+.window-content {
+  padding: 16px;
+  overflow: auto;
+  flex: 1;
+  /* 移除可能导致延迟的硬件加速属性 */
+  will-change: auto;
+  transform: none;
+  backface-visibility: visible;
+  perspective: none;
+}
+
+/* 设置部分 */
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--fluent-text-primary);
+}
+
+/* 语言选项 */
+.language-options {
+  margin-bottom: 12px;
+}
+
+/* 主题选项 */
+.theme-options {
+  margin-bottom: 12px;
+}
+
+/* 设置描述 */
+.setting-description {
+  font-size: 14px;
+  color: var(--fluent-text-tertiary);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+/* 设置窗口底部按钮栏 */
+.settings-footer {
+  border-top: 1px solid var(--fluent-border);
+  padding: 12px 16px;
+  background-color: #f9f9f9;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  /* 移除可能导致延迟的硬件加速属性 */
+  will-change: auto;
+  transform: none;
+  backface-visibility: visible;
+  perspective: none;
+}
+
+/* 设置按钮容器 */
+.settings-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+/* 调整窗口内容高度，为底部按钮栏留出空间 */
+.window-content {
+  padding: 16px;
+  overflow: auto;
+  height: calc(100% - 80px); /* 减去标题栏和底部按钮栏的高度 */
 }
 
 .window-btn:active {
@@ -7020,7 +7286,7 @@ html, body {
   display: flex;
   justify-content: flex-start; /* 标题左对齐 */
   align-items: center;
-  padding: 0 12px; /* 只在左侧添加内边距 */
+  padding: 0 12px;
   white-space: nowrap;
   /* 移除overflow: hidden，确保下拉菜单能正确显示 */
   text-overflow: ellipsis;
@@ -7057,19 +7323,9 @@ html, body {
   top: 0;
 }
 
-/* 调整标题栏高度和内边距，确保与左侧按钮对齐 */
-.custom-titlebar {
-  height: 36px; /* 更紧凑的标题栏高度 */
-  padding: 0 0 0 12px; /* 左侧12px内边距，右侧0内边距，确保窗口控制按钮与边缘贴合 */
-  display: flex;
-  align-items: center;
-  background-color: var(--fluent-surface);
-  border-bottom: 1px solid var(--fluent-border);
-}
-
 /* 调整主内容区域高度，适配新的标题栏高度 */
 .main-content {
-  height: calc(100vh - 36px); /* 统一减去标题栏高度 */
+  height: calc(100vh - 40px); /* 统一减去标题栏高度 */
 }
 
 .title {
@@ -7077,8 +7333,8 @@ html, body {
   font-size: 14px; /* 适应紧凑标题栏的字体大小 */
   font-weight: 600; /* Fluent Design 标准字重 */
   -webkit-app-region: drag;
+  color: var(--fluent-text-primary);
   letter-spacing: 0.25px;
-  color: var(--fluent-titlebar-text);
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
@@ -7112,7 +7368,6 @@ html, body {
 /* 主内容容器 */
 .main-content-container {
   flex: 1;
-  display: flex;
   overflow: hidden;
   background-color: var(--fluent-background);
   margin: 0;
@@ -7120,19 +7375,9 @@ html, body {
   position: relative;
 }
 
-/* 左侧导航菜单 */
-.navigation-sidebar {
-  background-color: var(--fluent-surface);
-  border-right: 1px solid var(--fluent-border);
-  height: 100%;
-  overflow: hidden;
-  transition: var(--fluent-transition);
-  flex-shrink: 0;
-}
-
-/* 中间主内容区 */
+/* 主内容区 */
 .content {
-  flex: 1;
+  height: 100%;
   padding: 16px;
   overflow: hidden;
   background-color: var(--fluent-background);
@@ -7577,6 +7822,15 @@ body.dragging {
   z-index: 80;
 }
 
+/* 底部预留区域 */
+.bottom-reserve-area {
+  background-color: var(--fluent-surface);
+  border-top: 1px solid var(--fluent-border);
+  height: 40px;
+  position: relative;
+  z-index: 80;
+}
+
 .status-left {
   display: flex;
   align-items: center;
@@ -7633,7 +7887,7 @@ body.dragging {
 /* 调整应用容器布局 */
 .app-container {
   width: 100%;
-  height: 100vh;
+  height: 100%;
   background-color: var(--fluent-background);
   display: flex;
   flex-direction: column;
