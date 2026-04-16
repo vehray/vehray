@@ -1,67 +1,59 @@
 <template>
-  <div 
-    class="settings-window" 
-    :style="{
-      width: size.width + 'px',
-      height: size.height + 'px'
-    }"
-    ref="windowRef"
-  >
-      <!-- 窗口标题栏 -->
-      <div 
-        class="window-titlebar" 
-        @mousedown="startDrag"
-      >
+  <div class="settings-window" @mousedown="startWindowDrag">
+    <!-- 窗口标题栏 -->
+    <div 
+      class="window-titlebar"
+    >
+      <!-- 左侧：标题 -->
+      <div class="window-title-container">
         <div class="window-title">设置</div>
-        <div class="window-controls">
-          <button class="window-btn" @click="closeWindow" title="关闭">
-            <el-icon><Close /></el-icon>
-          </button>
-        </div>
       </div>
-      
-      <!-- 窗口内容 -->
-      <div class="window-content">
-      
-      <!-- 窗口调整大小句柄 -->
-      <div 
-        class="window-resize-handle" 
-        @mousedown="startResize"
-      ></div>
-        <el-tabs v-model="activeTab" type="border-card">
-          
-          <!-- 语言选择模块 -->
-          <el-tab-pane label="语言">
-            <div class="settings-section">
-              <h3 class="section-title">语言选择</h3>
-              <div class="language-options">
-                <el-radio-group v-model="language" @change="handleLanguageChange">
-                  <el-radio-button label="zh-CN">中文</el-radio-button>
-                  <el-radio-button label="en-US">English</el-radio-button>
-                </el-radio-group>
-              </div>
-              <div class="setting-description">
-                选择应用程序的显示语言
-              </div>
+    </div>
+    
+    <!-- 窗口内容 -->
+    <div class="window-content" @mousedown.stop>
+      <el-tabs v-model="activeTab" type="border-card">
+        
+        <!-- 语言选择模块 -->
+        <el-tab-pane label="语言">
+          <div class="settings-section">
+            <h3 class="section-title">语言选择</h3>
+            <div class="language-options">
+              <el-radio-group v-model="language" @change="handleLanguageChange">
+                <el-radio-button label="zh-CN">中文</el-radio-button>
+                <el-radio-button label="en-US">English</el-radio-button>
+              </el-radio-group>
             </div>
-          </el-tab-pane>
-          
-          <!-- 主题切换模块 -->
-          <el-tab-pane label="主题">
-            <div class="settings-section">
-              <h3 class="section-title">主题切换</h3>
-              <div class="theme-options">
-                <el-radio-group v-model="theme" @change="handleThemeChange">
-                  <el-radio-button label="light">浅色主题</el-radio-button>
-                  <el-radio-button label="dark">深色主题</el-radio-button>
-                </el-radio-group>
-              </div>
-              <div class="setting-description">
-                选择应用程序的显示主题
-              </div>
+            <div class="setting-description">
+              选择应用程序的显示语言
             </div>
-          </el-tab-pane>
-        </el-tabs>
+          </div>
+        </el-tab-pane>
+        
+        <!-- 主题切换模块 -->
+        <el-tab-pane label="主题">
+          <div class="settings-section">
+            <h3 class="section-title">主题切换</h3>
+            <div class="theme-options">
+              <el-radio-group v-model="theme" @change="handleThemeChange">
+                <el-radio-button label="light">浅色主题</el-radio-button>
+                <el-radio-button label="dark">深色主题</el-radio-button>
+              </el-radio-group>
+            </div>
+            <div class="setting-description">
+              选择应用程序的显示主题
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+    </div>
+    
+    <!-- 底部按钮栏 -->
+    <div class="settings-footer" @mousedown.stop>
+      <div class="settings-buttons">
+        <el-button type="success" @click="$emit('confirm')">确认</el-button>
+        <el-button @click="$emit('close')">取消</el-button>
+        <el-button type="primary" @click="$emit('apply')">应用</el-button>
       </div>
     </div>
   </div>
@@ -69,7 +61,6 @@
 
 <script setup lang="ts">
 import { ref, defineProps, defineEmits, onMounted, onUnmounted } from 'vue';
-import { Close } from '@element-plus/icons-vue';
 
 // 定义属性
 const props = defineProps({
@@ -77,37 +68,23 @@ const props = defineProps({
 
 // 定义事件
 const emit = defineEmits([
+  'close',
+  'confirm',
+  'apply',
   'language-change',
   'theme-change'
 ]);
-
-// 组件引用
-const windowRef = ref<HTMLElement | null>(null);
 
 // 窗口状态
 const activeTab = ref('0'); // 默认选中第一个标签页（设备连接）
 const language = ref('zh-CN');
 const theme = ref('light');
-const size = ref({ width: 600, height: 400 });
 
 // 开始拖拽
-const startDrag = (event: MouseEvent) => {
-  // 通知主进程开始拖拽窗口
-  window.electron.ipcRenderer.invoke('window:start-drag');
-  
+const startWindowDrag = (event: MouseEvent) => {
   // 防止默认行为
   event.preventDefault();
   event.stopPropagation();
-};
-
-// 关闭窗口
-const closeWindow = async () => {
-  try {
-    const result = await window.electron.ipcRenderer.invoke('settings:close');
-    console.log('设置窗口关闭结果:', result);
-  } catch (error) {
-    console.error('关闭设置窗口失败:', error);
-  }
 };
 
 // 处理语言变更
@@ -119,8 +96,6 @@ const handleLanguageChange = (value: string) => {
 const handleThemeChange = (value: string) => {
   emit('theme-change', value);
 };
-
-
 
 // 组件挂载
 onMounted(() => {

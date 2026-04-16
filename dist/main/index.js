@@ -108,17 +108,17 @@ function createWindow() {
     // 移除默认系统边框
     titleBarStyle: "hidden",
     // 隐藏默认标题栏
-    // 在Windows/Linux上添加窗口控件，设置透明背景和高度为40px，只显示关闭按钮
+    // 在Windows/Linux上添加窗口控件，设置与应用顶部按钮栏一致的高度和颜色
     ...process.platform !== "darwin" ? {
       titleBarOverlay: {
-        height: 40,
-        // 与非原生顶栏高度一致
-        color: "transparent",
-        // 透明背景
-        symbolColor: "#333",
-        // 按钮图标颜色
-        buttons: ["close"]
-        // 只显示关闭按钮
+        height: 32,
+        // 与应用顶部按钮栏高度一致
+        color: "#252526",
+        // 与应用顶部按钮栏背景颜色一致
+        symbolColor: "#cccccc",
+        // 与应用顶部按钮栏文字颜色一致
+        buttons: ["minimize", "maximize", "close"]
+        // 显示最小化、最大化和关闭按钮
       }
     } : {},
     backgroundColor: "#f5f7fa",
@@ -218,17 +218,17 @@ function createChildWindow(parentWindow, options) {
     // 移除默认系统边框
     titleBarStyle: "hidden",
     // 隐藏默认标题栏
-    // 在Windows/Linux上添加窗口控件，设置透明背景和高度为40px，只显示关闭按钮
+    // 在Windows/Linux上添加窗口控件，设置与应用顶部按钮栏一致的高度和颜色
     ...process.platform !== "darwin" ? {
       titleBarOverlay: {
-        height: 40,
-        // 与非原生顶栏高度一致
-        color: "transparent",
-        // 透明背景
-        symbolColor: "#333",
-        // 按钮图标颜色
-        buttons: ["close"]
-        // 只显示关闭按钮
+        height: 32,
+        // 与应用顶部按钮栏高度一致
+        color: "#252526",
+        // 与应用顶部按钮栏背景颜色一致
+        symbolColor: "#cccccc",
+        // 与应用顶部按钮栏文字颜色一致
+        buttons: ["minimize", "maximize", "close"]
+        // 显示最小化、最大化和关闭按钮
       }
     } : {},
     backgroundColor: "#f5f7fa",
