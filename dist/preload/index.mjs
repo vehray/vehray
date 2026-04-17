@@ -6,6 +6,15 @@ contextBridge.exposeInMainWorld("electron", {
   ipcRenderer: {
     invoke: async (channel, ...args) => {
       return await ipcRenderer.invoke(channel, ...args);
+    },
+    send: (channel, ...args) => {
+      ipcRenderer.send(channel, ...args);
+    },
+    on: (channel, listener) => {
+      ipcRenderer.on(channel, listener);
+    },
+    off: (channel, listener) => {
+      ipcRenderer.off(channel, listener);
     }
   },
   // 串口相关API
@@ -157,6 +166,45 @@ contextBridge.exposeInMainWorld("electron", {
     // 读取设置
     readSettings: async () => {
       return await ipcRenderer.invoke("fs:readSettings");
+    },
+    // 读取目录内容
+    readDirectory: async (directoryPath) => {
+      return await ipcRenderer.invoke("fs:readDirectory", directoryPath);
+    },
+    // 读取文件
+    readFile: async (filePath, encoding = "utf8") => {
+      return await ipcRenderer.invoke("fs:readFile", filePath, encoding);
+    },
+    // 写入文件
+    writeFile: async (filePath, content, encoding = "utf8") => {
+      return await ipcRenderer.invoke("fs:writeFile", filePath, content, encoding);
+    },
+    // 创建目录
+    createDirectory: async (directoryPath) => {
+      return await ipcRenderer.invoke("fs:createDirectory", directoryPath);
+    },
+    // 删除文件或目录
+    delete: async (path) => {
+      return await ipcRenderer.invoke("fs:delete", path);
+    },
+    // 重命名文件或目录
+    rename: async (oldPath, newPath) => {
+      return await ipcRenderer.invoke("fs:rename", oldPath, newPath);
+    },
+    // 复制文件
+    copyFile: async (srcPath, destPath) => {
+      return await ipcRenderer.invoke("fs:copyFile", srcPath, destPath);
+    }
+  },
+  // 对话框相关API（用于打开文件管理器）
+  dialog: {
+    // 打开目录选择对话框
+    openDirectory: async () => {
+      return await ipcRenderer.invoke("dialog:openDirectory");
+    },
+    // 打开文件选择对话框
+    openFile: async () => {
+      return await ipcRenderer.invoke("dialog:openFile");
     }
   }
 });

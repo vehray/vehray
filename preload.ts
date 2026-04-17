@@ -10,6 +10,15 @@ contextBridge.exposeInMainWorld('electron', {
   ipcRenderer: {
     invoke: async (channel: string, ...args: any[]) => {
       return await ipcRenderer.invoke(channel, ...args);
+    },
+    send: (channel: string, ...args: any[]) => {
+      ipcRenderer.send(channel, ...args);
+    },
+    on: (channel: string, listener: (event: any, ...args: any[]) => void) => {
+      ipcRenderer.on(channel, listener);
+    },
+    off: (channel: string, listener: (event: any, ...args: any[]) => void) => {
+      ipcRenderer.off(channel, listener);
     }
   },
   
@@ -186,6 +195,54 @@ contextBridge.exposeInMainWorld('electron', {
     // 读取设置
     readSettings: async () => {
       return await ipcRenderer.invoke('fs:readSettings');
+    },
+    
+    // 读取目录内容
+    readDirectory: async (directoryPath: string) => {
+      return await ipcRenderer.invoke('fs:readDirectory', directoryPath);
+    },
+    
+    // 读取文件
+    readFile: async (filePath: string, encoding: string = 'utf8') => {
+      return await ipcRenderer.invoke('fs:readFile', filePath, encoding);
+    },
+    
+    // 写入文件
+    writeFile: async (filePath: string, content: string, encoding: string = 'utf8') => {
+      return await ipcRenderer.invoke('fs:writeFile', filePath, content, encoding);
+    },
+    
+    // 创建目录
+    createDirectory: async (directoryPath: string) => {
+      return await ipcRenderer.invoke('fs:createDirectory', directoryPath);
+    },
+    
+    // 删除文件或目录
+    delete: async (path: string) => {
+      return await ipcRenderer.invoke('fs:delete', path);
+    },
+    
+    // 重命名文件或目录
+    rename: async (oldPath: string, newPath: string) => {
+      return await ipcRenderer.invoke('fs:rename', oldPath, newPath);
+    },
+    
+    // 复制文件
+    copyFile: async (srcPath: string, destPath: string) => {
+      return await ipcRenderer.invoke('fs:copyFile', srcPath, destPath);
+    }
+  },
+
+  // 对话框相关API（用于打开文件管理器）
+  dialog: {
+    // 打开目录选择对话框
+    openDirectory: async () => {
+      return await ipcRenderer.invoke('dialog:openDirectory');
+    },
+    
+    // 打开文件选择对话框
+    openFile: async () => {
+      return await ipcRenderer.invoke('dialog:openFile');
     }
   }
 });

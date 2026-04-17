@@ -16,5 +16,13 @@ export default defineConfig({
     rollupOptions: {
       external: [...builtinModules]
     }
+  },
+  electron: {
+    main: {
+      entry: 'src/main/index.ts'
+    },
+    preload: {
+      entry: 'src/preload/index.ts'
+    }
   }
 });

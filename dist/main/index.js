@@ -1,9 +1,10 @@
-import { BrowserWindow, app, ipcMain, Menu } from "electron";
+import { BrowserWindow, app, ipcMain, Menu, dialog } from "electron";
 import * as path from "path";
 import path__default from "path";
 import { fileURLToPath } from "url";
 import { SerialPort } from "serialport";
 import * as fs from "fs";
+import fs__default from "fs";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
@@ -2885,4 +2886,106 @@ ipcMain.handle("settings:close", () => {
     return { success: true, message: "设置窗口已关闭" };
   }
   return { success: false, message: "设置窗口未打开" };
+});
+ipcMain.handle("dialog:openDirectory", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"]
+  });
+  return result;
+});
+ipcMain.handle("dialog:openFile", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile"]
+  });
+  return result;
+});
+ipcMain.on("folder-opened", (event, folderPath) => {
+  console.log("主进程接收到folder-opened事件:", folderPath);
+  if (mainWindow) {
+    console.log("主进程转发folder-opened事件到渲染进程:", folderPath);
+    mainWindow.webContents.send("folder-opened", folderPath);
+  }
+});
+ipcMain.handle("fs:readDirectory", async (event, directoryPath) => {
+  try {
+    console.log("读取目录:", directoryPath);
+    const files = fs__default.readdirSync(directoryPath, { withFileTypes: true });
+    return files.map((file) => ({
+      name: file.name,
+      path: path__default.join(directoryPath, file.name),
+      type: file.isDirectory() ? "directory" : "file"
+    }));
+  } catch (error) {
+    console.error("读取目录失败:", error);
+    throw error;
+  }
+});
+ipcMain.handle("fs:readFile", async (event, filePath, encoding) => {
+  try {
+    console.log("读取文件:", filePath);
+    const content = fs__default.readFileSync(filePath, encoding);
+    return content;
+  } catch (error) {
+    console.error("读取文件失败:", error);
+    throw error;
+  }
+});
+ipcMain.handle("fs:writeFile", async (event, filePath, content, encoding) => {
+  try {
+    console.log("写入文件:", filePath);
+    fs__default.writeFileSync(filePath, content, encoding);
+    return { success: true };
+  } catch (error) {
+    console.error("写入文件失败:", error);
+    throw error;
+  }
+});
+ipcMain.handle("fs:createDirectory", async (event, directoryPath) => {
+  try {
+    console.log("创建目录:", directoryPath);
+    if (!fs__default.existsSync(directoryPath)) {
+      fs__default.mkdirSync(directoryPath, { recursive: true });
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("创建目录失败:", error);
+    throw error;
+  }
+});
+ipcMain.handle("fs:delete", async (event, path2) => {
+  try {
+    console.log("删除:", path2);
+    if (fs__default.existsSync(path2)) {
+      const stats = fs__default.statSync(path2);
+      if (stats.isDirectory()) {
+        fs__default.rmSync(path2, { recursive: true, force: true });
+      } else {
+        fs__default.unlinkSync(path2);
+      }
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("删除失败:", error);
+    throw error;
+  }
+});
+ipcMain.handle("fs:rename", async (event, oldPath, newPath) => {
+  try {
+    console.log("重命名:", oldPath, "->", newPath);
+    fs__default.renameSync(oldPath, newPath);
+    return { success: true };
+  } catch (error) {
+    console.error("重命名失败:", error);
+    throw error;
+  }
+});
+ipcMain.handle("fs:copyFile", async (event, srcPath, destPath) => {
+  try {
+    console.log("复制文件:", srcPath, "->", destPath);
+    fs__default.copyFileSync(srcPath, destPath);
+    return { success: true };
+  } catch (error) {
+    console.error("复制文件失败:", error);
+    throw error;
+  }
 });

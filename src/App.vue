@@ -1,11 +1,15 @@
 <template>
   <div class="app-root">
+    <AppHeader />
     <MainLayout />
+    <AppStatusBar />
   </div>
 </template>
 
 <script setup lang="ts">
 import MainLayout from './components/MainLayout.vue';
+import AppHeader from './components/AppHeader.vue';
+import AppStatusBar from './components/AppStatusBar.vue';
 </script>
 
 <style>
@@ -45,16 +49,17 @@ body {
   background-color: var(--el-bg-color);
 }
 
+#app {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .app-root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-}
-
-.app-container {
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background-color: var(--el-bg-color);
+  display: flex;
+  flex-direction: column;
 }
 </style>

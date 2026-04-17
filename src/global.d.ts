@@ -22,6 +22,18 @@ declare global {
         onFrame: (callback: (frame: any) => void) => () => void;
         removeFrameListener?: (callback: (frame: any) => void) => void;
       };
+      dialog: {
+        openDirectory: () => Promise<{ canceled: boolean; filePaths: string[] }>;
+        openFile: () => Promise<{ canceled: boolean; filePaths: string[] }>;
+      };
+      fs: {
+        readDirectory: (path: string) => Promise<{ name: string; path: string; type: string }[]>;
+      };
+      ipcRenderer: {
+        send: (channel: string, ...args: any[]) => void;
+        on: (channel: string, listener: (event: any, ...args: any[]) => void) => void;
+        off: (channel: string, listener: (event: any, ...args: any[]) => void) => void;
+      };
     };
   }
 }
