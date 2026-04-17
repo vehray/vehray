@@ -172,28 +172,24 @@ contextBridge.exposeInMainWorld("electron", {
       return await ipcRenderer.invoke("fs:readDirectory", directoryPath);
     },
     // 读取文件
-    readFile: async (filePath, encoding = "utf8") => {
-      return await ipcRenderer.invoke("fs:readFile", filePath, encoding);
+    readFile: async (path) => {
+      return await ipcRenderer.invoke("fs:readFile", path);
     },
     // 写入文件
-    writeFile: async (filePath, content, encoding = "utf8") => {
-      return await ipcRenderer.invoke("fs:writeFile", filePath, content, encoding);
-    },
-    // 创建目录
-    createDirectory: async (directoryPath) => {
-      return await ipcRenderer.invoke("fs:createDirectory", directoryPath);
-    },
-    // 删除文件或目录
-    delete: async (path) => {
-      return await ipcRenderer.invoke("fs:delete", path);
+    writeFile: async (path, content) => {
+      return await ipcRenderer.invoke("fs:writeFile", path, content);
     },
     // 重命名文件或目录
     rename: async (oldPath, newPath) => {
       return await ipcRenderer.invoke("fs:rename", oldPath, newPath);
     },
-    // 复制文件
-    copyFile: async (srcPath, destPath) => {
-      return await ipcRenderer.invoke("fs:copyFile", srcPath, destPath);
+    // 创建目录
+    createDirectory: async (path) => {
+      return await ipcRenderer.invoke("fs:createDirectory", path);
+    },
+    // 删除文件或目录
+    delete: async (path) => {
+      return await ipcRenderer.invoke("fs:delete", path);
     }
   },
   // 对话框相关API（用于打开文件管理器）

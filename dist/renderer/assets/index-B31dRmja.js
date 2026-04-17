@@ -13217,11 +13217,11 @@ const _hoisted_7$5 = {
   class: "home-view"
 };
 const _hoisted_8$4 = { class: "home-layout" };
-const _hoisted_9$4 = { class: "home-left" };
-const _hoisted_10$4 = { class: "action-buttons-square" };
-const _hoisted_11$4 = { class: "home-right" };
-const _hoisted_12$3 = { class: "history-files" };
-const _hoisted_13$3 = {
+const _hoisted_9$3 = { class: "home-left" };
+const _hoisted_10$3 = { class: "action-buttons-square" };
+const _hoisted_11$3 = { class: "home-right" };
+const _hoisted_12$2 = { class: "history-files" };
+const _hoisted_13$2 = {
   key: 0,
   class: "history-list"
 };
@@ -13373,8 +13373,8 @@ const _sfc_main$2C = /* @__PURE__ */ defineComponent({
               createBaseVNode("p", null, "这是应用的主页")
             ], -1)),
             createBaseVNode("div", _hoisted_8$4, [
-              createBaseVNode("div", _hoisted_9$4, [
-                createBaseVNode("div", _hoisted_10$4, [
+              createBaseVNode("div", _hoisted_9$3, [
+                createBaseVNode("div", _hoisted_10$3, [
                   createBaseVNode("button", {
                     class: "action-button-square open-folder",
                     onClick: handleOpenFolder
@@ -13413,10 +13413,10 @@ const _sfc_main$2C = /* @__PURE__ */ defineComponent({
                   ])
                 ])
               ]),
-              createBaseVNode("div", _hoisted_11$4, [
-                createBaseVNode("div", _hoisted_12$3, [
+              createBaseVNode("div", _hoisted_11$3, [
+                createBaseVNode("div", _hoisted_12$2, [
                   _cache[4] || (_cache[4] = createBaseVNode("h3", null, "最近打开的文件", -1)),
-                  historyFiles.value.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_13$3, [
+                  historyFiles.value.length > 0 ? (openBlock(), createElementBlock("div", _hoisted_13$2, [
                     (openBlock(true), createElementBlock(Fragment, null, renderList(historyFiles.value, (file, index) => {
                       return openBlock(), createElementBlock("div", {
                         key: index,
@@ -13465,27 +13465,19 @@ const _sfc_main$2C = /* @__PURE__ */ defineComponent({
 });
 const MainTabPanel = /* @__PURE__ */ _export_sfc$1(_sfc_main$2C, [["__scopeId", "data-v-1f6cd30f"]]);
 const _hoisted_1$1j = { class: "file-explorer" };
-const _hoisted_2$K = { class: "explorer-header" };
-const _hoisted_3$l = { class: "explorer-actions" };
-const _hoisted_4$e = { class: "explorer-content" };
-const _hoisted_5$b = {
+const _hoisted_2$K = { class: "explorer-content" };
+const _hoisted_3$l = {
   key: 0,
   class: "empty-state"
 };
-const _hoisted_6$6 = {
+const _hoisted_4$e = {
   key: 1,
-  class: "loading-state"
-};
-const _hoisted_7$4 = {
-  key: 2,
   class: "file-tree"
 };
-const _hoisted_8$3 = { class: "tree-item-header" };
-const _hoisted_9$3 = { class: "file-name" };
-const _hoisted_10$3 = { class: "tree-children" };
-const _hoisted_11$3 = { class: "dialog-footer" };
-const _hoisted_12$2 = { class: "dialog-footer" };
-const _hoisted_13$2 = { class: "dialog-footer" };
+const _hoisted_5$b = { class: "tree-item root-item" };
+const _hoisted_6$6 = { class: "tree-item-header" };
+const _hoisted_7$4 = { class: "file-name" };
+const _hoisted_8$3 = { class: "tree-children" };
 const _sfc_main$2B = /* @__PURE__ */ defineComponent({
   __name: "ProjectExplorer",
   setup(__props) {
@@ -13497,14 +13489,12 @@ const _sfc_main$2B = /* @__PURE__ */ defineComponent({
           required: true
         }
       },
-      emits: ["toggle", "contextmenu", "dblclick"],
+      emits: ["toggle"],
       template: `
     <div class="tree-item">
       <div 
         class="tree-item-header" 
         @click="$emit('toggle', item)"
-        @contextmenu.prevent="$emit('contextmenu', $event, item)"
-        @dblclick="$emit('dblclick', item)"
       >
         <el-icon v-if="item.type === 'directory'" class="expand-icon" :class="{ 'expanded': item.expanded }">
           <ArrowDown v-if="item.expanded" />
@@ -13523,8 +13513,6 @@ const _sfc_main$2B = /* @__PURE__ */ defineComponent({
           :key="child.path" 
           :item="child" 
           @toggle="$emit('toggle', $event)"
-          @contextmenu="$emit('contextmenu', $event, $event)"
-          @dblclick="$emit('dblclick', $event)"
         />
       </div>
     </div>
@@ -13533,16 +13521,6 @@ const _sfc_main$2B = /* @__PURE__ */ defineComponent({
     const rootFolder = /* @__PURE__ */ ref(null);
     const fileTree = /* @__PURE__ */ ref([]);
     const isLoading = /* @__PURE__ */ ref(false);
-    const menuVisible = /* @__PURE__ */ ref(false);
-    const menuLeft = /* @__PURE__ */ ref(0);
-    const menuTop = /* @__PURE__ */ ref(0);
-    const contextItem = /* @__PURE__ */ ref(null);
-    const renameDialogVisible = /* @__PURE__ */ ref(false);
-    const newName = /* @__PURE__ */ ref("");
-    const newFileDialogVisible = /* @__PURE__ */ ref(false);
-    const newFileName = /* @__PURE__ */ ref("");
-    const newFolderDialogVisible = /* @__PURE__ */ ref(false);
-    const newFolderName = /* @__PURE__ */ ref("");
     const toggleItem = (item) => {
       if (item.type === "directory") {
         item.expanded = !item.expanded;
@@ -13612,7 +13590,8 @@ const _sfc_main$2B = /* @__PURE__ */ defineComponent({
       }
     };
     const loadFolder = async (folderPath) => {
-      rootFolder.value = folderPath;
+      const folderName = folderPath.split("\\").pop() || folderPath.split("/").pop() || folderPath;
+      rootFolder.value = folderName;
       fileTree.value = [];
       try {
         isLoading.value = true;
@@ -13753,128 +13732,6 @@ const _sfc_main$2B = /* @__PURE__ */ defineComponent({
         isLoading.value = false;
       }
     };
-    const openFolder = async () => {
-      if (window.electron && window.electron.dialog) {
-        try {
-          const result = await window.electron.dialog.openDirectory();
-          if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
-            const folderPath = result.filePaths[0];
-            loadFolder(folderPath);
-          }
-        } catch (error) {
-          console.error("Failed to open folder:", error);
-        }
-      }
-    };
-    const showContextMenu = (event, item) => {
-      event.preventDefault();
-      menuLeft.value = event.clientX;
-      menuTop.value = event.clientY;
-      contextItem.value = item;
-      menuVisible.value = true;
-      setTimeout(() => {
-        document.addEventListener("click", closeContextMenu);
-      }, 0);
-    };
-    const closeContextMenu = () => {
-      menuVisible.value = false;
-      document.removeEventListener("click", closeContextMenu);
-    };
-    const handleDoubleClick = (item) => {
-      if (item.type === "directory") {
-        item.expanded = !item.expanded;
-        if (item.expanded && (!item.children || item.children.length === 0)) {
-          loadDirectoryContents(item);
-        }
-      } else if (item.type === "file") {
-        console.log("Opening file:", item.path);
-      }
-    };
-    const renameItem = () => {
-      if (contextItem.value) {
-        newName.value = contextItem.value.name;
-        renameDialogVisible.value = true;
-      }
-      closeContextMenu();
-    };
-    const confirmRename = async () => {
-      if (contextItem.value && newName.value) {
-        try {
-          const oldPath = contextItem.value.path;
-          const parentPath = oldPath.substring(0, oldPath.lastIndexOf("/"));
-          const newPath = `${parentPath}/${newName.value}`;
-          await window.electron.fs.rename(oldPath, newPath);
-          contextItem.value.name = newName.value;
-          contextItem.value.path = newPath;
-          renameDialogVisible.value = false;
-        } catch (error) {
-          console.error("Failed to rename:", error);
-        }
-      }
-    };
-    const createNewFile = () => {
-      if (contextItem.value && contextItem.value.type === "directory") {
-        newFileName.value = "";
-        newFileDialogVisible.value = true;
-      }
-      closeContextMenu();
-    };
-    const confirmCreateFile = async () => {
-      if (contextItem.value && contextItem.value.type === "directory" && newFileName.value) {
-        try {
-          const filePath = `${contextItem.value.path}/${newFileName.value}`;
-          await window.electron.fs.writeFile(filePath, "");
-          if (contextItem.value.expanded) {
-            await loadDirectoryContents(contextItem.value);
-          }
-          newFileDialogVisible.value = false;
-        } catch (error) {
-          console.error("Failed to create file:", error);
-        }
-      }
-    };
-    const createNewFolder = () => {
-      if (contextItem.value && contextItem.value.type === "directory") {
-        newFolderName.value = "";
-        newFolderDialogVisible.value = true;
-      }
-      closeContextMenu();
-    };
-    const confirmCreateFolder = async () => {
-      if (contextItem.value && contextItem.value.type === "directory" && newFolderName.value) {
-        try {
-          const folderPath = `${contextItem.value.path}/${newFolderName.value}`;
-          await window.electron.fs.createDirectory(folderPath);
-          if (contextItem.value.expanded) {
-            await loadDirectoryContents(contextItem.value);
-          }
-          newFolderDialogVisible.value = false;
-        } catch (error) {
-          console.error("Failed to create folder:", error);
-        }
-      }
-    };
-    const deleteItem = async () => {
-      if (contextItem.value) {
-        if (confirm(`确定要删除 ${contextItem.value.name} 吗？`)) {
-          try {
-            await window.electron.fs.delete(contextItem.value.path);
-            if (rootFolder.value) {
-              await loadFolder(rootFolder.value);
-            }
-          } catch (error) {
-            console.error("Failed to delete:", error);
-          }
-        }
-      }
-      closeContextMenu();
-    };
-    const copyItem = () => {
-      if (contextItem.value && contextItem.value.type === "file") {
-        console.log("Copying file:", contextItem.value.path);
-      }
-      closeContextMenu();
-    };
     const handleFolderOpened = (event, folderPath) => {
       console.log("接收到folder-opened事件:", folderPath);
       loadFolder(folderPath);
@@ -13891,280 +13748,48 @@ const _sfc_main$2B = /* @__PURE__ */ defineComponent({
     });
     return (_ctx, _cache) => {
       const _component_el_icon = resolveComponent("el-icon");
-      const _component_el_button = resolveComponent("el-button");
-      const _component_el_dropdown_item = resolveComponent("el-dropdown-item");
-      const _component_el_dropdown_menu = resolveComponent("el-dropdown-menu");
-      const _component_el_input = resolveComponent("el-input");
-      const _component_el_dialog = resolveComponent("el-dialog");
       return openBlock(), createElementBlock("div", _hoisted_1$1j, [
         createBaseVNode("div", _hoisted_2$K, [
-          _cache[12] || (_cache[12] = createBaseVNode("span", { class: "explorer-title" }, "文件资源管理器", -1)),
-          createBaseVNode("div", _hoisted_3$l, [
-            createVNode(_component_el_button, {
-              size: "small",
-              onClick: openFolder
-            }, {
-              default: withCtx(() => [
-                createVNode(_component_el_icon, null, {
-                  default: withCtx(() => [
-                    createVNode(unref(folder_default))
-                  ]),
-                  _: 1
-                }),
-                _cache[11] || (_cache[11] = createTextVNode(" 打开文件夹 ", -1))
-              ]),
-              _: 1
-            })
-          ])
-        ]),
-        createBaseVNode("div", _hoisted_4$e, [
-          !rootFolder.value ? (openBlock(), createElementBlock("div", _hoisted_5$b, [
+          !rootFolder.value ? (openBlock(), createElementBlock("div", _hoisted_3$l, [
             createVNode(_component_el_icon, { class: "empty-icon" }, {
               default: withCtx(() => [
                 createVNode(unref(folder_default))
               ]),
               _: 1
             }),
-            _cache[13] || (_cache[13] = createBaseVNode("p", null, "未打开文件夹", -1)),
-            _cache[14] || (_cache[14] = createBaseVNode("p", { class: "empty-hint" }, "点击上方按钮打开文件夹", -1))
-          ])) : isLoading.value ? (openBlock(), createElementBlock("div", _hoisted_6$6, [
-            createVNode(_component_el_icon, { class: "loading-icon" }, {
-              default: withCtx(() => [
-                createVNode(unref(loading_default))
-              ]),
-              _: 1
-            }),
-            _cache[15] || (_cache[15] = createBaseVNode("p", null, "加载中...", -1))
-          ])) : (openBlock(), createElementBlock("div", _hoisted_7$4, [
-            createBaseVNode("div", {
-              class: "tree-item root-item",
-              onContextmenu: _cache[0] || (_cache[0] = withModifiers(($event) => showContextMenu($event, { name: rootFolder.value, path: rootFolder.value, type: "directory", expanded: true }), ["prevent"])),
-              onDblclick: _cache[1] || (_cache[1] = ($event) => loadFolder(rootFolder.value))
-            }, [
-              createBaseVNode("div", _hoisted_8$3, [
+            _cache[0] || (_cache[0] = createBaseVNode("p", null, "未打开文件夹", -1)),
+            _cache[1] || (_cache[1] = createBaseVNode("p", { class: "empty-hint" }, "点击文件 → 打开文件夹", -1))
+          ])) : (openBlock(), createElementBlock("div", _hoisted_4$e, [
+            createBaseVNode("div", _hoisted_5$b, [
+              createBaseVNode("div", _hoisted_6$6, [
                 createVNode(_component_el_icon, { class: "file-icon" }, {
                   default: withCtx(() => [
                     createVNode(unref(folder_default))
                   ]),
                   _: 1
                 }),
-                createBaseVNode("span", _hoisted_9$3, toDisplayString(rootFolder.value), 1)
+                createBaseVNode("span", _hoisted_7$4, toDisplayString(rootFolder.value), 1)
               ])
-            ], 32),
-            createBaseVNode("div", _hoisted_10$3, [
+            ]),
+            createBaseVNode("div", _hoisted_8$3, [
               (openBlock(true), createElementBlock(Fragment, null, renderList(fileTree.value, (item) => {
                 return openBlock(), createElementBlock("div", {
                   key: item.path
                 }, [
                   createVNode(unref(TreeItem), {
                     item,
-                    onToggle: toggleItem,
-                    onContextmenu: showContextMenu,
-                    onDblclick: handleDoubleClick
+                    onToggle: toggleItem
                   }, null, 8, ["item"])
                 ]);
               }), 128))
             ])
           ]))
-        ]),
-        withDirectives(createVNode(_component_el_dropdown_menu, {
-          ref: "contextMenu",
-          style: normalizeStyle({ position: "fixed", left: menuLeft.value + "px", top: menuTop.value + "px", zIndex: 1e3 })
-        }, {
-          default: withCtx(() => [
-            contextItem.value && contextItem.value.type === "directory" ? (openBlock(), createBlock(_component_el_dropdown_item, {
-              key: 0,
-              onClick: createNewFile
-            }, {
-              default: withCtx(() => [
-                createVNode(_component_el_icon, null, {
-                  default: withCtx(() => [
-                    createVNode(unref(document_default))
-                  ]),
-                  _: 1
-                }),
-                _cache[16] || (_cache[16] = createTextVNode(" 新建文件 ", -1))
-              ]),
-              _: 1
-            })) : createCommentVNode("", true),
-            contextItem.value && contextItem.value.type === "directory" ? (openBlock(), createBlock(_component_el_dropdown_item, {
-              key: 1,
-              onClick: createNewFolder
-            }, {
-              default: withCtx(() => [
-                createVNode(_component_el_icon, null, {
-                  default: withCtx(() => [
-                    createVNode(unref(folder_default))
-                  ]),
-                  _: 1
-                }),
-                _cache[17] || (_cache[17] = createTextVNode(" 新建文件夹 ", -1))
-              ]),
-              _: 1
-            })) : createCommentVNode("", true),
-            contextItem.value ? (openBlock(), createBlock(_component_el_dropdown_item, {
-              key: 2,
-              onClick: renameItem
-            }, {
-              default: withCtx(() => [
-                createVNode(_component_el_icon, null, {
-                  default: withCtx(() => [
-                    createVNode(unref(edit_default))
-                  ]),
-                  _: 1
-                }),
-                _cache[18] || (_cache[18] = createTextVNode(" 重命名 ", -1))
-              ]),
-              _: 1
-            })) : createCommentVNode("", true),
-            contextItem.value ? (openBlock(), createBlock(_component_el_dropdown_item, {
-              key: 3,
-              onClick: deleteItem
-            }, {
-              default: withCtx(() => [
-                createVNode(_component_el_icon, null, {
-                  default: withCtx(() => [
-                    createVNode(unref(delete_default))
-                  ]),
-                  _: 1
-                }),
-                _cache[19] || (_cache[19] = createTextVNode(" 删除 ", -1))
-              ]),
-              _: 1
-            })) : createCommentVNode("", true),
-            contextItem.value && contextItem.value.type === "file" ? (openBlock(), createBlock(_component_el_dropdown_item, {
-              key: 4,
-              onClick: copyItem
-            }, {
-              default: withCtx(() => [
-                createVNode(_component_el_icon, null, {
-                  default: withCtx(() => [
-                    createVNode(unref(files_default))
-                  ]),
-                  _: 1
-                }),
-                _cache[20] || (_cache[20] = createTextVNode(" 复制 ", -1))
-              ]),
-              _: 1
-            })) : createCommentVNode("", true)
-          ]),
-          _: 1
-        }, 8, ["style"]), [
-          [vShow, menuVisible.value]
-        ]),
-        createVNode(_component_el_dialog, {
-          modelValue: renameDialogVisible.value,
-          "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => renameDialogVisible.value = $event),
-          title: "重命名",
-          width: "400px"
-        }, {
-          footer: withCtx(() => [
-            createBaseVNode("span", _hoisted_11$3, [
-              createVNode(_component_el_button, {
-                onClick: _cache[3] || (_cache[3] = ($event) => renameDialogVisible.value = false)
-              }, {
-                default: withCtx(() => [..._cache[21] || (_cache[21] = [
-                  createTextVNode("取消", -1)
-                ])]),
-                _: 1
-              }),
-              createVNode(_component_el_button, {
-                type: "primary",
-                onClick: confirmRename
-              }, {
-                default: withCtx(() => [..._cache[22] || (_cache[22] = [
-                  createTextVNode("确定", -1)
-                ])]),
-                _: 1
-              })
-            ])
-          ]),
-          default: withCtx(() => [
-            createVNode(_component_el_input, {
-              modelValue: newName.value,
-              "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => newName.value = $event),
-              placeholder: "输入新名称"
-            }, null, 8, ["modelValue"])
-          ]),
-          _: 1
-        }, 8, ["modelValue"]),
-        createVNode(_component_el_dialog, {
-          modelValue: newFileDialogVisible.value,
-          "onUpdate:modelValue": _cache[7] || (_cache[7] = ($event) => newFileDialogVisible.value = $event),
-          title: "新建文件",
-          width: "400px"
-        }, {
-          footer: withCtx(() => [
-            createBaseVNode("span", _hoisted_12$2, [
-              createVNode(_component_el_button, {
-                onClick: _cache[6] || (_cache[6] = ($event) => newFileDialogVisible.value = false)
-              }, {
-                default: withCtx(() => [..._cache[23] || (_cache[23] = [
-                  createTextVNode("取消", -1)
-                ])]),
-                _: 1
-              }),
-              createVNode(_component_el_button, {
-                type: "primary",
-                onClick: confirmCreateFile
-              }, {
-                default: withCtx(() => [..._cache[24] || (_cache[24] = [
-                  createTextVNode("确定", -1)
-                ])]),
-                _: 1
-              })
-            ])
-          ]),
-          default: withCtx(() => [
-            createVNode(_component_el_input, {
-              modelValue: newFileName.value,
-              "onUpdate:modelValue": _cache[5] || (_cache[5] = ($event) => newFileName.value = $event),
-              placeholder: "输入文件名"
-            }, null, 8, ["modelValue"])
-          ]),
-          _: 1
-        }, 8, ["modelValue"]),
-        createVNode(_component_el_dialog, {
-          modelValue: newFolderDialogVisible.value,
-          "onUpdate:modelValue": _cache[10] || (_cache[10] = ($event) => newFolderDialogVisible.value = $event),
-          title: "新建文件夹",
-          width: "400px"
-        }, {
-          footer: withCtx(() => [
-            createBaseVNode("span", _hoisted_13$2, [
-              createVNode(_component_el_button, {
-                onClick: _cache[9] || (_cache[9] = ($event) => newFolderDialogVisible.value = false)
-              }, {
-                default: withCtx(() => [..._cache[25] || (_cache[25] = [
-                  createTextVNode("取消", -1)
-                ])]),
-                _: 1
-              }),
-              createVNode(_component_el_button, {
-                type: "primary",
-                onClick: confirmCreateFolder
-              }, {
-                default: withCtx(() => [..._cache[26] || (_cache[26] = [
-                  createTextVNode("确定", -1)
-                ])]),
-                _: 1
-              })
-            ])
-          ]),
-          default: withCtx(() => [
-            createVNode(_component_el_input, {
-              modelValue: newFolderName.value,
-              "onUpdate:modelValue": _cache[8] || (_cache[8] = ($event) => newFolderName.value = $event),
-              placeholder: "输入文件夹名"
-            }, null, 8, ["modelValue"])
-          ]),
-          _: 1
-        }, 8, ["modelValue"])
+        ])
       ]);
     };
   }
 });
-const ProjectExplorer = /* @__PURE__ */ _export_sfc$1(_sfc_main$2B, [["__scopeId", "data-v-e7d2c3ea"]]);
+const ProjectExplorer = /* @__PURE__ */ _export_sfc$1(_sfc_main$2B, [["__scopeId", "data-v-d380fd20"]]);
 const _hoisted_1$1i = { class: "layout-wrapper" };
 const _hoisted_2$J = { class: "activity-header" };
 const _hoisted_3$k = { class: "main-area" };
@@ -14501,6 +14126,17 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
       console.log("新建文件");
       dropdownVisible.value = false;
     };
+    const handleOpenFile = async () => {
+      if (window.electron && window.electron.dialog) {
+        const result = await window.electron.dialog.openFile();
+        if (!result.canceled && result.filePaths.length > 0) {
+          console.log("选择的文件:", result.filePaths[0]);
+        }
+      } else {
+        console.log("打开文件");
+      }
+      dropdownVisible.value = false;
+    };
     const handleOpenFolder = async () => {
       if (window.electron && window.electron.dialog) {
         const result = await window.electron.dialog.openDirectory();
@@ -14563,7 +14199,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
       const _component_el_icon = resolveComponent("el-icon");
       return openBlock(), createElementBlock("div", _hoisted_1$1h, [
         createBaseVNode("div", _hoisted_2$I, [
-          _cache[7] || (_cache[7] = createBaseVNode("img", {
+          _cache[8] || (_cache[8] = createBaseVNode("img", {
             src: _imports_0,
             alt: "Logo",
             class: "app-logo"
@@ -14596,6 +14232,18 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
               ]),
               createBaseVNode("div", {
                 class: "custom-dropdown-item",
+                onClick: handleOpenFile
+              }, [
+                createVNode(_component_el_icon, null, {
+                  default: withCtx(() => [
+                    createVNode(unref(document_default))
+                  ]),
+                  _: 1
+                }),
+                _cache[2] || (_cache[2] = createBaseVNode("span", null, "打开文件", -1))
+              ]),
+              createBaseVNode("div", {
+                class: "custom-dropdown-item",
                 onClick: handleOpenFolder
               }, [
                 createVNode(_component_el_icon, null, {
@@ -14604,7 +14252,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                _cache[2] || (_cache[2] = createBaseVNode("span", null, "打开文件夹", -1))
+                _cache[3] || (_cache[3] = createBaseVNode("span", null, "打开文件夹", -1))
               ])
             ])) : createCommentVNode("", true)
           ]),
@@ -14615,7 +14263,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
               ]),
               _: 1
             }),
-            _cache[3] || (_cache[3] = createBaseVNode("span", null, "编辑", -1))
+            _cache[4] || (_cache[4] = createBaseVNode("span", null, "编辑", -1))
           ]),
           createBaseVNode("button", _hoisted_6$5, [
             createVNode(_component_el_icon, null, {
@@ -14624,7 +14272,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
               ]),
               _: 1
             }),
-            _cache[4] || (_cache[4] = createBaseVNode("span", null, "工具", -1))
+            _cache[5] || (_cache[5] = createBaseVNode("span", null, "工具", -1))
           ]),
           createBaseVNode("button", _hoisted_7$3, [
             createVNode(_component_el_icon, null, {
@@ -14633,7 +14281,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
               ]),
               _: 1
             }),
-            _cache[5] || (_cache[5] = createBaseVNode("span", null, "窗口", -1))
+            _cache[6] || (_cache[6] = createBaseVNode("span", null, "窗口", -1))
           ]),
           createBaseVNode("button", _hoisted_8$2, [
             createVNode(_component_el_icon, null, {
@@ -14642,7 +14290,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
               ]),
               _: 1
             }),
-            _cache[6] || (_cache[6] = createBaseVNode("span", null, "帮助", -1))
+            _cache[7] || (_cache[7] = createBaseVNode("span", null, "帮助", -1))
           ])
         ]),
         createBaseVNode("div", _hoisted_9$2, [
@@ -14669,7 +14317,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                _cache[8] || (_cache[8] = createBaseVNode("span", null, "设置", -1))
+                _cache[9] || (_cache[9] = createBaseVNode("span", null, "设置", -1))
               ]),
               createBaseVNode("div", {
                 class: "custom-dropdown-item",
@@ -14681,7 +14329,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                _cache[9] || (_cache[9] = createBaseVNode("span", null, "偏好设置", -1))
+                _cache[10] || (_cache[10] = createBaseVNode("span", null, "偏好设置", -1))
               ]),
               createBaseVNode("div", {
                 class: "custom-dropdown-item",
@@ -14693,7 +14341,7 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                _cache[10] || (_cache[10] = createBaseVNode("span", null, "主题", -1))
+                _cache[11] || (_cache[11] = createBaseVNode("span", null, "主题", -1))
               ]),
               createBaseVNode("div", {
                 class: "custom-dropdown-item",
@@ -14705,17 +14353,17 @@ const _sfc_main$2z = /* @__PURE__ */ defineComponent({
                   ]),
                   _: 1
                 }),
-                _cache[11] || (_cache[11] = createBaseVNode("span", null, "关于", -1))
+                _cache[12] || (_cache[12] = createBaseVNode("span", null, "关于", -1))
               ])
             ])) : createCommentVNode("", true)
           ]),
-          _cache[12] || (_cache[12] = createBaseVNode("div", { class: "window-controls-placeholder" }, null, -1))
+          _cache[13] || (_cache[13] = createBaseVNode("div", { class: "window-controls-placeholder" }, null, -1))
         ])
       ]);
     };
   }
 });
-const AppHeader = /* @__PURE__ */ _export_sfc$1(_sfc_main$2z, [["__scopeId", "data-v-8aa7b794"]]);
+const AppHeader = /* @__PURE__ */ _export_sfc$1(_sfc_main$2z, [["__scopeId", "data-v-abff9007"]]);
 const _sfc_main$2y = {};
 const _hoisted_1$1g = { class: "app-status-bar" };
 function _sfc_render$m(_ctx, _cache) {
@@ -51081,7 +50729,7 @@ const _sfc_main$R = /* @__PURE__ */ defineComponent({
         width: addUnit(props2.width)
       };
     });
-    const confirm2 = (e) => {
+    const confirm = (e) => {
       emit2("confirm", e);
       hidePopper();
     };
@@ -51157,7 +50805,7 @@ const _sfc_main$R = /* @__PURE__ */ defineComponent({
                 },
                 [
                   renderSlot(_ctx.$slots, "actions", {
-                    confirm: confirm2,
+                    confirm,
                     cancel
                   }, () => [
                     createVNode(unref(ElButton), {
@@ -51178,7 +50826,7 @@ const _sfc_main$R = /* @__PURE__ */ defineComponent({
                       size: "small",
                       type: _ctx.confirmButtonType === "text" ? "" : _ctx.confirmButtonType,
                       text: _ctx.confirmButtonType === "text",
-                      onClick: confirm2
+                      onClick: confirm
                     }, {
                       default: withCtx(() => [
                         createTextVNode(

@@ -12,6 +12,10 @@
             <el-icon><Plus /></el-icon>
             <span>新建</span>
           </div>
+          <div class="custom-dropdown-item" @click="handleOpenFile">
+            <el-icon><Document /></el-icon>
+            <span>打开文件</span>
+          </div>
           <div class="custom-dropdown-item" @click="handleOpenFolder">
             <el-icon><Folder /></el-icon>
             <span>打开文件夹</span>

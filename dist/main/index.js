@@ -2920,52 +2920,23 @@ ipcMain.handle("fs:readDirectory", async (event, directoryPath) => {
     throw error;
   }
 });
-ipcMain.handle("fs:readFile", async (event, filePath, encoding) => {
+ipcMain.handle("fs:readFile", async (event, filePath) => {
   try {
     console.log("读取文件:", filePath);
-    const content = fs__default.readFileSync(filePath, encoding);
-    return content;
+    const content = fs__default.readFileSync(filePath, "utf-8");
+    return { success: true, content };
   } catch (error) {
     console.error("读取文件失败:", error);
     throw error;
   }
 });
-ipcMain.handle("fs:writeFile", async (event, filePath, content, encoding) => {
+ipcMain.handle("fs:writeFile", async (event, filePath, content) => {
   try {
     console.log("写入文件:", filePath);
-    fs__default.writeFileSync(filePath, content, encoding);
+    fs__default.writeFileSync(filePath, content, "utf-8");
     return { success: true };
   } catch (error) {
     console.error("写入文件失败:", error);
-    throw error;
-  }
-});
-ipcMain.handle("fs:createDirectory", async (event, directoryPath) => {
-  try {
-    console.log("创建目录:", directoryPath);
-    if (!fs__default.existsSync(directoryPath)) {
-      fs__default.mkdirSync(directoryPath, { recursive: true });
-    }
-    return { success: true };
-  } catch (error) {
-    console.error("创建目录失败:", error);
-    throw error;
-  }
-});
-ipcMain.handle("fs:delete", async (event, path2) => {
-  try {
-    console.log("删除:", path2);
-    if (fs__default.existsSync(path2)) {
-      const stats = fs__default.statSync(path2);
-      if (stats.isDirectory()) {
-        fs__default.rmSync(path2, { recursive: true, force: true });
-      } else {
-        fs__default.unlinkSync(path2);
-      }
-    }
-    return { success: true };
-  } catch (error) {
-    console.error("删除失败:", error);
     throw error;
   }
 });
@@ -2979,13 +2950,28 @@ ipcMain.handle("fs:rename", async (event, oldPath, newPath) => {
     throw error;
   }
 });
-ipcMain.handle("fs:copyFile", async (event, srcPath, destPath) => {
+ipcMain.handle("fs:createDirectory", async (event, dirPath) => {
   try {
-    console.log("复制文件:", srcPath, "->", destPath);
-    fs__default.copyFileSync(srcPath, destPath);
+    console.log("创建目录:", dirPath);
+    fs__default.mkdirSync(dirPath, { recursive: true });
     return { success: true };
   } catch (error) {
-    console.error("复制文件失败:", error);
+    console.error("创建目录失败:", error);
+    throw error;
+  }
+});
+ipcMain.handle("fs:delete", async (event, targetPath) => {
+  try {
+    console.log("删除:", targetPath);
+    const stat = fs__default.statSync(targetPath);
+    if (stat.isDirectory()) {
+      fs__default.rmdirSync(targetPath, { recursive: true });
+    } else {
+      fs__default.unlinkSync(targetPath);
+    }
+    return { success: true };
+  } catch (error) {
+    console.error("删除失败:", error);
     throw error;
   }
 });
