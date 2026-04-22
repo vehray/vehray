@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useProjectExplorer } from '../../src/viewmodels/useProjectExplorer';
+import { useProjectExplorer } from '../../src/renderer/features/explorer/composables/useProjectExplorer';
 
 describe('useProjectExplorer', () => {
   beforeEach(() => {

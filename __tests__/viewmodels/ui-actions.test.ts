@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { uiActions } from '../../src/viewmodels/services/ui-actions';
-import { resetUiStateForTest, useUiState } from '../../src/viewmodels/ui-state';
-import { electronBridge } from '../../src/viewmodels/services/electron-bridge';
+import { uiActions } from '../../src/renderer/services/uiActions';
+import { resetUiStateForTest, useUiState } from '../../src/renderer/state/uiState';
+import { electronBridge } from '../../src/renderer/services/electronBridge';
 
-vi.mock('../../src/viewmodels/services/electron-bridge', () => ({
+vi.mock('../../src/renderer/services/electronBridge', () => ({
   electronBridge: {
     openDirectory: vi.fn(),
     openFile: vi.fn(),

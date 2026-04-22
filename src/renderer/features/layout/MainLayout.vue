@@ -68,8 +68,8 @@ import ActivityBar from './ActivityBar.vue';
 import MainTabPanel from '../tabs/MainTabPanel.vue';
 import TabPanel from '../tabs/TabPanel.vue';
 import ProjectExplorer from '../explorer/ProjectExplorer.vue';
-import { useLayoutPanels } from '../../../viewmodels/useLayoutPanels';
-import { usePanelLayout } from '../../../viewmodels/usePanelLayout';
+import { useLayoutPanels } from './composables/useLayoutPanels';
+import { usePanelLayout } from './composables/usePanelLayout';
 import { uiActions } from '../../services/uiActions';
 
 const mainTabPanelRef = ref<any>(null);

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { resetUiStateForTest, useUiState } from '../../src/viewmodels/ui-state';
+import { resetUiStateForTest, useUiState } from '../../src/renderer/state/uiState';
 
 describe('ui-state', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import { ref } from 'vue';
-import { electronBridge } from './services/electron-bridge';
-import { useUiState, type FileTreeNode } from './ui-state';
+import { electronBridge } from '../../../services/electronBridge';
+import { useUiState, type FileTreeNode } from '../../../state/uiState';
 
 const sortNodes = (nodes: FileTreeNode[]) =>
   [...nodes].sort((a, b) => {

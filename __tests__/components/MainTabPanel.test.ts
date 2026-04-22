@@ -1,9 +1,9 @@
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import MainTabPanel from '../../src/components/MainTabPanel.vue';
-import { resetUiStateForTest, useUiState } from '../../src/viewmodels/ui-state';
+import MainTabPanel from '../../src/renderer/features/tabs/MainTabPanel.vue';
+import { resetUiStateForTest, useUiState } from '../../src/renderer/state/uiState';
 
-vi.mock('../../src/viewmodels/services/electron-bridge', () => ({
+vi.mock('../../src/renderer/services/electronBridge', () => ({
   electronBridge: {
     openDirectory: vi.fn(async () => null),
     openFile: vi.fn(async () => 'C:/demo/report.txt'),

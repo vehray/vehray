@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
-import { usePanelLayout } from '../../src/viewmodels/usePanelLayout';
+import { usePanelLayout } from '../../src/renderer/features/layout/composables/usePanelLayout';
 
 describe('usePanelLayout', () => {
   it('左右面板都可见时会约束左侧宽度并固定右侧宽度', () => {

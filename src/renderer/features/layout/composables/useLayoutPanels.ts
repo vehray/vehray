@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { useUiState } from './ui-state';
+import { useUiState } from '../../../state/uiState';
 
 export function useLayoutPanels() {
   const { state, setRightPanelVisible } = useUiState();

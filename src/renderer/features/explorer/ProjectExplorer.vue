@@ -29,8 +29,8 @@
 import { onMounted, onUnmounted } from 'vue';
 import { Folder, ArrowRight, ArrowDown } from '@element-plus/icons-vue';
 import ProjectTreeNode from './ProjectTreeNode.vue';
-import { useProjectExplorer } from '../../../viewmodels/useProjectExplorer';
-import { electronBridge } from '../../../viewmodels/services/electron-bridge';
+import { useProjectExplorer } from './composables/useProjectExplorer';
+import { electronBridge } from '../../services/electronBridge';
 
 const { rootFolder, fileTree, rootExpanded, toggleRootFolder, toggleItem, loadFolder } = useProjectExplorer();
 let unsubscribeFolderOpened: (() => void) | null = null;

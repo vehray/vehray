@@ -20,7 +20,7 @@
 
 <script setup lang="ts">
 import { ArrowDown, ArrowRight, Document, Folder } from '@element-plus/icons-vue';
-import type { FileTreeNode } from '../../../viewmodels/ui-state';
+import type { FileTreeNode } from '../../state/uiState';
 defineOptions({ name: 'ProjectTreeNode' });
 defineProps<{ item: FileTreeNode }>();
 defineEmits<{ (e: 'toggle', item: FileTreeNode): void }>();
