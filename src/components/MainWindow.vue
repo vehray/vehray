@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { uiActions } from '../viewmodels/services/ui-actions';
 import { Folder, Search, Setting, Help, InfoFilled, Document } from '@element-plus/icons-vue';
 
 const props = defineProps<{
@@ -66,43 +66,23 @@ const props = defineProps<{
 
 // 按钮点击事件处理函数
 const handleOpenFolder = async () => {
-  if (window.electron && window.electron.dialog) {
-    const result = await window.electron.dialog.openDirectory();
-    if (!result.canceled && result.filePaths.length > 0) {
-      console.log('选择的目录:', result.filePaths[0]);
-      // 触发文件夹打开事件
-      if (window.electron && window.electron.ipcRenderer) {
-        window.electron.ipcRenderer.send('folder-opened', result.filePaths[0]);
-      }
-    }
-  } else {
-    console.log('打开文件夹');
+  const folderPath = await uiActions.openFolder();
+  if (folderPath) {
+    console.log('选择的目录:', folderPath);
   }
 };
 
 const handleOpenProject = async () => {
-  if (window.electron && window.electron.dialog) {
-    const result = await window.electron.dialog.openDirectory();
-    if (!result.canceled && result.filePaths.length > 0) {
-      console.log('选择的项目目录:', result.filePaths[0]);
-      // 触发文件夹打开事件
-      if (window.electron && window.electron.ipcRenderer) {
-        window.electron.ipcRenderer.send('folder-opened', result.filePaths[0]);
-      }
-    }
-  } else {
-    console.log('打开项目');
+  const folderPath = await uiActions.openProject();
+  if (folderPath) {
+    console.log('选择的项目目录:', folderPath);
   }
 };
 
 const handleOpenFile = async () => {
-  if (window.electron && window.electron.dialog) {
-    const result = await window.electron.dialog.openFile();
-    if (!result.canceled && result.filePaths.length > 0) {
-      console.log('选择的文件:', result.filePaths[0]);
-    }
-  } else {
-    console.log('打开文件');
+  const filePath = await uiActions.openFileToHistory();
+  if (filePath) {
+    console.log('选择的文件:', filePath);
   }
 };
 </script>
