@@ -4,8 +4,10 @@ import { SerialPortManager } from './modules/serial-manager.ts';
 import { LinControllerManager } from './modules/lin-controller.ts';
 import { SettingsManager } from './modules/settings-manager.ts';
 import { getScanManager } from './modules/scan-manager.ts';
+import { FileExplorerService } from './modules/file-explorer-service.ts';
 import { SerialPort } from 'serialport';
 import { logger, LogLevel } from './modules/logger.ts';
+import { TITLEBAR_OVERLAY_HEIGHT } from './modules/window-ui-constants.ts';
 import fs from 'fs';
 import path from 'path';
 
@@ -15,6 +17,61 @@ logger.setEnabled(false);
 // 全局变量
 let mainWindow: BrowserWindow | null = null;
 let settingsWindow: BrowserWindow | null = null;
+let explorerFolderWatcher: fs.FSWatcher | null = null;
+const EXPLORER_FOLDER_CHANGED_CHANNEL = 'explorer:folder-changed';
+const CONTEXT_MENU_ACTION_CHANNEL = 'context-menu:action';
+
+const copyEntryToDirectory = (sourcePath: string, destinationDirectory: string) => {
+  const entryName = path.basename(sourcePath);
+  const destinationPath = path.join(destinationDirectory, entryName);
+  const sourceStat = fs.statSync(sourcePath);
+
+  if (sourceStat.isDirectory()) {
+    if (typeof fs.cpSync === 'function') {
+      fs.cpSync(sourcePath, destinationPath, { recursive: true, errorOnExist: false, force: true });
+      return;
+    }
+    fs.mkdirSync(destinationPath, { recursive: true });
+    const children = fs.readdirSync(sourcePath);
+    for (const child of children) {
+      copyEntryToDirectory(path.join(sourcePath, child), destinationPath);
+    }
+    return;
+  }
+
+  fs.copyFileSync(sourcePath, destinationPath);
+};
+
+const stopExplorerFolderWatch = () => {
+  if (!explorerFolderWatcher) return;
+  try {
+    explorerFolderWatcher.close();
+  } catch (error) {
+    console.warn('[explorer] close watcher failed:', error instanceof Error ? error.message : String(error));
+  }
+  explorerFolderWatcher = null;
+};
+
+const applyWindowTheme = (theme: 'dark' | 'light') => {
+  const backgroundColor = theme === 'light' ? '#f7f8fa' : '#1e1e1e';
+  const overlayColor = theme === 'light' ? '#ffffff' : '#252526';
+  const symbolColor = theme === 'light' ? '#2f353d' : '#cccccc';
+
+  const applyToWindow = (target: BrowserWindow | null) => {
+    if (!target || target.isDestroyed()) return;
+    target.setBackgroundColor(backgroundColor);
+    if (process.platform !== 'darwin') {
+      target.setTitleBarOverlay({
+        color: overlayColor,
+        symbolColor,
+        height: TITLEBAR_OVERLAY_HEIGHT
+      });
+    }
+  };
+
+  applyToWindow(mainWindow);
+  applyToWindow(settingsWindow);
+};
 
 // 窗口控制IPC处理
 ipcMain.handle('window:minimize', () => {
@@ -86,6 +143,11 @@ ipcMain.handle('window:get-state', () => {
     };
   }
   return null;
+});
+
+ipcMain.handle('window:set-theme', (_event, theme: 'dark' | 'light') => {
+  applyWindowTheme(theme);
+  return { success: true };
 });
 
 // 设置环境变量，解决CMD中文乱码问题
@@ -168,6 +230,7 @@ app.on('ready', async () => {
 });
 
 app.on('window-all-closed', () => {
+  stopExplorerFolderWatch();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -320,6 +383,163 @@ ipcMain.handle('dialog:openDirectory', async () => {
   return result;
 });
 
+// Explorer 基础架构：目录选择、目录读取、文件读取
+ipcMain.handle('explorer:open-folder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openDirectory']
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true, folderPath: null };
+  }
+  return { canceled: false, folderPath: result.filePaths[0] };
+});
+
+ipcMain.handle('explorer:pick-import-entries', async () => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openFile', 'openDirectory', 'multiSelections']
+  });
+  return {
+    canceled: result.canceled,
+    filePaths: result.filePaths
+  };
+});
+
+ipcMain.handle('explorer:read-directory', async (_event, directoryPath: string) => {
+  return FileExplorerService.readDirectory(directoryPath);
+});
+
+ipcMain.handle('explorer:read-file', async (_event, filePath: string) => {
+  const content = await FileExplorerService.readFile(filePath);
+  return { success: true, content };
+});
+
+ipcMain.handle('explorer:create-directory', async (_event, directoryPath: string) => {
+  await FileExplorerService.createDirectory(directoryPath);
+  return { success: true };
+});
+
+ipcMain.handle('explorer:delete-entry', async (_event, targetPath: string) => {
+  try {
+    return await FileExplorerService.deleteEntry(targetPath);
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+ipcMain.handle('explorer:reveal-in-folder', async (_event, targetPath: string) => {
+  if (!targetPath) return { success: false, message: 'empty-path' };
+  try {
+    if (!fs.existsSync(targetPath)) {
+      return { success: false, message: 'not-found' };
+    }
+
+    const stats = fs.statSync(targetPath);
+    if (stats.isDirectory()) {
+      const error = await shell.openPath(targetPath);
+      if (error) return { success: false, message: error };
+      return { success: true };
+    }
+    // 官方语义：文件使用 showItemInFolder，在系统文件管理器中定位该文件
+    shell.showItemInFolder(targetPath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('explorer:watch-folder', async (_event, folderPath: string) => {
+  stopExplorerFolderWatch();
+  const emitChanged = (eventType: string, filename?: string | Buffer | null) => {
+    try {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      const payload = {
+        folderPath,
+        eventType,
+        filename: filename?.toString() ?? ''
+      };
+      mainWindow.webContents.send(EXPLORER_FOLDER_CHANGED_CHANNEL, payload);
+    } catch (error) {
+      console.warn('[explorer:watch-folder] emit changed failed:', error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const bindWatcherErrorHandler = (watcher: fs.FSWatcher) => {
+    watcher.on('error', (error) => {
+      // 被监听目录删除/重命名时 watcher 会触发 error，必须兜底避免主进程崩溃
+      console.warn('[explorer:watch-folder] watcher error:', error instanceof Error ? error.message : String(error));
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        stopExplorerFolderWatch();
+        return;
+      }
+      mainWindow.webContents.send(EXPLORER_FOLDER_CHANGED_CHANNEL, {
+        folderPath,
+        eventType: 'watcher-error',
+        filename: ''
+      });
+      stopExplorerFolderWatch();
+    });
+  };
+
+  try {
+    explorerFolderWatcher = fs.watch(folderPath, { recursive: true }, (eventType, filename) => {
+      try {
+        emitChanged(eventType, filename);
+      } catch (_error) {
+        // watcher 回调必须完全兜底，避免异常冒泡导致进程退出
+      }
+    });
+    bindWatcherErrorHandler(explorerFolderWatcher);
+    return { success: true };
+  } catch (_error) {
+    try {
+      // 某些环境不支持 recursive，回退到当前目录监听
+      explorerFolderWatcher = fs.watch(folderPath, (eventType, filename) => {
+        try {
+          emitChanged(eventType, filename);
+        } catch (_error) {
+          // watcher 回调必须完全兜底，避免异常冒泡导致进程退出
+        }
+      });
+      bindWatcherErrorHandler(explorerFolderWatcher);
+      return { success: true };
+    } catch (_fallbackError) {
+      stopExplorerFolderWatch();
+      return { success: false };
+    }
+  }
+});
+
+ipcMain.handle('explorer:unwatch-folder', async () => {
+  stopExplorerFolderWatch();
+  return { success: true };
+});
+
+ipcMain.handle('explorer:import-entries', async (_event, targetDirectory: string, sourcePaths: string[]) => {
+  if (!targetDirectory || !Array.isArray(sourcePaths) || sourcePaths.length === 0) {
+    return { success: false, message: 'invalid-params' };
+  }
+
+  try {
+    if (!fs.existsSync(targetDirectory) || !fs.statSync(targetDirectory).isDirectory()) {
+      return { success: false, message: 'target-not-directory' };
+    }
+
+    for (const sourcePath of sourcePaths) {
+      if (!sourcePath || !fs.existsSync(sourcePath)) continue;
+      copyEntryToDirectory(sourcePath, targetDirectory);
+    }
+    return { success: true, message: '' };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
 // 打开文件
 ipcMain.handle('dialog:openFile', async () => {
   const result = await dialog.showOpenDialog(mainWindow!, {
@@ -338,16 +558,60 @@ ipcMain.on('folder-opened', (event, folderPath) => {
   }
 });
 
+type ExplorerContextTargetType = 'root' | 'file' | 'directory';
+
+ipcMain.on(
+  'context-menu:show',
+  (
+    event,
+    payload: {
+      source: 'explorer';
+      targetPath: string;
+      targetType: ExplorerContextTargetType;
+    }
+  ) => {
+    if (payload?.source !== 'explorer') return;
+
+    const menu = Menu.buildFromTemplate([
+      {
+        label: '打开所在文件夹',
+        click: () => {
+          event.sender.send(CONTEXT_MENU_ACTION_CHANNEL, {
+            source: 'explorer',
+            action: 'revealInFolder',
+            targetPath: payload.targetPath,
+            targetType: payload.targetType
+          });
+        }
+      },
+      {
+        label: '创建文件夹',
+        click: () => {
+          event.sender.send(CONTEXT_MENU_ACTION_CHANNEL, {
+            source: 'explorer',
+            action: 'createFolder',
+            targetPath: payload.targetPath,
+            targetType: payload.targetType
+          });
+        }
+      }
+    ]);
+
+    menu.popup({
+      window: BrowserWindow.fromWebContents(event.sender) ?? undefined
+    });
+  }
+);
+
 // 文件系统相关API
 ipcMain.handle('fs:readDirectory', async (event, directoryPath) => {
   try {
     console.log('读取目录:', directoryPath);
-    const files = fs.readdirSync(directoryPath, { withFileTypes: true });
-
-    return files.map((file: any) => ({
-      name: file.name,
-      path: path.join(directoryPath, file.name),
-      type: file.isDirectory() ? 'directory' : 'file'
+    const entries = await FileExplorerService.readDirectory(directoryPath);
+    return entries.map((entry) => ({
+      name: entry.name,
+      path: entry.path,
+      type: entry.type
     }));
   } catch (error) {
     console.error('读取目录失败:', error);
@@ -399,18 +663,7 @@ ipcMain.handle('fs:createDirectory', async (event, dirPath) => {
   }
 });
 
-ipcMain.handle('fs:delete', async (event, targetPath) => {
-  try {
-    console.log('删除:', targetPath);
-    const stat = fs.statSync(targetPath);
-    if (stat.isDirectory()) {
-      fs.rmdirSync(targetPath, { recursive: true });
-    } else {
-      fs.unlinkSync(targetPath);
-    }
-    return { success: true };
-  } catch (error) {
-    console.error('删除失败:', error);
-    throw error;
-  }
+ipcMain.handle('fs:delete', async (_event, targetPath: string) => {
+  console.log('删除:', targetPath);
+  return FileExplorerService.deleteEntry(targetPath);
 });

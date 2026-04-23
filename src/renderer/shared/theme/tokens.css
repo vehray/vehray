@@ -1,0 +1,35 @@
+:root {
+  --app-bg: #1e1e1e;
+  --app-bg-elevated: #252526;
+  --app-bg-hover: #333333;
+  --app-bg-soft-hover: rgba(255, 255, 255, 0.08);
+  --app-border: #424242;
+  --app-text-primary: #e1e1e1;
+  --app-text-regular: #cccccc;
+  --app-text-muted: #999999;
+  --app-text-subtle: #888888;
+  --app-text-faint: #666666;
+  --app-accent: rgba(0, 120, 212, 0.15);
+  --app-scrollbar-track: #1f1f1f;
+  --app-scrollbar-thumb: #555555;
+  --app-scrollbar-thumb-hover: #6a6a6a;
+  --app-scrollbar-thumb-active: #7a7a7a;
+}
+
+[data-theme='light'] {
+  --app-bg: #f7f8fa;
+  --app-bg-elevated: #ffffff;
+  --app-bg-hover: #eef1f5;
+  --app-bg-soft-hover: rgba(38, 99, 219, 0.08);
+  --app-border: #d8dce3;
+  --app-text-primary: #1f2328;
+  --app-text-regular: #2f353d;
+  --app-text-muted: #64707d;
+  --app-text-subtle: #7a8694;
+  --app-text-faint: #97a1ad;
+  --app-accent: rgba(38, 99, 219, 0.14);
+  --app-scrollbar-track: #eef1f5;
+  --app-scrollbar-thumb: #c1c8d2;
+  --app-scrollbar-thumb-hover: #aeb7c3;
+  --app-scrollbar-thumb-active: #9ea9b6;
+}

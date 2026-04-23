@@ -1,10 +1,11 @@
-import { BrowserWindow, app, ipcMain, Menu, dialog } from "electron";
+import { BrowserWindow, app, ipcMain, Menu, dialog, shell } from "electron";
 import * as path from "path";
 import path__default from "path";
 import { fileURLToPath } from "url";
 import { SerialPort } from "serialport";
 import * as fs from "fs";
 import fs__default from "fs";
+import fs$1 from "fs/promises";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
@@ -66,6 +67,7 @@ class Logger {
   }
 }
 const logger = new Logger();
+const TITLEBAR_OVERLAY_HEIGHT = 34;
 const __filename$1 = fileURLToPath(import.meta.url);
 const __dirname$1 = path__default.dirname(__filename$1);
 function createWindow() {
@@ -112,7 +114,7 @@ function createWindow() {
     // 在Windows/Linux上添加窗口控件，设置与应用顶部按钮栏一致的高度和颜色
     ...process.platform !== "darwin" ? {
       titleBarOverlay: {
-        height: 32,
+        height: TITLEBAR_OVERLAY_HEIGHT,
         // 与应用顶部按钮栏高度一致
         color: "#252526",
         // 与应用顶部按钮栏背景颜色一致
@@ -122,8 +124,8 @@ function createWindow() {
         // 显示最小化、最大化和关闭按钮
       }
     } : {},
-    backgroundColor: "#f5f7fa",
-    // 设置背景色
+    backgroundColor: "#1e1e1e",
+    // 与渲染层深色背景保持一致，避免缩放时白底闪烁
     webPreferences: {
       // 预加载脚本配置
       preload: preloadPath,
@@ -222,7 +224,7 @@ function createChildWindow(parentWindow, options) {
     // 在Windows/Linux上添加窗口控件，设置与应用顶部按钮栏一致的高度和颜色
     ...process.platform !== "darwin" ? {
       titleBarOverlay: {
-        height: 32,
+        height: TITLEBAR_OVERLAY_HEIGHT,
         // 与应用顶部按钮栏高度一致
         color: "#252526",
         // 与应用顶部按钮栏背景颜色一致
@@ -232,8 +234,8 @@ function createChildWindow(parentWindow, options) {
         // 显示最小化、最大化和关闭按钮
       }
     } : {},
-    backgroundColor: "#f5f7fa",
-    // 设置背景色
+    backgroundColor: "#1e1e1e",
+    // 与渲染层深色背景保持一致，避免缩放时白底闪烁
     minWidth: 1e3,
     // 最小宽度
     minHeight: 600,
@@ -2668,9 +2670,104 @@ class SettingsManager {
     return settingsPath;
   }
 }
+const toEntryType = (isDirectory) => isDirectory ? "directory" : "file";
+class FileExplorerService {
+  static async readDirectory(directoryPath) {
+    const dirents = await fs$1.readdir(directoryPath, { withFileTypes: true });
+    const entries = await Promise.all(
+      dirents.map(async (dirent) => {
+        const absolutePath = path__default.join(directoryPath, dirent.name);
+        const stats = await fs$1.stat(absolutePath);
+        return {
+          name: dirent.name,
+          path: absolutePath,
+          type: toEntryType(dirent.isDirectory()),
+          size: stats.size,
+          modifiedAt: stats.mtimeMs
+        };
+      })
+    );
+    return entries.sort((a, b) => {
+      if (a.type === "directory" && b.type === "file") return -1;
+      if (a.type === "file" && b.type === "directory") return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+  static async readFile(filePath) {
+    return fs$1.readFile(filePath, "utf-8");
+  }
+  static async createDirectory(directoryPath) {
+    await fs$1.mkdir(directoryPath, { recursive: false });
+  }
+  /**
+   * 仅在主进程执行文件系统删除；永不向外抛异常，避免未捕获错误导致进程退出。
+   */
+  static async deleteEntry(targetPath) {
+    const trimmed = typeof targetPath === "string" ? targetPath.trim() : "";
+    if (!trimmed) {
+      return { success: false, message: "empty-path" };
+    }
+    try {
+      await fs$1.rm(trimmed, { recursive: true, force: true });
+      return { success: true, message: "" };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[FileExplorerService.deleteEntry]", message);
+      return { success: false, message };
+    }
+  }
+}
 logger.setEnabled(false);
 let mainWindow = null;
 let settingsWindow = null;
+let explorerFolderWatcher = null;
+const EXPLORER_FOLDER_CHANGED_CHANNEL = "explorer:folder-changed";
+const CONTEXT_MENU_ACTION_CHANNEL = "context-menu:action";
+const copyEntryToDirectory = (sourcePath, destinationDirectory) => {
+  const entryName = path__default.basename(sourcePath);
+  const destinationPath = path__default.join(destinationDirectory, entryName);
+  const sourceStat = fs__default.statSync(sourcePath);
+  if (sourceStat.isDirectory()) {
+    if (typeof fs__default.cpSync === "function") {
+      fs__default.cpSync(sourcePath, destinationPath, { recursive: true, errorOnExist: false, force: true });
+      return;
+    }
+    fs__default.mkdirSync(destinationPath, { recursive: true });
+    const children = fs__default.readdirSync(sourcePath);
+    for (const child of children) {
+      copyEntryToDirectory(path__default.join(sourcePath, child), destinationPath);
+    }
+    return;
+  }
+  fs__default.copyFileSync(sourcePath, destinationPath);
+};
+const stopExplorerFolderWatch = () => {
+  if (!explorerFolderWatcher) return;
+  try {
+    explorerFolderWatcher.close();
+  } catch (error) {
+    console.warn("[explorer] close watcher failed:", error instanceof Error ? error.message : String(error));
+  }
+  explorerFolderWatcher = null;
+};
+const applyWindowTheme = (theme) => {
+  const backgroundColor = theme === "light" ? "#f7f8fa" : "#1e1e1e";
+  const overlayColor = theme === "light" ? "#ffffff" : "#252526";
+  const symbolColor = theme === "light" ? "#2f353d" : "#cccccc";
+  const applyToWindow = (target) => {
+    if (!target || target.isDestroyed()) return;
+    target.setBackgroundColor(backgroundColor);
+    if (process.platform !== "darwin") {
+      target.setTitleBarOverlay({
+        color: overlayColor,
+        symbolColor,
+        height: TITLEBAR_OVERLAY_HEIGHT
+      });
+    }
+  };
+  applyToWindow(mainWindow);
+  applyToWindow(settingsWindow);
+};
 ipcMain.handle("window:minimize", () => {
   if (mainWindow) {
     mainWindow.minimize();
@@ -2721,6 +2818,10 @@ ipcMain.handle("window:get-state", () => {
     };
   }
   return null;
+});
+ipcMain.handle("window:set-theme", (_event, theme) => {
+  applyWindowTheme(theme);
+  return { success: true };
 });
 process.env.NODE_ENV = process.env.NODE_ENV || "development";
 app.on("ready", async () => {
@@ -2776,6 +2877,7 @@ app.on("ready", async () => {
   });
 });
 app.on("window-all-closed", () => {
+  stopExplorerFolderWatch();
   if (process.platform !== "darwin") {
     app.quit();
   }
@@ -2893,6 +2995,142 @@ ipcMain.handle("dialog:openDirectory", async () => {
   });
   return result;
 });
+ipcMain.handle("explorer:open-folder", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"]
+  });
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true, folderPath: null };
+  }
+  return { canceled: false, folderPath: result.filePaths[0] };
+});
+ipcMain.handle("explorer:pick-import-entries", async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openFile", "openDirectory", "multiSelections"]
+  });
+  return {
+    canceled: result.canceled,
+    filePaths: result.filePaths
+  };
+});
+ipcMain.handle("explorer:read-directory", async (_event, directoryPath) => {
+  return FileExplorerService.readDirectory(directoryPath);
+});
+ipcMain.handle("explorer:read-file", async (_event, filePath) => {
+  const content = await FileExplorerService.readFile(filePath);
+  return { success: true, content };
+});
+ipcMain.handle("explorer:create-directory", async (_event, directoryPath) => {
+  await FileExplorerService.createDirectory(directoryPath);
+  return { success: true };
+});
+ipcMain.handle("explorer:delete-entry", async (_event, targetPath) => {
+  try {
+    return await FileExplorerService.deleteEntry(targetPath);
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+ipcMain.handle("explorer:reveal-in-folder", async (_event, targetPath) => {
+  if (!targetPath) return { success: false, message: "empty-path" };
+  try {
+    if (!fs__default.existsSync(targetPath)) {
+      return { success: false, message: "not-found" };
+    }
+    const stats = fs__default.statSync(targetPath);
+    if (stats.isDirectory()) {
+      const error = await shell.openPath(targetPath);
+      if (error) return { success: false, message: error };
+      return { success: true };
+    }
+    shell.showItemInFolder(targetPath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : String(error) };
+  }
+});
+ipcMain.handle("explorer:watch-folder", async (_event, folderPath) => {
+  stopExplorerFolderWatch();
+  const emitChanged = (eventType, filename) => {
+    try {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      const payload = {
+        folderPath,
+        eventType,
+        filename: filename?.toString() ?? ""
+      };
+      mainWindow.webContents.send(EXPLORER_FOLDER_CHANGED_CHANNEL, payload);
+    } catch (error) {
+      console.warn("[explorer:watch-folder] emit changed failed:", error instanceof Error ? error.message : String(error));
+    }
+  };
+  const bindWatcherErrorHandler = (watcher) => {
+    watcher.on("error", (error) => {
+      console.warn("[explorer:watch-folder] watcher error:", error instanceof Error ? error.message : String(error));
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        stopExplorerFolderWatch();
+        return;
+      }
+      mainWindow.webContents.send(EXPLORER_FOLDER_CHANGED_CHANNEL, {
+        folderPath,
+        eventType: "watcher-error",
+        filename: ""
+      });
+      stopExplorerFolderWatch();
+    });
+  };
+  try {
+    explorerFolderWatcher = fs__default.watch(folderPath, { recursive: true }, (eventType, filename) => {
+      try {
+        emitChanged(eventType, filename);
+      } catch (_error) {
+      }
+    });
+    bindWatcherErrorHandler(explorerFolderWatcher);
+    return { success: true };
+  } catch (_error) {
+    try {
+      explorerFolderWatcher = fs__default.watch(folderPath, (eventType, filename) => {
+        try {
+          emitChanged(eventType, filename);
+        } catch (_error2) {
+        }
+      });
+      bindWatcherErrorHandler(explorerFolderWatcher);
+      return { success: true };
+    } catch (_fallbackError) {
+      stopExplorerFolderWatch();
+      return { success: false };
+    }
+  }
+});
+ipcMain.handle("explorer:unwatch-folder", async () => {
+  stopExplorerFolderWatch();
+  return { success: true };
+});
+ipcMain.handle("explorer:import-entries", async (_event, targetDirectory, sourcePaths) => {
+  if (!targetDirectory || !Array.isArray(sourcePaths) || sourcePaths.length === 0) {
+    return { success: false, message: "invalid-params" };
+  }
+  try {
+    if (!fs__default.existsSync(targetDirectory) || !fs__default.statSync(targetDirectory).isDirectory()) {
+      return { success: false, message: "target-not-directory" };
+    }
+    for (const sourcePath of sourcePaths) {
+      if (!sourcePath || !fs__default.existsSync(sourcePath)) continue;
+      copyEntryToDirectory(sourcePath, targetDirectory);
+    }
+    return { success: true, message: "" };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
 ipcMain.handle("dialog:openFile", async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ["openFile"]
@@ -2906,14 +3144,47 @@ ipcMain.on("folder-opened", (event, folderPath) => {
     mainWindow.webContents.send("folder-opened", folderPath);
   }
 });
+ipcMain.on(
+  "context-menu:show",
+  (event, payload) => {
+    if (payload?.source !== "explorer") return;
+    const menu = Menu.buildFromTemplate([
+      {
+        label: "打开所在文件夹",
+        click: () => {
+          event.sender.send(CONTEXT_MENU_ACTION_CHANNEL, {
+            source: "explorer",
+            action: "revealInFolder",
+            targetPath: payload.targetPath,
+            targetType: payload.targetType
+          });
+        }
+      },
+      {
+        label: "创建文件夹",
+        click: () => {
+          event.sender.send(CONTEXT_MENU_ACTION_CHANNEL, {
+            source: "explorer",
+            action: "createFolder",
+            targetPath: payload.targetPath,
+            targetType: payload.targetType
+          });
+        }
+      }
+    ]);
+    menu.popup({
+      window: BrowserWindow.fromWebContents(event.sender) ?? void 0
+    });
+  }
+);
 ipcMain.handle("fs:readDirectory", async (event, directoryPath) => {
   try {
     console.log("读取目录:", directoryPath);
-    const files = fs__default.readdirSync(directoryPath, { withFileTypes: true });
-    return files.map((file) => ({
-      name: file.name,
-      path: path__default.join(directoryPath, file.name),
-      type: file.isDirectory() ? "directory" : "file"
+    const entries = await FileExplorerService.readDirectory(directoryPath);
+    return entries.map((entry) => ({
+      name: entry.name,
+      path: entry.path,
+      type: entry.type
     }));
   } catch (error) {
     console.error("读取目录失败:", error);
@@ -2960,18 +3231,7 @@ ipcMain.handle("fs:createDirectory", async (event, dirPath) => {
     throw error;
   }
 });
-ipcMain.handle("fs:delete", async (event, targetPath) => {
-  try {
-    console.log("删除:", targetPath);
-    const stat = fs__default.statSync(targetPath);
-    if (stat.isDirectory()) {
-      fs__default.rmdirSync(targetPath, { recursive: true });
-    } else {
-      fs__default.unlinkSync(targetPath);
-    }
-    return { success: true };
-  } catch (error) {
-    console.error("删除失败:", error);
-    throw error;
-  }
+ipcMain.handle("fs:delete", async (_event, targetPath) => {
+  console.log("删除:", targetPath);
+  return FileExplorerService.deleteEntry(targetPath);
 });

@@ -5,65 +5,85 @@
       <div class="custom-dropdown" @click="toggleDropdown">
         <button class="header-btn">
           <el-icon><Folder /></el-icon>
-          <span>文件</span>
+          <span>{{ t('layout.header.file') }}</span>
         </button>
         <div class="custom-dropdown-menu" v-if="dropdownVisible">
           <div class="custom-dropdown-item" @click="handleNew">
             <el-icon><Plus /></el-icon>
-            <span>新建</span>
+            <span>{{ t('common.newFile') }}</span>
           </div>
           <div class="custom-dropdown-item" @click="handleOpenFile">
             <el-icon><Document /></el-icon>
-            <span>打开文件</span>
+            <span>{{ t('layout.header.openFile') }}</span>
           </div>
           <div class="custom-dropdown-item" @click="handleOpenFolder">
             <el-icon><Folder /></el-icon>
-            <span>打开文件夹</span>
-          </div>
-          <div class="custom-dropdown-item" @click="handleRefreshExplorer">
-            <el-icon><RefreshRight /></el-icon>
-            <span>刷新资源管理器</span>
+            <span>{{ t('layout.header.openFolder') }}</span>
           </div>
         </div>
       </div>
       <button class="header-btn">
         <el-icon><Edit /></el-icon>
-        <span>编辑</span>
+        <span>{{ t('layout.header.edit') }}</span>
       </button>
       <button class="header-btn">
         <el-icon><Tools /></el-icon>
-        <span>工具</span>
+        <span>{{ t('layout.header.tools') }}</span>
       </button>
       <button class="header-btn">
         <el-icon><Monitor /></el-icon>
-        <span>窗口</span>
+        <span>{{ t('layout.header.window') }}</span>
       </button>
       <button class="header-btn">
         <el-icon><Help /></el-icon>
-        <span>帮助</span>
+        <span>{{ t('layout.header.help') }}</span>
       </button>
     </div>
     <div class="app-header-right">
       <div class="custom-dropdown" @click="toggleSettingDropdown">
-        <button class="header-btn" title="设置">
+        <button class="header-btn" :title="t('layout.header.settings')">
           <el-icon><Setting /></el-icon>
         </button>
         <div class="custom-dropdown-menu" v-if="settingDropdownVisible">
           <div class="custom-dropdown-item" @click="handleSettings">
             <el-icon><Setting /></el-icon>
-            <span>设置</span>
+            <span>{{ t('layout.header.settings') }}</span>
           </div>
           <div class="custom-dropdown-item" @click="handlePreferences">
             <el-icon><Tools /></el-icon>
-            <span>偏好设置</span>
+            <span>{{ t('layout.header.preferences') }}</span>
           </div>
-          <div class="custom-dropdown-item" @click="handleTheme">
+          <div class="custom-dropdown-item theme-menu-trigger" @click.stop="toggleThemeMenu">
             <el-icon><Moon /></el-icon>
-            <span>主题</span>
+            <span>{{ t('layout.header.theme') }}</span>
+            <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+            <div class="theme-submenu" v-if="themeSubmenuVisible">
+              <div class="custom-dropdown-item" :class="{ selected: state.theme === 'dark' }" @click.stop="handleThemeChange('dark')">
+                <el-icon><Moon /></el-icon>
+                <span>{{ t('layout.header.themeDark') }}</span>
+              </div>
+              <div class="custom-dropdown-item" :class="{ selected: state.theme === 'light' }" @click.stop="handleThemeChange('light')">
+                <el-icon><Sunny /></el-icon>
+                <span>{{ t('layout.header.themeLight') }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="custom-dropdown-item locale-menu-trigger" @click.stop="toggleLocaleMenu">
+            <el-icon><Monitor /></el-icon>
+            <span>{{ t('layout.header.language') }}</span>
+            <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+            <div class="locale-submenu" v-if="localeSubmenuVisible">
+              <div class="custom-dropdown-item" :class="{ selected: state.locale === 'zh-CN' }" @click.stop="handleLocaleChange('zh-CN')">
+                <span>中文</span>
+              </div>
+              <div class="custom-dropdown-item" :class="{ selected: state.locale === 'en-US' }" @click.stop="handleLocaleChange('en-US')">
+                <span>English</span>
+              </div>
+            </div>
           </div>
           <div class="custom-dropdown-item" @click="handleAbout">
             <el-icon><Help /></el-icon>
-            <span>关于</span>
+            <span>{{ t('layout.header.about') }}</span>
           </div>
         </div>
       </div>
@@ -74,20 +94,30 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { Folder, Setting, Plus, Document, Edit, Help, Monitor, Tools, Moon, RefreshRight } from '@element-plus/icons-vue';
+import { Folder, Setting, Plus, Document, Edit, Help, Monitor, Tools, Moon, ArrowRight, Sunny } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
 import { uiActions } from '../../services/uiActions';
+import { useUiState } from '../../state/uiState';
 
 const dropdownVisible = ref(false);
 const settingDropdownVisible = ref(false);
+const themeSubmenuVisible = ref(false);
+const localeSubmenuVisible = ref(false);
+const { t } = useI18n();
+const { state } = useUiState();
 
 const toggleDropdown = () => {
   dropdownVisible.value = !dropdownVisible.value;
   settingDropdownVisible.value = false;
+  themeSubmenuVisible.value = false;
+  localeSubmenuVisible.value = false;
 };
 
 const toggleSettingDropdown = () => {
   settingDropdownVisible.value = !settingDropdownVisible.value;
   dropdownVisible.value = false;
+  themeSubmenuVisible.value = false;
+  localeSubmenuVisible.value = false;
 };
 
 const handleNew = () => {
@@ -111,24 +141,45 @@ const handleOpenFolder = async () => {
   dropdownVisible.value = false;
 };
 
-const handleRefreshExplorer = () => {
-  uiActions.refreshTree();
-  dropdownVisible.value = false;
-};
-
 const handleSettings = () => {
   settingDropdownVisible.value = false;
+  themeSubmenuVisible.value = false;
+  localeSubmenuVisible.value = false;
 };
 
 const handlePreferences = () => {
   settingDropdownVisible.value = false;
+  themeSubmenuVisible.value = false;
+  localeSubmenuVisible.value = false;
 };
 
 const handleAbout = () => {
   settingDropdownVisible.value = false;
+  themeSubmenuVisible.value = false;
+  localeSubmenuVisible.value = false;
 };
 
-const handleTheme = () => {
+const toggleThemeMenu = () => {
+  themeSubmenuVisible.value = !themeSubmenuVisible.value;
+  localeSubmenuVisible.value = false;
+};
+
+const handleThemeChange = (theme: 'dark' | 'light') => {
+  void uiActions.setTheme(theme);
+  themeSubmenuVisible.value = false;
+  localeSubmenuVisible.value = false;
+  settingDropdownVisible.value = false;
+};
+
+const toggleLocaleMenu = () => {
+  localeSubmenuVisible.value = !localeSubmenuVisible.value;
+  themeSubmenuVisible.value = false;
+};
+
+const handleLocaleChange = (locale: 'zh-CN' | 'en-US') => {
+  void uiActions.setLocale(locale);
+  localeSubmenuVisible.value = false;
+  themeSubmenuVisible.value = false;
   settingDropdownVisible.value = false;
 };
 
@@ -143,6 +194,8 @@ const handleClickOutside = (event: MouseEvent) => {
   if (!clickedInside) {
     dropdownVisible.value = false;
     settingDropdownVisible.value = false;
+    themeSubmenuVisible.value = false;
+    localeSubmenuVisible.value = false;
   }
 };
 
@@ -151,9 +204,11 @@ const handleKeydown = (event: KeyboardEvent) => {
     event.preventDefault();
     toggleDropdown();
   }
-  if (event.key === 'F5') {
-    event.preventDefault();
-    uiActions.refreshTree();
+  if (event.key === 'Escape') {
+    dropdownVisible.value = false;
+    settingDropdownVisible.value = false;
+    themeSubmenuVisible.value = false;
+    localeSubmenuVisible.value = false;
   }
 };
 
@@ -170,13 +225,14 @@ onUnmounted(() => {
 
 <style scoped>
 .app-header {
-  height: 33px;
+  /* 规则：header 高度 = main overlay 高度(34px) + 1px，避免右上角控件遮挡底边线 */
+  height: 35px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 10px;
-  background-color: #252526;
-  border-bottom: 1px solid #424242;
+  background-color: var(--app-bg-elevated);
+  border-bottom: 1px solid var(--app-border);
   -webkit-app-region: drag;
 }
 
@@ -203,30 +259,49 @@ onUnmounted(() => {
 
 .window-controls-placeholder {
   width: 130px;
-  height: 33px;
+  /* 与 .app-header 保持一致，保证右上角底边线连续 */
+  height: 35px;
   -webkit-app-region: no-drag;
-  border-bottom: 1px solid #424242;
+  border-bottom: 1px solid var(--app-border);
 }
 
 .header-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  padding: 4px 12px;
+  padding: 0 10px;
   border: none;
-  background-color: #252526;
+  background-color: var(--app-bg-elevated);
   border-radius: 3px;
   cursor: pointer;
   font-size: 12px;
-  color: #cccccc;
-  transition: all 0.3s;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--app-text-regular);
+  transition: background-color 0.2s ease, color 0.2s ease;
   height: 24px;
   -webkit-app-region: no-drag;
 }
 
+.header-btn :deep(.el-icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.header-btn span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  transform: translateY(-0.5px);
+}
+
 .header-btn:hover {
-  background-color: #333333;
-  color: #e1e1e1;
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
 }
 
 .custom-dropdown {
@@ -239,8 +314,8 @@ onUnmounted(() => {
   position: absolute;
   top: 100%;
   left: 0;
-  background-color: #252526;
-  border: 1px solid #424242;
+  background-color: var(--app-bg-elevated);
+  border: 1px solid var(--app-border);
   border-radius: 3px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 1000;
@@ -259,13 +334,74 @@ onUnmounted(() => {
   gap: 8px;
   padding: 6px 12px;
   cursor: pointer;
-  color: #cccccc;
+  color: var(--app-text-regular);
   transition: all 0.3s;
   font-size: 12px;
 }
 
+.theme-menu-trigger {
+  position: relative;
+}
+
+.locale-menu-trigger {
+  position: relative;
+}
+
+.submenu-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.theme-submenu {
+  position: absolute;
+  top: -1px;
+  left: calc(100% + 4px);
+  min-width: 120px;
+  background-color: var(--app-bg-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+}
+
+.locale-submenu {
+  position: absolute;
+  top: -1px;
+  left: calc(100% + 4px);
+  min-width: 120px;
+  background-color: var(--app-bg-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+}
+
+.theme-submenu .custom-dropdown-item {
+  justify-content: flex-start;
+}
+
+.locale-submenu .custom-dropdown-item {
+  justify-content: flex-start;
+}
+
+.theme-submenu .custom-dropdown-item.selected {
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
+}
+
+.locale-submenu .custom-dropdown-item.selected {
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
+}
+
+.custom-dropdown-item :deep(.el-icon) {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .custom-dropdown-item:hover {
-  background-color: #333333;
-  color: #e1e1e1;
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
 }
 </style>

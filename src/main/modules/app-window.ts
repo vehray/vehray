@@ -2,6 +2,7 @@ import { BrowserWindow } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from './logger.ts';
+import { TITLEBAR_OVERLAY_HEIGHT } from './window-ui-constants.ts';
 
 // 获取当前文件的目录
 const __filename = fileURLToPath(import.meta.url);
@@ -61,13 +62,13 @@ export function createWindow(): BrowserWindow {
     // 在Windows/Linux上添加窗口控件，设置与应用顶部按钮栏一致的高度和颜色
     ...(process.platform !== 'darwin' ? { 
       titleBarOverlay: {
-        height: 32, // 与应用顶部按钮栏高度一致
+        height: TITLEBAR_OVERLAY_HEIGHT, // 与应用顶部按钮栏高度一致
         color: '#252526', // 与应用顶部按钮栏背景颜色一致
         symbolColor: '#cccccc', // 与应用顶部按钮栏文字颜色一致
         buttons: ['minimize', 'maximize', 'close'] // 显示最小化、最大化和关闭按钮
       } 
     } : {}),
-    backgroundColor: '#f5f7fa', // 设置背景色
+    backgroundColor: '#1e1e1e', // 与渲染层深色背景保持一致，避免缩放时白底闪烁
     webPreferences: {
       // 预加载脚本配置
       preload: preloadPath,
@@ -205,13 +206,13 @@ export function createChildWindow(parentWindow: BrowserWindow, options?: { width
     // 在Windows/Linux上添加窗口控件，设置与应用顶部按钮栏一致的高度和颜色
     ...(process.platform !== 'darwin' ? { 
       titleBarOverlay: {
-        height: 32, // 与应用顶部按钮栏高度一致
+        height: TITLEBAR_OVERLAY_HEIGHT, // 与应用顶部按钮栏高度一致
         color: '#252526', // 与应用顶部按钮栏背景颜色一致
         symbolColor: '#cccccc', // 与应用顶部按钮栏文字颜色一致
         buttons: ['minimize', 'maximize', 'close'] // 显示最小化、最大化和关闭按钮
       } 
     } : {}),
-    backgroundColor: '#f5f7fa', // 设置背景色
+    backgroundColor: '#1e1e1e', // 与渲染层深色背景保持一致，避免缩放时白底闪烁
     minWidth: 1000, // 最小宽度
     minHeight: 600, // 最小高度
     webPreferences: {

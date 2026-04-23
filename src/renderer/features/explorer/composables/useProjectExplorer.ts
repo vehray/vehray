@@ -1,16 +1,9 @@
 import { ref } from 'vue';
-import { electronBridge } from '../../../services/electronBridge';
 import { useUiState, type FileTreeNode } from '../../../state/uiState';
-
-const sortNodes = (nodes: FileTreeNode[]) =>
-  [...nodes].sort((a, b) => {
-    if (a.type === 'directory' && b.type === 'file') return -1;
-    if (a.type === 'file' && b.type === 'directory') return 1;
-    return a.name.localeCompare(b.name);
-  });
+import { explorerService } from '../services/explorerService';
 
 export function useProjectExplorer() {
-  const { state, setActiveFolder, setFileTree } = useUiState();
+  const { state, setActiveFolder, setFileTree, clearActiveFolder } = useUiState();
   const isLoading = ref(false);
   const rootExpanded = ref(true);
 
@@ -18,15 +11,7 @@ export function useProjectExplorer() {
   const fileTree = ref<FileTreeNode[]>([...state.fileTree]);
 
   const loadDirectoryNodes = async (directoryPath: string): Promise<FileTreeNode[]> => {
-    const entries = await electronBridge.readDirectory(directoryPath);
-    return sortNodes(
-      entries.map((item) => ({
-        name: item.name,
-        path: item.path,
-        type: item.type,
-        expanded: false
-      }))
-    );
+    return explorerService.loadDirectoryNodes(directoryPath);
   };
 
   const loadDirectoryContents = async (directory: FileTreeNode) => {
@@ -58,9 +43,20 @@ export function useProjectExplorer() {
       const nodes = await loadDirectoryNodes(folderPath);
       fileTree.value = nodes;
       setFileTree(nodes);
+    } catch (_error) {
+      // 目录不存在/被删除时，避免未处理异常导致页面崩溃
+      fileTree.value = [];
+      setFileTree([]);
     } finally {
       isLoading.value = false;
     }
+  };
+
+  const closeFolder = () => {
+    clearActiveFolder();
+    rootFolder.value = null;
+    fileTree.value = [];
+    rootExpanded.value = true;
   };
 
   return {
@@ -70,6 +66,7 @@ export function useProjectExplorer() {
     rootExpanded,
     toggleRootFolder,
     toggleItem,
-    loadFolder
+    loadFolder,
+    closeFolder
   };
 }

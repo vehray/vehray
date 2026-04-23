@@ -1,22 +1,33 @@
-import { onMounted, onUnmounted, ref, type Ref } from 'vue';
+import { onMounted, onUnmounted, ref, watch, type Ref } from 'vue';
+import { LAYOUT_CONSTANTS } from '../../../shared/constants';
 
 interface UsePanelLayoutOptions {
   contentWrapper: Ref<HTMLElement | null>;
+  mainArea: Ref<HTMLElement | null>;
   showLeftActivity: Ref<boolean>;
   showRightActivity: Ref<boolean>;
 }
 
 export function usePanelLayout(options: UsePanelLayoutOptions) {
-  const { contentWrapper, showLeftActivity, showRightActivity } = options;
+  const { contentWrapper, mainArea, showLeftActivity, showRightActivity } = options;
+  const closeDragThreshold = 36;
+  const closeRecoverThreshold = 16;
 
-  const leftActivityWidth = ref(200);
-  const rightActivityWidth = ref(200);
+  const leftActivityWidth = ref(LAYOUT_CONSTANTS.INITIAL_LEFT_WIDTH);
+  const rightActivityWidth = ref(LAYOUT_CONSTANTS.INITIAL_RIGHT_WIDTH);
   const mainContentHeight = ref(0);
-  const tabPanelHeight = ref(200);
+  const tabPanelHeight = ref(LAYOUT_CONSTANTS.INITIAL_TAB_HEIGHT);
 
   const isLeftSplitterActive = ref(false);
   const isRightSplitterActive = ref(false);
   const isVerticalSplitterActive = ref(false);
+  const isVerticalLimitArmed = ref(false);
+  const isVerticalCloseArmed = ref(false);
+  const isLeftMaxArmed = ref(false);
+  const isRightMaxArmed = ref(false);
+  const isVerticalMaxArmed = ref(false);
+  const isLeftCloseArmed = ref(false);
+  const isRightCloseArmed = ref(false);
 
   let leftDragStartX = 0;
   let leftDragStartWidth = 0;
@@ -31,45 +42,137 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
   let leftDragFrameId: number | null = null;
   let rightDragFrameId: number | null = null;
   let verticalDragFrameId: number | null = null;
+  let latestLeftClientX: number | null = null;
+  let latestRightClientX: number | null = null;
+  let latestVerticalClientY: number | null = null;
 
-  const minLeftPercent = 25;
-  const minCenterPercent = 45;
-  const minRightPercent = 25;
-  const minTabPanelHeight = 100;
-  const minMainContentHeight = 200;
+  let leftWidthRatio = LAYOUT_CONSTANTS.MIN_SIDE_PERCENT / 100;
+  let rightWidthRatio = LAYOUT_CONSTANTS.MIN_SIDE_PERCENT / 100;
+  let tabHeightRatio = 0.3;
+
+  const getContainerWidth = () => {
+    if (!contentWrapper.value) return 0;
+    const horizontalSplitters =
+      (showLeftActivity.value ? LAYOUT_CONSTANTS.HORIZONTAL_SPLITTER_SIZE : 0) +
+      (showRightActivity.value ? LAYOUT_CONSTANTS.HORIZONTAL_SPLITTER_SIZE : 0);
+    return contentWrapper.value.offsetWidth - horizontalSplitters;
+  };
+
+  const getContainerHeight = () => {
+    if (!mainArea.value) return 0;
+    return mainArea.value.offsetHeight - LAYOUT_CONSTANTS.MAIN_AREA_VERTICAL_OFFSET;
+  };
+
+  const getMinSideWidth = (width: number) =>
+    Math.max(Math.floor(width * (LAYOUT_CONSTANTS.MIN_SIDE_PERCENT / 100)), LAYOUT_CONSTANTS.MIN_SIDE_WIDTH_PX);
+  const getMinLeftWidth = (width: number) => getMinSideWidth(width);
+  const getMinRightWidth = (width: number) => getMinSideWidth(width);
+  const getMinCenterWidth = (width: number) =>
+    Math.max(
+      Math.floor(width * (LAYOUT_CONSTANTS.MIN_CENTER_PERCENT / 100)),
+      LAYOUT_CONSTANTS.MIN_CENTER_WIDTH_PX
+    );
+  const getMaxSideWidth = (width: number) => Math.min(width - getMinCenterWidth(width), LAYOUT_CONSTANTS.MAX_SIDE_WIDTH_PX);
+
+  const clampLeftWidth = (nextWidth: number, width: number, rightWidth: number) => {
+    const minLeftWidth = getMinLeftWidth(width);
+    const maxLeftByCenter = width - rightWidth - getMinCenterWidth(width);
+    const maxLeftWidth = Math.max(minLeftWidth, Math.min(getMaxSideWidth(width), maxLeftByCenter));
+    return Math.max(minLeftWidth, Math.min(maxLeftWidth, nextWidth));
+  };
+
+  const getLeftMaxWidth = (width: number, rightWidth: number) => {
+    const minLeftWidth = getMinLeftWidth(width);
+    const maxLeftByCenter = width - rightWidth - getMinCenterWidth(width);
+    return Math.max(minLeftWidth, Math.min(getMaxSideWidth(width), maxLeftByCenter));
+  };
+
+  const clampRightWidth = (nextWidth: number, width: number, leftWidth: number) => {
+    const minRightWidth = getMinRightWidth(width);
+    const maxRightByCenter = width - leftWidth - getMinCenterWidth(width);
+    const maxRightWidth = Math.max(minRightWidth, Math.min(getMaxSideWidth(width), maxRightByCenter));
+    return Math.max(minRightWidth, Math.min(maxRightWidth, nextWidth));
+  };
+
+  const getRightMaxWidth = (width: number, leftWidth: number) => {
+    const minRightWidth = getMinRightWidth(width);
+    const maxRightByCenter = width - leftWidth - getMinCenterWidth(width);
+    return Math.max(minRightWidth, Math.min(getMaxSideWidth(width), maxRightByCenter));
+  };
 
   const calculateActivityWidth = () => {
-    if (!contentWrapper.value) return;
-
-    const availableWidth = contentWrapper.value.offsetWidth - 6;
+    const availableWidth = getContainerWidth();
     if (availableWidth <= 0) return;
 
-    const fixedRightWidth = 200;
-    rightActivityWidth.value = fixedRightWidth;
-
     if (showLeftActivity.value && showRightActivity.value) {
-      const availableWidthForLeftAndCenter = availableWidth - fixedRightWidth;
-      const minLeftPx = Math.floor(availableWidth * (minLeftPercent / 100));
-      const maxLeftPx = availableWidthForLeftAndCenter - Math.floor(availableWidth * (minCenterPercent / 100));
+      let nextLeftWidth = clampLeftWidth(Math.round(availableWidth * leftWidthRatio), availableWidth, rightActivityWidth.value);
+      let nextRightWidth = clampRightWidth(
+        Math.round(availableWidth * rightWidthRatio),
+        availableWidth,
+        nextLeftWidth
+      );
+      nextLeftWidth = clampLeftWidth(nextLeftWidth, availableWidth, nextRightWidth);
 
-      leftActivityWidth.value = Math.max(minLeftPx, Math.min(maxLeftPx, leftActivityWidth.value));
+      leftActivityWidth.value = nextLeftWidth;
+      rightActivityWidth.value = nextRightWidth;
+      leftWidthRatio = nextLeftWidth / availableWidth;
+      rightWidthRatio = nextRightWidth / availableWidth;
+      return;
+    }
+
+    if (showLeftActivity.value) {
+      const minLeftWidth = getMinLeftWidth(availableWidth);
+      const maxLeftWidth = Math.max(
+        minLeftWidth,
+        Math.min(getMaxSideWidth(availableWidth), availableWidth - getMinCenterWidth(availableWidth))
+      );
+      const nextLeftWidth = Math.max(minLeftWidth, Math.min(maxLeftWidth, leftActivityWidth.value));
+      leftActivityWidth.value = nextLeftWidth;
+      leftWidthRatio = nextLeftWidth / availableWidth;
+      return;
+    }
+
+    if (showRightActivity.value) {
+      const minRightWidth = getMinRightWidth(availableWidth);
+      const maxRightWidth = Math.max(
+        minRightWidth,
+        Math.min(getMaxSideWidth(availableWidth), availableWidth - getMinCenterWidth(availableWidth))
+      );
+      const nextRightWidth = Math.max(minRightWidth, Math.min(maxRightWidth, rightActivityWidth.value));
+      rightActivityWidth.value = nextRightWidth;
+      rightWidthRatio = nextRightWidth / availableWidth;
     }
   };
 
-  const calculateHeights = () => {
-    const mainArea = document.querySelector('.main-area');
-    if (!mainArea) return;
+  const resetSideWidthsToMinimum = () => {
+    const availableWidth = getContainerWidth();
+    if (availableWidth <= 0) return;
 
-    const totalHeight = (mainArea as HTMLElement).offsetHeight - 4;
+    const minSideWidth = getMinSideWidth(availableWidth);
+    if (showLeftActivity.value) {
+      leftActivityWidth.value = minSideWidth;
+      leftWidthRatio = minSideWidth / availableWidth;
+    }
+    if (showRightActivity.value) {
+      rightActivityWidth.value = minSideWidth;
+      rightWidthRatio = minSideWidth / availableWidth;
+    }
+    calculateActivityWidth();
+  };
+
+  const calculateHeights = () => {
+    const totalHeight = getContainerHeight();
     if (totalHeight <= 0) return;
 
+    const nextTabHeight = Math.round(totalHeight * tabHeightRatio);
     const clampedTabPanelHeight = Math.max(
-      minTabPanelHeight,
-      Math.min(totalHeight - minMainContentHeight, tabPanelHeight.value)
+      LAYOUT_CONSTANTS.MIN_TAB_PANEL_HEIGHT,
+      Math.min(totalHeight - LAYOUT_CONSTANTS.MIN_MAIN_CONTENT_HEIGHT, nextTabHeight)
     );
 
     tabPanelHeight.value = clampedTabPanelHeight;
     mainContentHeight.value = totalHeight - clampedTabPanelHeight;
+    tabHeightRatio = clampedTabPanelHeight / totalHeight;
   };
 
   const stopLeftDrag = () => {
@@ -77,6 +180,12 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
       cancelAnimationFrame(leftDragFrameId);
       leftDragFrameId = null;
     }
+    latestLeftClientX = null;
+    if (isLeftCloseArmed.value) {
+      showLeftActivity.value = false;
+      isLeftCloseArmed.value = false;
+    }
+    isLeftMaxArmed.value = false;
     document.removeEventListener('mousemove', onLeftDrag);
     document.removeEventListener('mouseup', stopLeftDrag);
     document.body.style.cursor = '';
@@ -84,23 +193,28 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
   };
 
   const onLeftDrag = (e: MouseEvent) => {
-    if (leftDragFrameId) {
-      cancelAnimationFrame(leftDragFrameId);
-    }
+    latestLeftClientX = e.clientX;
+    if (leftDragFrameId) return;
 
     leftDragFrameId = requestAnimationFrame(() => {
+      leftDragFrameId = null;
       if (!contentWrapper.value) return;
+      if (latestLeftClientX === null) return;
 
-      const deltaX = e.clientX - leftDragStartX;
+      const deltaX = latestLeftClientX - leftDragStartX;
       const newWidth = leftDragStartWidth + deltaX;
-      const availableWidthForLeftAndCenter = containerWidth - rightActivityWidth.value;
-      if (availableWidthForLeftAndCenter <= 0) return;
-
-      const maxLeftWidth = availableWidthForLeftAndCenter - Math.floor(containerWidth * (minCenterPercent / 100));
-      leftActivityWidth.value = Math.max(
-        Math.floor(containerWidth * (minLeftPercent / 100)),
-        Math.min(maxLeftWidth, newWidth)
-      );
+      const minLeftWidth = getMinLeftWidth(containerWidth);
+      const maxLeftWidth = getLeftMaxWidth(containerWidth, rightActivityWidth.value);
+      const closeBoundary = minLeftWidth - closeDragThreshold;
+      const recoverBoundary = minLeftWidth - closeRecoverThreshold;
+      if (newWidth < closeBoundary) {
+        isLeftCloseArmed.value = true;
+      } else if (newWidth > recoverBoundary) {
+        isLeftCloseArmed.value = false;
+      }
+      isLeftMaxArmed.value = newWidth > maxLeftWidth;
+      leftActivityWidth.value = clampLeftWidth(newWidth, containerWidth, rightActivityWidth.value);
+      leftWidthRatio = leftActivityWidth.value / containerWidth;
     });
   };
 
@@ -109,7 +223,10 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
 
     leftDragStartX = e.clientX;
     leftDragStartWidth = leftActivityWidth.value;
-    containerWidth = contentWrapper.value.offsetWidth - 6;
+    isLeftCloseArmed.value = false;
+    isLeftMaxArmed.value = false;
+    containerWidth = getContainerWidth();
+    if (containerWidth <= 0) return;
 
     document.addEventListener('mousemove', onLeftDrag);
     document.addEventListener('mouseup', stopLeftDrag);
@@ -122,6 +239,12 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
       cancelAnimationFrame(rightDragFrameId);
       rightDragFrameId = null;
     }
+    latestRightClientX = null;
+    if (isRightCloseArmed.value) {
+      showRightActivity.value = false;
+      isRightCloseArmed.value = false;
+    }
+    isRightMaxArmed.value = false;
     document.removeEventListener('mousemove', onRightDrag);
     document.removeEventListener('mouseup', stopRightDrag);
     document.body.style.cursor = '';
@@ -129,23 +252,28 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
   };
 
   const onRightDrag = (e: MouseEvent) => {
-    if (rightDragFrameId) {
-      cancelAnimationFrame(rightDragFrameId);
-    }
+    latestRightClientX = e.clientX;
+    if (rightDragFrameId) return;
 
     rightDragFrameId = requestAnimationFrame(() => {
+      rightDragFrameId = null;
       if (!contentWrapper.value) return;
+      if (latestRightClientX === null) return;
 
-      const deltaX = rightDragStartX - e.clientX;
+      const deltaX = rightDragStartX - latestRightClientX;
       const newWidth = rightDragStartWidth + deltaX;
-      const availableWidthForRightAndCenter = containerWidth - leftActivityWidth.value;
-      if (availableWidthForRightAndCenter <= 0) return;
-
-      const maxRightWidth = availableWidthForRightAndCenter - Math.floor(containerWidth * (minCenterPercent / 100));
-      rightActivityWidth.value = Math.max(
-        Math.floor(containerWidth * (minRightPercent / 100)),
-        Math.min(maxRightWidth, newWidth)
-      );
+      const minRightWidth = getMinRightWidth(containerWidth);
+      const maxRightWidth = getRightMaxWidth(containerWidth, leftActivityWidth.value);
+      const closeBoundary = minRightWidth - closeDragThreshold;
+      const recoverBoundary = minRightWidth - closeRecoverThreshold;
+      if (newWidth < closeBoundary) {
+        isRightCloseArmed.value = true;
+      } else if (newWidth > recoverBoundary) {
+        isRightCloseArmed.value = false;
+      }
+      isRightMaxArmed.value = newWidth > maxRightWidth;
+      rightActivityWidth.value = clampRightWidth(newWidth, containerWidth, leftActivityWidth.value);
+      rightWidthRatio = rightActivityWidth.value / containerWidth;
     });
   };
 
@@ -154,7 +282,10 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
 
     rightDragStartX = e.clientX;
     rightDragStartWidth = rightActivityWidth.value;
-    containerWidth = contentWrapper.value.offsetWidth - 6;
+    isRightCloseArmed.value = false;
+    isRightMaxArmed.value = false;
+    containerWidth = getContainerWidth();
+    if (containerWidth <= 0) return;
 
     document.addEventListener('mousemove', onRightDrag);
     document.addEventListener('mouseup', stopRightDrag);
@@ -167,6 +298,15 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
       cancelAnimationFrame(verticalDragFrameId);
       verticalDragFrameId = null;
     }
+    if (isVerticalCloseArmed.value) {
+      tabPanelHeight.value = 0;
+      mainContentHeight.value = containerHeight;
+      tabHeightRatio = 0;
+      isVerticalCloseArmed.value = false;
+    }
+    latestVerticalClientY = null;
+    isVerticalLimitArmed.value = false;
+    isVerticalMaxArmed.value = false;
     document.removeEventListener('mousemove', onVerticalDrag);
     document.removeEventListener('mouseup', stopVerticalDrag);
     document.body.style.cursor = '';
@@ -174,30 +314,40 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
   };
 
   const onVerticalDrag = (e: MouseEvent) => {
-    if (verticalDragFrameId) {
-      cancelAnimationFrame(verticalDragFrameId);
-    }
+    latestVerticalClientY = e.clientY;
+    if (verticalDragFrameId) return;
 
     verticalDragFrameId = requestAnimationFrame(() => {
-      const mainArea = document.querySelector('.main-area');
-      if (!mainArea) return;
+      verticalDragFrameId = null;
+      if (!mainArea.value) return;
+      if (latestVerticalClientY === null) return;
 
-      const deltaY = e.clientY - verticalDragStartY;
-      const newHeight = verticalDragStartHeight + deltaY;
-      const clampedHeight = Math.max(minTabPanelHeight, Math.min(containerHeight - minMainContentHeight, newHeight));
+      const deltaY = latestVerticalClientY - verticalDragStartY;
+      const newHeight = verticalDragStartHeight - deltaY;
+      const minHeight = LAYOUT_CONSTANTS.MIN_TAB_PANEL_HEIGHT;
+      const maxHeight = containerHeight;
+      const clampedHeight = Math.max(
+        minHeight,
+        Math.min(maxHeight, newHeight)
+      );
+      isVerticalMaxArmed.value = false;
+      isVerticalCloseArmed.value = newHeight < minHeight;
+      isVerticalLimitArmed.value = isVerticalCloseArmed.value;
 
       tabPanelHeight.value = clampedHeight;
       mainContentHeight.value = containerHeight - clampedHeight;
+      tabHeightRatio = clampedHeight / containerHeight;
     });
   };
 
   const startVerticalDrag = (e: MouseEvent) => {
-    const mainArea = document.querySelector('.main-area');
-    if (!mainArea) return;
+    if (!mainArea.value) return;
 
     verticalDragStartY = e.clientY;
     verticalDragStartHeight = tabPanelHeight.value;
-    containerHeight = (mainArea as HTMLElement).offsetHeight - 4;
+    isVerticalCloseArmed.value = false;
+    containerHeight = getContainerHeight();
+    if (containerHeight <= 0) return;
 
     document.addEventListener('mousemove', onVerticalDrag);
     document.addEventListener('mouseup', stopVerticalDrag);
@@ -211,9 +361,21 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
   };
 
   onMounted(() => {
-    calculateActivityWidth();
+    resetSideWidthsToMinimum();
     calculateHeights();
     window.addEventListener('resize', handleResize);
+  });
+
+  watch(showLeftActivity, (visible, previous) => {
+    if (visible && !previous) {
+      resetSideWidthsToMinimum();
+    }
+  });
+
+  watch(showRightActivity, (visible, previous) => {
+    if (visible && !previous) {
+      resetSideWidthsToMinimum();
+    }
   });
 
   onUnmounted(() => {
@@ -221,6 +383,8 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
     stopLeftDrag();
     stopRightDrag();
     stopVerticalDrag();
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
   });
 
   return {
@@ -231,6 +395,13 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
     isLeftSplitterActive,
     isRightSplitterActive,
     isVerticalSplitterActive,
+    isVerticalLimitArmed,
+    isVerticalCloseArmed,
+    isLeftMaxArmed,
+    isRightMaxArmed,
+    isVerticalMaxArmed,
+    isLeftCloseArmed,
+    isRightCloseArmed,
     startLeftDrag,
     startRightDrag,
     startVerticalDrag,

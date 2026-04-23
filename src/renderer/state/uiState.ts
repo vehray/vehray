@@ -27,6 +27,8 @@ interface UiState {
   rightPanelVisible: boolean;
   tabs: UiTabItem[];
   historyFiles: HistoryFileItem[];
+  theme: 'dark' | 'light';
+  locale: 'zh-CN' | 'en-US';
 }
 
 const state = reactive<UiState>({
@@ -36,7 +38,9 @@ const state = reactive<UiState>({
   activeTab: 'home',
   rightPanelVisible: false,
   tabs: [{ id: 'home', title: '主页', content: 'home-content' }],
-  historyFiles: []
+  historyFiles: [],
+  theme: 'dark',
+  locale: 'zh-CN'
 });
 
 const resetState = () => {
@@ -47,6 +51,8 @@ const resetState = () => {
   state.rightPanelVisible = false;
   state.tabs = [{ id: 'home', title: '主页', content: 'home-content' }];
   state.historyFiles = [];
+  state.theme = 'dark';
+  state.locale = 'zh-CN';
 };
 
 export function useUiState() {
@@ -60,12 +66,26 @@ export function useUiState() {
     state.fileTree = nodes;
   };
 
+  const clearActiveFolder = () => {
+    state.activeFolderPath = null;
+    state.activeFolderName = null;
+    state.fileTree = [];
+  };
+
   const setActiveTab = (tabId: string) => {
     state.activeTab = tabId;
   };
 
   const setRightPanelVisible = (visible: boolean) => {
     state.rightPanelVisible = visible;
+  };
+
+  const setTheme = (theme: UiState['theme']) => {
+    state.theme = theme;
+  };
+
+  const setLocale = (locale: UiState['locale']) => {
+    state.locale = locale;
   };
 
   const ensureHomeTab = () => {
@@ -122,8 +142,11 @@ export function useUiState() {
     state: readonly(state),
     setActiveFolder,
     setFileTree,
+    clearActiveFolder,
     setActiveTab,
     setRightPanelVisible,
+    setTheme,
+    setLocale,
     ensureHomeTab,
     upsertTab,
     switchToTab,

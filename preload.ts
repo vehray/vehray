@@ -228,6 +228,77 @@ contextBridge.exposeInMainWorld('electron', {
     }
   },
 
+  // Explorer 相关API
+  explorer: {
+    openFolder: async () => {
+      return await ipcRenderer.invoke('explorer:open-folder');
+    },
+    readDirectory: async (directoryPath: string) => {
+      return await ipcRenderer.invoke('explorer:read-directory', directoryPath);
+    },
+    readFile: async (filePath: string) => {
+      return await ipcRenderer.invoke('explorer:read-file', filePath);
+    },
+    createDirectory: async (directoryPath: string) => {
+      return await ipcRenderer.invoke('explorer:create-directory', directoryPath);
+    },
+    deleteEntry: async (targetPath: string) => {
+      return await ipcRenderer.invoke('explorer:delete-entry', targetPath);
+    },
+    revealInFolder: async (targetPath: string) => {
+      return await ipcRenderer.invoke('explorer:reveal-in-folder', targetPath);
+    },
+    watchFolder: async (folderPath: string) => {
+      return await ipcRenderer.invoke('explorer:watch-folder', folderPath);
+    },
+    unwatchFolder: async () => {
+      return await ipcRenderer.invoke('explorer:unwatch-folder');
+    },
+    onFolderChanged: (callback: (payload: { folderPath: string; eventType: string; filename: string }) => void) => {
+      const listener = (_event: any, payload: { folderPath: string; eventType: string; filename: string }) => {
+        callback(payload);
+      };
+      ipcRenderer.on('explorer:folder-changed', listener);
+      return () => {
+        ipcRenderer.removeListener('explorer:folder-changed', listener);
+      };
+    },
+    pickImportEntries: async () => {
+      return await ipcRenderer.invoke('explorer:pick-import-entries');
+    },
+    importEntries: async (targetDirectory: string, sourcePaths: string[]) => {
+      return await ipcRenderer.invoke('explorer:import-entries', targetDirectory, sourcePaths);
+    }
+  },
+
+  // 全局上下文菜单API
+  contextMenu: {
+    show: (payload: { source: 'explorer'; targetPath: string; targetType: 'root' | 'file' | 'directory' }) => {
+      ipcRenderer.send('context-menu:show', payload);
+    },
+    onAction: (
+      callback: (payload: {
+        source: 'explorer';
+        action: 'revealInFolder' | 'createFolder';
+        targetPath: string;
+        targetType: 'root' | 'file' | 'directory';
+      }) => void
+    ) => {
+      const listener = (_event: any, payload: {
+        source: 'explorer';
+        action: 'revealInFolder' | 'createFolder';
+        targetPath: string;
+        targetType: 'root' | 'file' | 'directory';
+      }) => {
+        callback(payload);
+      };
+      ipcRenderer.on('context-menu:action', listener);
+      return () => {
+        ipcRenderer.removeListener('context-menu:action', listener);
+      };
+    }
+  },
+
   // 对话框相关API（用于打开文件管理器）
   dialog: {
     // 打开目录选择对话框

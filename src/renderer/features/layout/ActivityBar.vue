@@ -1,21 +1,21 @@
 <template>
-  <div class="activity-bar" :class="{ 'activity-bar-right': position === 'right' }">
+  <div class="activity-bar" :class="{ 'activity-bar-right': position === 'right' }" :style="panelStyle">
     <div class="activity-bar-header">
       <span class="activity-bar-title">{{ title }}</span>
       <div class="activity-bar-actions" :class="{ 'activity-bar-actions-right': position === 'right' }">
         <template v-if="position === 'left'">
-          <button class="action-btn" title="浮动/停靠" @click="toggleFloat">
+          <button class="action-btn" :title="t('layout.header.toggleMenu')" @click="toggleFloat">
             <el-icon :size="14"><Menu /></el-icon>
           </button>
-          <button class="action-btn" title="关闭" @click="close">
+          <button class="action-btn" :title="t('common.close')" @click="close">
             <el-icon :size="14"><Close /></el-icon>
           </button>
         </template>
         <template v-else>
-          <button class="action-btn" title="关闭" @click="close">
+          <button class="action-btn" :title="t('common.close')" @click="close">
             <el-icon :size="14"><Close /></el-icon>
           </button>
-          <button class="action-btn" title="浮动/停靠" @click="toggleFloat">
+          <button class="action-btn" :title="t('layout.header.toggleMenu')" @click="toggleFloat">
             <el-icon :size="14"><Menu /></el-icon>
           </button>
         </template>
@@ -24,21 +24,26 @@
     <div class="activity-bar-content">
       <div v-if="items.length > 0" class="activity-items-container">
         <div class="activity-item" v-for="item in items" :key="item.id" :title="item.title">
-          <el-icon :size="16">{{ item.icon }}</el-icon>
+          <el-icon :size="16"><component :is="item.icon" /></el-icon>
         </div>
       </div>
-      <div v-if="properties && properties.length > 0" class="properties-container">
-        <div class="property-item" v-for="property in properties" :key="property.id">
-          <div class="property-label">{{ property.label }}</div>
-          <div class="property-value">{{ property.value }}</div>
+      <slot name="content">
+        <div v-if="properties && properties.length > 0" class="properties-container">
+          <div class="property-item" v-for="property in properties" :key="property.id">
+            <div class="property-label">{{ property.label }}</div>
+            <div class="property-value">{{ property.value }}</div>
+          </div>
         </div>
-      </div>
+        <div v-else class="empty-tip">暂无属性数据</div>
+      </slot>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Close, Menu } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
 
 interface ActivityItem {
   id: string;
@@ -52,7 +57,7 @@ interface Property {
   value: string;
 }
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     title: string;
     items: ActivityItem[];
@@ -74,14 +79,16 @@ const emit = defineEmits<{
 
 const close = () => emit('close');
 const toggleFloat = () => emit('toggle-float');
+const { t } = useI18n();
+const panelStyle = computed(() => ({
+  width: `${props.customWidth}px`
+}));
 </script>
 
 <style scoped>
 .activity-bar {
-  min-width: 200px;
-  max-width: 400px;
-  background-color: #1e1e1e;
-  border-right: 1px solid #424242;
+  background-color: var(--app-bg);
+  border-right: 1px solid var(--app-border);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -90,17 +97,17 @@ const toggleFloat = () => emit('toggle-float');
 
 .activity-bar-right {
   border-right: none;
-  border-left: 1px solid #424242;
+  border-left: 1px solid var(--app-border);
 }
 
 .activity-bar-header {
-  padding: 8px 12px;
-  border-bottom: 1px solid #424242;
-  background-color: #252526;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--app-border);
+  background-color: var(--app-bg-elevated);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 32px;
+  height: 34px;
 }
 
 .activity-bar-right .activity-bar-header {
@@ -108,8 +115,11 @@ const toggleFloat = () => emit('toggle-float');
 }
 
 .activity-bar-title {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
   font-size: 12px;
-  color: #cccccc;
+  color: var(--app-text-regular);
   font-weight: 500;
 }
 
@@ -124,7 +134,7 @@ const toggleFloat = () => emit('toggle-float');
   height: 20px;
   border: none;
   background-color: transparent;
-  color: #cccccc;
+  color: var(--app-text-regular);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -133,7 +143,7 @@ const toggleFloat = () => emit('toggle-float');
 }
 
 .action-btn:hover {
-  background-color: #333333;
+  background-color: var(--app-bg-hover);
 }
 
 .activity-bar-content {
@@ -153,14 +163,14 @@ const toggleFloat = () => emit('toggle-float');
 
 .property-label {
   font-size: 11px;
-  color: #999999;
+  color: var(--app-text-muted);
 }
 
 .property-value {
   font-size: 12px;
-  color: #cccccc;
-  background-color: #252526;
-  border: 1px solid #424242;
+  color: var(--app-text-regular);
+  background-color: var(--app-bg-elevated);
+  border: 1px solid var(--app-border);
   border-radius: 3px;
   padding: 6px 8px;
 }
@@ -171,7 +181,7 @@ const toggleFloat = () => emit('toggle-float');
   gap: 8px;
   margin-bottom: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #424242;
+  border-bottom: 1px solid var(--app-border);
 }
 
 .activity-item {
@@ -180,18 +190,23 @@ const toggleFloat = () => emit('toggle-float');
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #cccccc;
+  color: var(--app-text-regular);
   cursor: pointer;
   border-radius: 3px;
 }
 
 .activity-item:hover {
-  background-color: #333333;
+  background-color: var(--app-bg-hover);
 }
 
 .properties-container {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.empty-tip {
+  font-size: 12px;
+  color: var(--app-text-muted);
 }
 </style>

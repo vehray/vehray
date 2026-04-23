@@ -1,6 +1,6 @@
 <template>
   <div class="right-sidebar">
-    <button class="sidebar-btn" title="属性" @click="$emit('toggle-activity')">
+    <button class="sidebar-btn" :title="t('layout.sidebar.properties')" @click="$emit('toggle-activity')">
       <el-icon><Operation /></el-icon>
     </button>
   </div>
@@ -8,6 +8,8 @@
 
 <script setup lang="ts">
 import { Operation } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 
 defineEmits<{
   (e: 'toggle-activity'): void;
@@ -17,8 +19,8 @@ defineEmits<{
 <style scoped>
 .right-sidebar {
   width: 33px;
-  background-color: #252526;
-  border-left: 1px solid #424242;
+  background-color: var(--app-bg-elevated);
+  border-left: 1px solid var(--app-border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -36,12 +38,12 @@ defineEmits<{
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #cccccc;
+  color: var(--app-text-regular);
   transition: all 0.3s;
 }
 
 .sidebar-btn:hover {
-  background-color: #333333;
-  color: #e1e1e1;
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
 }
 </style>

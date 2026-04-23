@@ -1,9 +1,9 @@
 <template>
   <div class="main-sidebar">
-    <button class="sidebar-btn" title="主页" @click="$emit('button-click', 'home')">
+    <button class="sidebar-btn" :title="t('layout.sidebar.home')" @click="$emit('button-click', 'home')">
       <el-icon><House /></el-icon>
     </button>
-    <button class="sidebar-btn" title="文件" @click="$emit('button-click', 'file')">
+    <button class="sidebar-btn" :title="t('layout.sidebar.file')" @click="$emit('button-click', 'file')">
       <el-icon><Folder /></el-icon>
     </button>
   </div>
@@ -11,6 +11,8 @@
 
 <script setup lang="ts">
 import { House, Folder } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
+const { t } = useI18n();
 
 defineEmits<{
   (e: 'button-click', view: string): void;
@@ -20,8 +22,8 @@ defineEmits<{
 <style scoped>
 .main-sidebar {
   width: 33px;
-  background-color: #252526;
-  border-right: 1px solid #424242;
+  background-color: var(--app-bg-elevated);
+  border-right: 1px solid var(--app-border);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -39,12 +41,12 @@ defineEmits<{
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #cccccc;
+  color: var(--app-text-regular);
   transition: all 0.3s;
 }
 
 .sidebar-btn:hover {
-  background-color: #333333;
-  color: #e1e1e1;
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
 }
 </style>

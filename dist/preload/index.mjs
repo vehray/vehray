@@ -192,6 +192,63 @@ contextBridge.exposeInMainWorld("electron", {
       return await ipcRenderer.invoke("fs:delete", path);
     }
   },
+  // Explorer 相关API
+  explorer: {
+    openFolder: async () => {
+      return await ipcRenderer.invoke("explorer:open-folder");
+    },
+    readDirectory: async (directoryPath) => {
+      return await ipcRenderer.invoke("explorer:read-directory", directoryPath);
+    },
+    readFile: async (filePath) => {
+      return await ipcRenderer.invoke("explorer:read-file", filePath);
+    },
+    createDirectory: async (directoryPath) => {
+      return await ipcRenderer.invoke("explorer:create-directory", directoryPath);
+    },
+    deleteEntry: async (targetPath) => {
+      return await ipcRenderer.invoke("explorer:delete-entry", targetPath);
+    },
+    revealInFolder: async (targetPath) => {
+      return await ipcRenderer.invoke("explorer:reveal-in-folder", targetPath);
+    },
+    watchFolder: async (folderPath) => {
+      return await ipcRenderer.invoke("explorer:watch-folder", folderPath);
+    },
+    unwatchFolder: async () => {
+      return await ipcRenderer.invoke("explorer:unwatch-folder");
+    },
+    onFolderChanged: (callback) => {
+      const listener = (_event, payload) => {
+        callback(payload);
+      };
+      ipcRenderer.on("explorer:folder-changed", listener);
+      return () => {
+        ipcRenderer.removeListener("explorer:folder-changed", listener);
+      };
+    },
+    pickImportEntries: async () => {
+      return await ipcRenderer.invoke("explorer:pick-import-entries");
+    },
+    importEntries: async (targetDirectory, sourcePaths) => {
+      return await ipcRenderer.invoke("explorer:import-entries", targetDirectory, sourcePaths);
+    }
+  },
+  // 全局上下文菜单API
+  contextMenu: {
+    show: (payload) => {
+      ipcRenderer.send("context-menu:show", payload);
+    },
+    onAction: (callback) => {
+      const listener = (_event, payload) => {
+        callback(payload);
+      };
+      ipcRenderer.on("context-menu:action", listener);
+      return () => {
+        ipcRenderer.removeListener("context-menu:action", listener);
+      };
+    }
+  },
   // 对话框相关API（用于打开文件管理器）
   dialog: {
     // 打开目录选择对话框

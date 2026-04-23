@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MainTabPanel from '../../src/renderer/features/tabs/MainTabPanel.vue';
 import { resetUiStateForTest, useUiState } from '../../src/renderer/state/uiState';
+import { i18n } from '../../src/renderer/shared/i18n';
 
 vi.mock('../../src/renderer/services/electronBridge', () => ({
   electronBridge: {
@@ -19,6 +20,7 @@ describe('MainTabPanel', () => {
   it('点击打开文件后会写入历史记录', async () => {
     const wrapper = mount(MainTabPanel, {
       global: {
+        plugins: [i18n],
         stubs: {
           'el-icon': { template: '<i><slot /></i>' }
         }

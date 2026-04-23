@@ -38,8 +38,26 @@ contextBridge.exposeInMainWorld('electron', {
   },
   fs: {
     readDirectory: (path: string) => ipcRenderer.invoke('fs:readDirectory', path),
+    readSettings: () => ipcRenderer.invoke('fs:readSettings'),
+    writeSettings: (settings: any) => ipcRenderer.invoke('fs:writeSettings', settings),
+  },
+  explorer: {
+    openFolder: () => ipcRenderer.invoke('explorer:open-folder'),
+    readDirectory: (directoryPath: string) => ipcRenderer.invoke('explorer:read-directory', directoryPath),
+    readFile: (filePath: string) => ipcRenderer.invoke('explorer:read-file', filePath),
+    createDirectory: (directoryPath: string) => ipcRenderer.invoke('explorer:create-directory', directoryPath),
+    deleteEntry: (targetPath: string) => ipcRenderer.invoke('explorer:delete-entry', targetPath),
+    revealInFolder: (targetPath: string) => ipcRenderer.invoke('explorer:reveal-in-folder', targetPath),
+    watchFolder: (folderPath: string) => ipcRenderer.invoke('explorer:watch-folder', folderPath),
+    unwatchFolder: () => ipcRenderer.invoke('explorer:unwatch-folder'),
+    onFolderChanged: (callback: (payload: { folderPath: string; eventType: string; filename: string }) => void) => {
+      const listener = (_event: any, payload: { folderPath: string; eventType: string; filename: string }) => callback(payload);
+      ipcRenderer.on('explorer:folder-changed', listener);
+      return () => ipcRenderer.removeListener('explorer:folder-changed', listener);
+    },
   },
   ipcRenderer: {
+    invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
     send: (channel: string, ...args: any[]) => ipcRenderer.send(channel, ...args),
     on: (channel: string, listener: (event: any, ...args: any[]) => void) => {
       const wrappedListener = (event: any, ...args: any[]) => listener(event, ...args);

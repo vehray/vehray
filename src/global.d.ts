@@ -42,7 +42,38 @@ declare global {
         writeFile: (path: string, content: string) => Promise<{ success: boolean }>;
         rename: (oldPath: string, newPath: string) => Promise<{ success: boolean }>;
         createDirectory: (path: string) => Promise<{ success: boolean }>;
-        delete: (path: string) => Promise<{ success: boolean }>;
+        delete: (path: string) => Promise<{ success: boolean; message?: string }>;
+      };
+      explorer: {
+        openFolder: () => Promise<{ canceled: boolean; folderPath: string | null }>;
+        readDirectory: (path: string) => Promise<{
+          name: string;
+          path: string;
+          type: 'file' | 'directory';
+          size: number;
+          modifiedAt: number;
+        }[]>;
+        readFile: (path: string) => Promise<{ success: boolean; content: string }>;
+        createDirectory: (path: string) => Promise<{ success: boolean }>;
+        deleteEntry: (path: string) => Promise<{ success: boolean; message?: string }>;
+        revealInFolder: (path: string) => Promise<{ success: boolean; message?: string }>;
+        watchFolder: (path: string) => Promise<{ success: boolean }>;
+        unwatchFolder: () => Promise<{ success: boolean }>;
+        onFolderChanged: (callback: (payload: { folderPath: string; eventType: string; filename: string }) => void) => () => void;
+        pickImportEntries: () => Promise<{ canceled: boolean; filePaths: string[] }>;
+        importEntries: (
+          targetDirectory: string,
+          sourcePaths: string[]
+        ) => Promise<{ success: boolean; message?: string }>;
+      };
+      contextMenu: {
+        show: (payload: { source: 'explorer'; targetPath: string; targetType: 'root' | 'file' | 'directory' }) => void;
+        onAction: (callback: (payload: {
+          source: 'explorer';
+          action: 'revealInFolder' | 'createFolder';
+          targetPath: string;
+          targetType: 'root' | 'file' | 'directory';
+        }) => void) => () => void;
       };
       ipcRenderer: {
         invoke: (channel: string, ...args: any[]) => Promise<any>;
