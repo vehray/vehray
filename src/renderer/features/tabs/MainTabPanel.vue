@@ -42,6 +42,20 @@
           </div>
         </div>
       </div>
+      <div v-else-if="activeTabId === 'lin-ldf-editor'" class="lin-ldf-editor-view">
+        <div class="editor-header">
+          <h2>{{ t('tabs.linLdfEditorTitle') }}</h2>
+          <p>{{ t('tabs.linLdfEditorDescription') }}</p>
+        </div>
+        <div class="editor-toolbar">
+          <button class="editor-action-btn">{{ t('tabs.linLdfImport') }}</button>
+          <button class="editor-action-btn">{{ t('tabs.linLdfValidate') }}</button>
+          <button class="editor-action-btn">{{ t('tabs.linLdfExport') }}</button>
+        </div>
+        <div class="editor-content">
+          <textarea class="ldf-textarea" :placeholder="t('tabs.linLdfPlaceholder')"></textarea>
+        </div>
+      </div>
       <div v-else-if="tabs.length > 0" class="tab-content-placeholder">
         {{ t('tabs.tabContentPlaceholder', { title: getActiveTab()?.title ?? '' }) }}
       </div>
@@ -170,4 +184,56 @@ defineExpose({ loadHomeTab });
 .history-item-name { color: var(--app-text-primary); font-size: 14px; }
 .history-item-path { color: var(--app-text-muted); font-size: 12px; }
 .tab-content-placeholder, .no-tabs-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--app-text-faint); }
+.lin-ldf-editor-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+.editor-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--app-text-primary);
+}
+.editor-header p {
+  margin: 6px 0 0;
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+.editor-toolbar {
+  display: flex;
+  gap: 8px;
+}
+.editor-action-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--app-border);
+  background: var(--app-bg-elevated);
+  color: var(--app-text-regular);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.editor-action-btn:hover {
+  background: var(--app-bg-hover);
+  color: var(--app-text-primary);
+}
+.editor-content {
+  flex: 1;
+  min-height: 0;
+}
+.ldf-textarea {
+  width: 100%;
+  height: 100%;
+  resize: none;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background-color: var(--app-bg-elevated);
+  color: var(--app-text-regular);
+  padding: 12px;
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
 </style>

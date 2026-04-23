@@ -48,9 +48,9 @@
           <span class="menu-label">{{ t('layout.header.tools') }}(<span class="mnemonic-char" :class="{ 'mnemonic-active': isAltPressed }">T</span>)</span>
         </button>
         <div class="custom-dropdown-menu" v-if="toolsDropdownVisible">
-          <div class="custom-dropdown-item" @click="handlePlaceholderAction">
+          <div class="custom-dropdown-item" @click="handleOpenLinLdfEditor">
             <el-icon><Tools /></el-icon>
-            <span>{{ t('layout.header.placeholderTools1') }}</span>
+            <span>{{ t('layout.header.linLdfEditor') }}</span>
           </div>
           <div class="custom-dropdown-item" @click="handlePlaceholderAction">
             <el-icon><Tools /></el-icon>
@@ -417,6 +417,11 @@ const handleOpenFolder = async () => {
     console.log('选择的目录:', folderPath);
   }
   dropdownVisible.value = false;
+};
+
+const handleOpenLinLdfEditor = () => {
+  uiActions.openLinLdfEditor();
+  closeAllDropdowns();
 };
 
 const handleSettings = () => {

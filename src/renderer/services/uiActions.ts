@@ -52,6 +52,17 @@ export const uiActions = {
     return filePath;
   },
 
+  openLinLdfEditor() {
+    const { upsertTab, switchToTab } = useUiState();
+    const tabId = 'lin-ldf-editor';
+    upsertTab({
+      id: tabId,
+      title: i18n.global.t('layout.header.linLdfEditor'),
+      content: 'lin-ldf-editor'
+    });
+    switchToTab(tabId);
+  },
+
   refreshTree() {
     const { state } = useUiState();
     if (!state.activeFolderPath) return;

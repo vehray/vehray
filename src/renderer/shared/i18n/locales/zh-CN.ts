@@ -44,6 +44,7 @@ export default {
       placeholderEdit2: '空白示例：编辑项 2',
       placeholderTools1: '空白示例：工具项 1',
       placeholderTools2: '空白示例：工具项 2',
+      linLdfEditor: 'LIN LDF编辑器',
       placeholderWindow1: '空白示例：窗口项 1',
       placeholderWindow2: '空白示例：窗口项 2',
       placeholderHelp1: '空白示例：帮助项 1',
@@ -92,7 +93,13 @@ export default {
     recentFiles: '最近打开的文件',
     emptyRecentFiles: '暂无历史文件',
     noTabsHint: '请点击左侧的主页按钮',
-    tabContentPlaceholder: '标签内容区域 - {title}'
+    tabContentPlaceholder: '标签内容区域 - {title}',
+    linLdfEditorTitle: 'LIN LDF 编辑器',
+    linLdfEditorDescription: '基础示例：在这里编辑 LDF 内容，后续可接入语法解析和信号校验。',
+    linLdfImport: '导入 LDF',
+    linLdfValidate: '校验',
+    linLdfExport: '导出',
+    linLdfPlaceholder: '在此粘贴或输入 LIN LDF 内容...'
   },
   properties: {
     currentSelection: '当前选择',

@@ -44,6 +44,7 @@ export default {
       placeholderEdit2: 'Placeholder: Edit Item 2',
       placeholderTools1: 'Placeholder: Tools Item 1',
       placeholderTools2: 'Placeholder: Tools Item 2',
+      linLdfEditor: 'LIN LDF Editor',
       placeholderWindow1: 'Placeholder: Window Item 1',
       placeholderWindow2: 'Placeholder: Window Item 2',
       placeholderHelp1: 'Placeholder: Help Item 1',
@@ -92,7 +93,13 @@ export default {
     recentFiles: 'Recent Files',
     emptyRecentFiles: 'No recent files',
     noTabsHint: 'Please click the home button on the left',
-    tabContentPlaceholder: 'Tab content area - {title}'
+    tabContentPlaceholder: 'Tab content area - {title}',
+    linLdfEditorTitle: 'LIN LDF Editor',
+    linLdfEditorDescription: 'Basic example: edit LDF content here; parser and signal validation can be integrated later.',
+    linLdfImport: 'Import LDF',
+    linLdfValidate: 'Validate',
+    linLdfExport: 'Export',
+    linLdfPlaceholder: 'Paste or type LIN LDF content here...'
   },
   properties: {
     currentSelection: 'Current Selection',
