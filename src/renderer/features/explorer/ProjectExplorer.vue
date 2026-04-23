@@ -19,6 +19,7 @@
               v-for="tab in openedEditorTabs"
               :key="tab.id"
               class="tree-item-header group-leaf-btn"
+              :class="{ selected: tab.id === state.activeTab }"
               type="button"
               @click="switchToTab(tab.id)"
               @contextmenu.prevent.stop="openContextMenuForOpenedEditor(tab.id, $event)"
@@ -318,6 +319,32 @@ watch(
     if (tabs.length === 0) openEditorsExpanded.value = false;
   },
   { deep: true }
+);
+
+watch(
+  () => state.activeTab,
+  (activeTabId) => {
+    const activeTab = state.tabs.find((tab) => tab.id === activeTabId);
+    if (!activeTab || activeTabId === 'home') return;
+
+    let filePath = '';
+    if (activeTabId.startsWith('lin-ldf-editor-file:')) {
+      try {
+        filePath = decodeURIComponent(activeTabId.slice('lin-ldf-editor-file:'.length));
+      } catch {
+        filePath = '';
+      }
+    }
+    if (!filePath) return;
+
+    const fileName = filePath.match(/[^\\/]+$/)?.[0] ?? activeTab.title;
+    selectedPath.value = filePath;
+    setSelectedExplorerEntry({
+      name: fileName,
+      path: filePath,
+      type: 'file'
+    });
+  }
 );
 
 const showNameTooltip = (event: MouseEvent, text: string) => {

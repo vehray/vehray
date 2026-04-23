@@ -62,6 +62,12 @@
             <span>{{ t('layout.header.openFolder') }}</span>
             <span class="shortcut-hint">{{ openFolderShortcut }}</span>
           </div>
+          <div class="menu-divider"></div>
+          <div class="custom-dropdown-item" @click="handleSaveFile">
+            <el-icon><Document /></el-icon>
+            <span>{{ t('layout.header.save') }}</span>
+            <span class="shortcut-hint">{{ saveFileShortcut }}</span>
+          </div>
         </div>
       </div>
       <div class="custom-dropdown" @click="toggleEditDropdown" @mouseenter="handleLeftDropdownHover('edit')">
@@ -290,6 +296,7 @@ const { t } = useI18n();
 const { state } = useUiState();
 const openFileShortcut = shortcutService.getBinding('openFile');
 const openFolderShortcut = shortcutService.getBinding('openFolder');
+const saveFileShortcut = shortcutService.getBinding('saveFile');
 type LeftDropdownType = 'file' | 'edit' | 'tools' | 'window' | 'help';
 type RightDropdownType = 'settings' | 'account';
 
@@ -486,6 +493,11 @@ const handleOpenFolder = async () => {
   if (folderPath) {
     console.log('选择的目录:', folderPath);
   }
+  dropdownVisible.value = false;
+};
+
+const handleSaveFile = async () => {
+  await uiActions.saveActiveTab();
   dropdownVisible.value = false;
 };
 
@@ -868,6 +880,12 @@ onUnmounted(() => {
   margin-left: auto;
   font-size: 11px;
   opacity: 0.72;
+}
+
+.menu-divider {
+  height: 1px;
+  margin: 4px 8px;
+  background-color: var(--app-border);
 }
 
 .theme-menu-trigger {

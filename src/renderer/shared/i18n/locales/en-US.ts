@@ -55,7 +55,8 @@ export default {
       placeholderHelp1: 'Placeholder: Help Item 1',
       placeholderHelp2: 'Placeholder: Help Item 2',
       appNameLabel: 'App Name',
-      versionLabel: 'Version'
+      versionLabel: 'Version',
+      save: 'Save'
     },
     explorer: {
       title: 'Explorer',

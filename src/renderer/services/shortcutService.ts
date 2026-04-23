@@ -188,9 +188,10 @@ class ShortcutManager {
 
   private handleKeydown(event: KeyboardEvent) {
     if (event.repeat) return;
-    if (isEditableTarget(event.target)) return;
     const matchedAction = this.findActionByEvent(event);
     if (!matchedAction) return;
+    // 允许在文本编辑区域触发保存，其它全局快捷键仍避免打断输入体验
+    if (isEditableTarget(event.target) && matchedAction !== 'saveFile') return;
     event.preventDefault();
     const handlers = this.actionHandlers.get(matchedAction);
     if (!handlers) return;

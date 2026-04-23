@@ -1,6 +1,7 @@
 import { electronBridge } from './electronBridge';
 import { useUiState } from '../state/uiState';
 import { i18n } from '../shared/i18n';
+import { normalizeLdf13 } from '../features/lin-ldf/services/ldf13Codec';
 
 type UiPreferences = {
   theme: 'dark' | 'light';
@@ -106,28 +107,51 @@ export const uiActions = {
     return { success: true as const, reason: null, filePath: null };
   },
 
-  async saveActiveTab() {
-    const { state, upsertTab, switchToTab } = useUiState();
-    const activeTab = state.tabs.find((tab) => tab.id === state.activeTab);
+  async saveTabById(tabId: string) {
+    const { state, upsertTab, switchToTab, closeTab } = useUiState();
+    const activeTab = state.tabs.find((tab) => tab.id === tabId);
     if (!activeTab || activeTab.id === 'home') {
       return { success: false as const, reason: 'no-active-tab' as const };
     }
 
     const existingPath = tabIdToFilePath(activeTab.id);
-    const selectedPath = await electronBridge.saveFile(existingPath ?? activeTab.title || 'ldf-doc-1.ldf');
-    if (!selectedPath) return { success: false as const, reason: 'cancelled' as const };
-    const success = await electronBridge.writeFile(selectedPath, activeTab.content ?? '');
+    let selectedPath = existingPath;
+    if (!selectedPath) {
+      const defaultSavePath = activeTab.title ?? 'ldf-doc-1.ldf';
+      selectedPath = await electronBridge.saveFile(defaultSavePath);
+      if (!selectedPath) return { success: false as const, reason: 'cancelled' as const };
+    }
+    const rawContent = activeTab.content ?? '';
+    let serializedContent = rawContent;
+    if (activeTab.id.startsWith('lin-ldf-editor')) {
+      try {
+        serializedContent = normalizeLdf13(rawContent);
+      } catch {
+        // 序列化失败时回退保存原始文本，避免用户内容无法落盘
+        serializedContent = rawContent;
+      }
+    }
+
+    const success = await electronBridge.writeFile(selectedPath, serializedContent);
     if (!success) return { success: false as const, reason: 'write-failed' as const };
 
     const nextTabId = `lin-ldf-editor-file:${encodeURIComponent(selectedPath)}`;
     upsertTab({
       id: nextTabId,
       title: toFileName(selectedPath),
-      content: activeTab.content ?? '',
+      content: serializedContent,
       dirty: false
     });
     switchToTab(nextTabId);
+    if (activeTab.id !== nextTabId && activeTab.id.startsWith('lin-ldf-editor-draft-')) {
+      closeTab(activeTab.id);
+    }
     return { success: true as const, filePath: selectedPath };
+  },
+
+  async saveActiveTab() {
+    const { state } = useUiState();
+    return this.saveTabById(state.activeTab);
   },
 
   refreshTree() {

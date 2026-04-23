@@ -79,6 +79,7 @@
       :style="{ left: `${tabContextMenu.x}px`, top: `${tabContextMenu.y}px` }"
       @click.stop
     >
+      <button class="tab-context-item" @click="handleSaveFromContextMenu">保存</button>
       <button class="tab-context-item" @click="handleCloseFromContextMenu">{{ t('common.close') }}</button>
       <button class="tab-context-item" @click="handleCloseOthersFromContextMenu">关闭其他</button>
       <button class="tab-context-item" @click="handleCloseAllFromContextMenu">关闭全部</button>
@@ -259,6 +260,12 @@ const requestCloseTab = (tabId: string, event?: MouseEvent) => {
 const handleCloseFromContextMenu = () => {
   if (!tabContextMenu.tabId) return;
   requestCloseTab(tabContextMenu.tabId);
+  closeTabContextMenu();
+};
+
+const handleSaveFromContextMenu = async () => {
+  if (!tabContextMenu.tabId) return;
+  await uiActions.saveTabById(tabContextMenu.tabId);
   closeTabContextMenu();
 };
 
@@ -508,8 +515,8 @@ defineExpose({ loadHomeTab });
 .tab-close-confirm {
   position: fixed;
   z-index: 2700;
-  min-width: 188px;
-  padding: 8px;
+  min-width: 154px;
+  padding: 6px;
   background-color: var(--app-bg-elevated);
   border: 1px solid var(--app-border);
   border-radius: 6px;

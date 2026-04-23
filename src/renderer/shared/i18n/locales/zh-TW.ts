@@ -55,7 +55,8 @@ export default {
       placeholderHelp1: '空白範例：幫助項 1',
       placeholderHelp2: '空白範例：幫助項 2',
       appNameLabel: '程式名稱',
-      versionLabel: '版本資訊'
+      versionLabel: '版本資訊',
+      save: '儲存'
     },
     explorer: {
       title: '資源管理器',
