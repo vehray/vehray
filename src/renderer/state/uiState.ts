@@ -145,6 +145,24 @@ export function useUiState() {
     state.tabs = state.tabs.filter((tab) => tab.id !== tabId);
   };
 
+  const reorderTabs = (fromTabId: string, toTabId: string, position: 'before' | 'after' = 'before') => {
+    if (fromTabId === toTabId) return;
+    const fromIndex = state.tabs.findIndex((tab) => tab.id === fromTabId);
+    const toIndex = state.tabs.findIndex((tab) => tab.id === toTabId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const updated = [...state.tabs];
+    const [moved] = updated.splice(fromIndex, 1);
+    let insertIndex = toIndex;
+    if (fromIndex < toIndex) {
+      insertIndex = position === 'after' ? toIndex : toIndex - 1;
+    } else if (fromIndex > toIndex) {
+      insertIndex = position === 'after' ? toIndex + 1 : toIndex;
+    }
+    updated.splice(Math.max(0, insertIndex), 0, moved);
+    state.tabs = updated;
+  };
+
   const addHistoryFile = (filePath: string) => {
     const fileName = filePath.match(/[^\\/]+$/)?.[0] ?? filePath;
     const existingIndex = state.historyFiles.findIndex((file) => file.path === filePath);
@@ -170,6 +188,7 @@ export function useUiState() {
     upsertTab,
     switchToTab,
     closeTab,
+    reorderTabs,
     addHistoryFile
   };
 }

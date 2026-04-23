@@ -2,20 +2,65 @@
   <div ref="explorerRootRef" class="file-explorer" @click="handleExplorerClick">
     <div
       class="explorer-content"
-      :class="{ 'drag-open-active': isDragImportActive }"
       @contextmenu.prevent="openContextMenuForBlank"
-      @dblclick="handleExplorerDoubleClick"
-      @dragenter.prevent="handleDragEnterExplorer"
-      @dragover.prevent="handleDragOverExplorer"
-      @dragleave.prevent="handleDragLeaveExplorer"
-      @drop.prevent="handleDropOnExplorer"
     >
-      <div v-if="!rootFolder" class="empty-state">
-        <el-icon class="empty-icon"><Folder /></el-icon>
-        <p>{{ t('layout.explorer.noFolder') }}</p>
-        <p class="empty-hint">{{ t('layout.explorer.hint') }}</p>
+      <div class="virtual-tree-groups">
+        <div class="tree-item">
+          <div class="tree-item-header group-root" @click="toggleOpenEditors">
+            <el-icon class="expand-icon" :class="{ expanded: openEditorsExpanded }">
+              <ArrowDown v-if="openEditorsExpanded" />
+              <ArrowRight v-else />
+            </el-icon>
+            <el-icon class="file-icon"><Document /></el-icon>
+            <span class="file-name">{{ t('layout.explorer.openEditors') }}</span>
+          </div>
+          <div v-if="openEditorsExpanded" class="tree-children group-children">
+            <button
+              v-for="tab in openedEditorTabs"
+              :key="tab.id"
+              class="tree-item-header group-leaf-btn"
+              type="button"
+              @click="switchToTab(tab.id)"
+            >
+              <el-icon class="expand-icon placeholder-icon"></el-icon>
+              <el-icon class="file-icon"><Document /></el-icon>
+              <span class="file-name">{{ tab.title }}</span>
+            </button>
+          </div>
+        </div>
+        <div class="tree-item">
+          <div class="tree-item-header group-root" @click="openFoldersExpanded = !openFoldersExpanded">
+            <el-icon class="expand-icon" :class="{ expanded: openFoldersExpanded }">
+              <ArrowDown v-if="openFoldersExpanded" />
+              <ArrowRight v-else />
+            </el-icon>
+            <el-icon class="file-icon"><Folder /></el-icon>
+            <span class="file-name">{{ openFoldersTitle }}</span>
+          </div>
+          <div v-if="openFoldersExpanded" class="tree-children group-children">
+            <div
+              v-if="openedFolders.length === 0"
+              class="group-empty-state"
+              :class="{ 'drag-open-active': isDragImportActive }"
+              @dblclick.stop="handleExplorerDoubleClick"
+              @dragenter.prevent.stop="handleDragEnterExplorer"
+              @dragover.prevent.stop="handleDragOverExplorer"
+              @dragleave.prevent.stop="handleDragLeaveExplorer"
+              @drop.prevent.stop="handleDropOnExplorer"
+            >
+              <el-icon class="empty-icon"><Folder /></el-icon>
+              <p>{{ t('layout.explorer.noFolder') }}</p>
+              <p class="empty-hint">{{ t('layout.explorer.hint') }}</p>
+            </div>
+            <div v-for="folder in openedFolders" :key="folder.path" class="tree-item-header">
+              <el-icon class="expand-icon placeholder-icon"></el-icon>
+              <el-icon class="file-icon"><Folder /></el-icon>
+              <span class="file-name">{{ folder.name }}</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div v-else class="file-tree">
+      <div v-if="rootFolder" class="file-tree">
         <div class="tree-item root-item">
           <div
             class="tree-item-header"
@@ -152,8 +197,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
-import { Folder, ArrowRight, ArrowDown, FolderOpened, FolderAdd, FolderDelete, EditPen, Delete, Check, Close } from '@element-plus/icons-vue';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { Folder, ArrowRight, ArrowDown, FolderOpened, FolderAdd, FolderDelete, EditPen, Delete, Check, Close, Document } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { useI18n } from 'vue-i18n';
 import ProjectTreeNode from './ProjectTreeNode.vue';
@@ -166,7 +211,7 @@ import { useUiState } from '../../state/uiState';
 
 const { rootFolder, fileTree, rootExpanded, toggleRootFolder, toggleItem, loadFolder, closeFolder } = useProjectExplorer();
 const { t } = useI18n();
-const { state, setSelectedExplorerEntry } = useUiState();
+const { state, setSelectedExplorerEntry, switchToTab } = useUiState();
 let unsubscribeFolderOpened: (() => void) | null = null;
 let unsubscribeFolderChanged: (() => void) | null = null;
 let refreshTimer: number | null = null;
@@ -199,6 +244,26 @@ const nameTooltip = reactive({
 });
 const TOOLTIP_OFFSET_X = 14;
 const TOOLTIP_OFFSET_Y = 18;
+const openEditorsExpanded = ref(false);
+const openFoldersExpanded = ref(true);
+const openedEditorTabs = computed(() => state.tabs.filter((tab) => tab.id !== 'home'));
+const openedFolders = computed(() =>
+  state.activeFolderPath && state.activeFolderName ? [{ path: state.activeFolderPath, name: state.activeFolderName }] : []
+);
+const openFoldersTitle = computed(() => (openedFolders.value.length > 0 ? t('layout.explorer.openFolders') : t('layout.explorer.noFolder')));
+
+const toggleOpenEditors = () => {
+  if (openedEditorTabs.value.length === 0) return;
+  openEditorsExpanded.value = !openEditorsExpanded.value;
+};
+
+watch(
+  openedEditorTabs,
+  (tabs) => {
+    if (tabs.length === 0) openEditorsExpanded.value = false;
+  },
+  { deep: true }
+);
 
 const showNameTooltip = (event: MouseEvent, text: string) => {
   const target = event.currentTarget as HTMLElement | null;
@@ -850,7 +915,65 @@ onUnmounted(() => {
 
 <style scoped>
 .file-explorer { height: 100%; display: flex; flex-direction: column; background-color: var(--app-bg); color: var(--app-text-regular); }
-.explorer-content { flex: 1; overflow-y: auto; }
+.explorer-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+.virtual-tree-groups {
+  padding-top: 4px;
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.virtual-tree-groups > .tree-item:last-child {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.virtual-tree-groups > .tree-item:last-child > .group-children {
+  flex: 1;
+  min-height: 0;
+}
+.group-root {
+  font-weight: 500;
+}
+.group-children {
+  margin-left: 16px;
+  display: flex;
+  flex-direction: column;
+}
+.group-placeholder {
+  color: var(--app-text-faint);
+}
+.group-leaf-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+.group-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 8px;
+  padding: 12px 10px;
+  min-height: 0;
+  flex: 1;
+  color: var(--app-text-subtle);
+  text-align: center;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+}
+.group-empty-state .empty-hint {
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
+}
 .explorer-content.drag-open-active {
   box-shadow: inset 0 0 0 1px var(--app-accent, #3b82f6);
   background-color: color-mix(in srgb, var(--app-accent, #3b82f6) 8%, transparent);

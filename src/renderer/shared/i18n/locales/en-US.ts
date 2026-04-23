@@ -20,6 +20,11 @@ export default {
       help: 'Help',
       openFile: 'Open File',
       openFolder: 'Open Folder',
+      newProject: 'New Project',
+      newLdfFile: 'New LDF File',
+      newLdfNeedFolder: 'Open a target folder in Explorer first',
+      newLdfCreated: 'LDF file created',
+      newLdfFailed: 'Failed to create LDF file',
       refreshExplorer: 'Refresh Explorer',
       settings: 'Settings',
       login: 'Sign In',
@@ -48,13 +53,17 @@ export default {
       placeholderWindow1: 'Placeholder: Window Item 1',
       placeholderWindow2: 'Placeholder: Window Item 2',
       placeholderHelp1: 'Placeholder: Help Item 1',
-      placeholderHelp2: 'Placeholder: Help Item 2'
+      placeholderHelp2: 'Placeholder: Help Item 2',
+      appNameLabel: 'App Name',
+      versionLabel: 'Version'
     },
     explorer: {
       title: 'Explorer',
       noFolder: 'No folder opened',
       hint: 'Double-click or drag here to open a folder',
       hintImport: 'Double-click or drag files/folders here to import',
+      openEditors: 'Open Editors',
+      openFolders: 'Open Folders',
       openContainingFolder: 'Open Containing Folder',
       createFolder: 'Create Folder',
       rename: 'Rename',
@@ -99,7 +108,10 @@ export default {
     linLdfImport: 'Import LDF',
     linLdfValidate: 'Validate',
     linLdfExport: 'Export',
-    linLdfPlaceholder: 'Paste or type LIN LDF content here...'
+    linLdfPlaceholder: 'Paste or type LIN LDF content here...',
+    linLdfValidateSuccess: 'LDF validation passed',
+    linLdfValidateFailed: 'LDF validation failed',
+    linLdfExportDone: 'LDF normalized'
   },
   properties: {
     currentSelection: 'Current Selection',

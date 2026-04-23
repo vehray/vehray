@@ -3,11 +3,22 @@
     <div class="main-tab-bar">
       <div
         class="main-tab-item"
-        :class="{ active: activeTabId === tab.id }"
+        :class="{
+          active: activeTabId === tab.id,
+          dragging: draggingTabId === tab.id,
+          'drag-over-before': dragOverTabId === tab.id && dragInsertPosition === 'before',
+          'drag-over-after': dragOverTabId === tab.id && dragInsertPosition === 'after'
+        }"
         v-for="tab in tabs"
         :key="tab.id"
         @click="switchTab(tab.id)"
+        draggable="true"
+        @dragstart="handleTabDragStart(tab.id)"
+        @dragover.prevent="handleTabDragOver(tab.id, $event)"
+        @drop.prevent="handleTabDrop(tab.id)"
+        @dragend="handleTabDragEnd"
       >
+        <el-icon v-if="isLdfTabId(tab.id)" class="main-tab-file-icon"><Document /></el-icon>
         <span class="main-tab-title">{{ tab.id === 'home' ? t('tabs.homeTab') : tab.title }}</span>
         <button class="main-tab-close" @click.stop="closeTab(tab.id)">
           <el-icon><Close /></el-icon>
@@ -42,18 +53,13 @@
           </div>
         </div>
       </div>
-      <div v-else-if="activeTabId === 'lin-ldf-editor'" class="lin-ldf-editor-view">
-        <div class="editor-header">
-          <h2>{{ t('tabs.linLdfEditorTitle') }}</h2>
-          <p>{{ t('tabs.linLdfEditorDescription') }}</p>
-        </div>
-        <div class="editor-toolbar">
-          <button class="editor-action-btn">{{ t('tabs.linLdfImport') }}</button>
-          <button class="editor-action-btn">{{ t('tabs.linLdfValidate') }}</button>
-          <button class="editor-action-btn">{{ t('tabs.linLdfExport') }}</button>
-        </div>
+      <div v-else-if="isActiveLdfTab" class="lin-ldf-editor-view">
         <div class="editor-content">
-          <textarea class="ldf-textarea" :placeholder="t('tabs.linLdfPlaceholder')"></textarea>
+          <textarea
+            class="ldf-textarea"
+            :value="activeLdfText"
+            @input="handleLdfInput"
+          ></textarea>
         </div>
       </div>
       <div v-else-if="tabs.length > 0" class="tab-content-placeholder">
@@ -65,21 +71,60 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
-import { Close } from '@element-plus/icons-vue';
+import { computed, onMounted, ref } from 'vue';
+import { Close, Document } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { uiActions } from '../../services/uiActions';
 import { useUiState } from '../../state/uiState';
 import type { HistoryFileItem } from '../../state/uiState';
 
-const { state, ensureHomeTab, switchToTab, closeTab: closeStateTab } = useUiState();
+const { state, ensureHomeTab, switchToTab, closeTab: closeStateTab, upsertTab, reorderTabs } = useUiState();
 const { t } = useI18n();
 const tabs = computed(() => state.tabs);
 const activeTabId = computed(() => state.activeTab);
 const historyFiles = computed(() => state.historyFiles);
+const isLdfTabId = (tabId: string) => tabId.startsWith('lin-ldf-editor') || tabId === 'free-document';
+const isActiveLdfTab = computed(() => isLdfTabId(activeTabId.value));
+const activeLdfTab = computed(() => tabs.value.find((item) => item.id === activeTabId.value) ?? null);
+const activeLdfText = computed(() => (isActiveLdfTab.value ? activeLdfTab.value?.content || '' : ''));
+const draggingTabId = ref<string | null>(null);
+const dragOverTabId = ref<string | null>(null);
+const dragInsertPosition = ref<'before' | 'after'>('before');
+const previewAnchor = ref<{ tabId: string; position: 'before' | 'after' } | null>(null);
 
 const switchTab = (id: string) => switchToTab(id);
 const closeTab = (id: string) => closeStateTab(id);
+const handleTabDragStart = (tabId: string) => {
+  draggingTabId.value = tabId;
+  previewAnchor.value = null;
+};
+const handleTabDragOver = (tabId: string, event: DragEvent) => {
+  if (!draggingTabId.value || draggingTabId.value === tabId) return;
+  const target = event.currentTarget as HTMLElement | null;
+  let position: 'before' | 'after' = 'before';
+  if (target) {
+    const rect = target.getBoundingClientRect();
+    position = event.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+  }
+  dragInsertPosition.value = position;
+  dragOverTabId.value = tabId;
+  if (previewAnchor.value && previewAnchor.value.tabId === tabId && previewAnchor.value.position === position) return;
+  reorderTabs(draggingTabId.value, tabId, position);
+  previewAnchor.value = { tabId, position };
+};
+const handleTabDrop = (tabId: string) => {
+  if (!draggingTabId.value) return;
+  draggingTabId.value = null;
+  dragOverTabId.value = null;
+  dragInsertPosition.value = 'before';
+  previewAnchor.value = null;
+};
+const handleTabDragEnd = () => {
+  draggingTabId.value = null;
+  dragOverTabId.value = null;
+  dragInsertPosition.value = 'before';
+  previewAnchor.value = null;
+};
 const loadHomeTab = () => {
   ensureHomeTab();
   switchToTab('home');
@@ -98,7 +143,17 @@ const handleOpenFile = async () => {
   await uiActions.openFileToHistory();
 };
 const openHistoryFile = (file: HistoryFileItem) => {
-  console.log('打开历史文件:', file.path);
+  void uiActions.openFileToHistory(file.path);
+};
+
+const handleLdfInput = (event: Event) => {
+  if (!isActiveLdfTab.value || !activeLdfTab.value) return;
+  const target = event.target as HTMLTextAreaElement;
+  upsertTab({
+    id: activeLdfTab.value.id,
+    title: activeLdfTab.value.title,
+    content: target.value
+  });
 };
 
 defineExpose({ loadHomeTab });
@@ -138,6 +193,26 @@ defineExpose({ loadHomeTab });
   transition: background-color 0.2s ease, color 0.2s ease;
   font-size: 12px;
   font-weight: 500;
+  position: relative;
+}
+.main-tab-item::before,
+.main-tab-item::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 2px;
+  background-color: var(--app-accent);
+  border-radius: 2px;
+  opacity: 0;
+  transform: scaleY(0.5);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.main-tab-item::before {
+  left: -1px;
+}
+.main-tab-item::after {
+  right: -1px;
 }
 .main-tab-item:hover {
   background-color: var(--app-bg-hover);
@@ -146,9 +221,28 @@ defineExpose({ loadHomeTab });
 .main-tab-item.active {
   color: var(--app-text-primary);
 }
+.main-tab-item.dragging {
+  opacity: 0.55;
+}
+.main-tab-item.drag-over-before::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+.main-tab-item.drag-over-after::after {
+  opacity: 1;
+  transform: scaleY(1);
+}
+.main-tab-item.drag-over-before,
+.main-tab-item.drag-over-after {
+  background-color: color-mix(in srgb, var(--app-accent) 12%, transparent);
+}
 .main-tab-title {
   font-size: 12px;
   line-height: 1;
+}
+.main-tab-file-icon {
+  font-size: 13px;
+  color: var(--app-text-muted);
 }
 .main-tab-close {
   width: 16px;
@@ -189,35 +283,7 @@ defineExpose({ loadHomeTab });
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   padding: 16px;
-}
-.editor-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: var(--app-text-primary);
-}
-.editor-header p {
-  margin: 6px 0 0;
-  color: var(--app-text-muted);
-  font-size: 12px;
-}
-.editor-toolbar {
-  display: flex;
-  gap: 8px;
-}
-.editor-action-btn {
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--app-border);
-  background: var(--app-bg-elevated);
-  color: var(--app-text-regular);
-  border-radius: 4px;
-  cursor: pointer;
-}
-.editor-action-btn:hover {
-  background: var(--app-bg-hover);
-  color: var(--app-text-primary);
 }
 .editor-content {
   flex: 1;
@@ -227,13 +293,14 @@ defineExpose({ loadHomeTab });
   width: 100%;
   height: 100%;
   resize: none;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background-color: var(--app-bg-elevated);
+  border: none;
+  border-radius: 0;
+  background-color: transparent;
   color: var(--app-text-regular);
-  padding: 12px;
+  padding: 0;
   font-family: Consolas, 'Courier New', monospace;
   font-size: 12px;
   line-height: 1.5;
+  outline: none;
 }
 </style>

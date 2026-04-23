@@ -108,6 +108,12 @@ export const electronBridge = {
     return result?.success ? result.content : null;
   },
 
+  async writeFile(filePath: string, content: string): Promise<boolean> {
+    if (!hasFs() || !window.electron.fs.writeFile) return false;
+    const result = await window.electron.fs.writeFile(filePath, content);
+    return Boolean(result?.success);
+  },
+
   async createDirectory(directoryPath: string): Promise<boolean> {
     if (hasExplorer() && window.electron.explorer.createDirectory) {
       const result = await window.electron.explorer.createDirectory(directoryPath);

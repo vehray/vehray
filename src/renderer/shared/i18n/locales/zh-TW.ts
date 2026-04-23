@@ -20,6 +20,11 @@ export default {
       help: '幫助',
       openFile: '開啟檔案',
       openFolder: '開啟資料夾',
+      newProject: '新增專案',
+      newLdfFile: '新增 LDF 檔案',
+      newLdfNeedFolder: '請先在資源管理器開啟目標資料夾',
+      newLdfCreated: 'LDF 檔案建立成功',
+      newLdfFailed: 'LDF 檔案建立失敗',
       refreshExplorer: '重新整理資源管理器',
       settings: '設定',
       login: '登入',
@@ -48,13 +53,17 @@ export default {
       placeholderWindow1: '空白範例：視窗項 1',
       placeholderWindow2: '空白範例：視窗項 2',
       placeholderHelp1: '空白範例：幫助項 1',
-      placeholderHelp2: '空白範例：幫助項 2'
+      placeholderHelp2: '空白範例：幫助項 2',
+      appNameLabel: '程式名稱',
+      versionLabel: '版本資訊'
     },
     explorer: {
-      title: '檔案資源管理器',
+      title: '資源管理器',
       noFolder: '未開啟資料夾',
       hint: '雙擊或拖曳到此處開啟資料夾',
       hintImport: '雙擊或拖曳檔案/資料夾到此處可匯入',
+      openEditors: '開啟的編輯器',
+      openFolders: '開啟的資料夾',
       openContainingFolder: '開啟所在資料夾',
       createFolder: '建立資料夾',
       rename: '重新命名',
@@ -99,7 +108,10 @@ export default {
     linLdfImport: '匯入 LDF',
     linLdfValidate: '校驗',
     linLdfExport: '匯出',
-    linLdfPlaceholder: '在此貼上或輸入 LIN LDF 內容...'
+    linLdfPlaceholder: '在此貼上或輸入 LIN LDF 內容...',
+    linLdfValidateSuccess: 'LDF 校驗通過',
+    linLdfValidateFailed: 'LDF 校驗失敗',
+    linLdfExportDone: 'LDF 已標準化'
   },
   properties: {
     currentSelection: '目前選擇',

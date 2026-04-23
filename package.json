@@ -1,5 +1,5 @@
 {
-  "name": "linanalyzer",
+  "name": "vehray",
   "version": "1.0.0",
   "description": "LIN Analyzer - A professional LIN bus communication tool",
   "main": "src/main/index.ts",
@@ -36,6 +36,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
     "element-plus": "^2.13.1",
+    "iconv-lite": "^0.7.2",
     "serialport": "^13.0.0",
     "vue-i18n": "^11.3.2"
   }

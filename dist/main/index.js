@@ -1,4 +1,4 @@
-import { BrowserWindow, app, ipcMain, Menu, dialog, shell } from "electron";
+import { BrowserWindow, app, ipcMain, dialog, Menu, shell } from "electron";
 import * as path from "path";
 import path__default from "path";
 import { fileURLToPath } from "url";
@@ -6,6 +6,7 @@ import { SerialPort } from "serialport";
 import * as fs from "fs";
 import fs__default from "fs";
 import fs$1 from "fs/promises";
+import iconv from "iconv-lite";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
@@ -2671,6 +2672,7 @@ class SettingsManager {
   }
 }
 const toEntryType = (isDirectory) => isDirectory ? "directory" : "file";
+const isLdfFile$1 = (filePath) => path__default.extname(filePath).toLowerCase() === ".ldf";
 class FileExplorerService {
   static async readDirectory(directoryPath) {
     const dirents = await fs$1.readdir(directoryPath, { withFileTypes: true });
@@ -2694,7 +2696,11 @@ class FileExplorerService {
     });
   }
   static async readFile(filePath) {
-    return fs$1.readFile(filePath, "utf-8");
+    const fileBuffer = await fs$1.readFile(filePath);
+    if (isLdfFile$1(filePath)) {
+      return iconv.decode(fileBuffer, "windows-1252");
+    }
+    return fileBuffer.toString("utf-8");
   }
   static async createDirectory(directoryPath) {
     await fs$1.mkdir(directoryPath, { recursive: false });
@@ -2723,6 +2729,7 @@ let settingsWindow = null;
 let explorerFolderWatcher = null;
 const EXPLORER_FOLDER_CHANGED_CHANNEL = "explorer:folder-changed";
 const CONTEXT_MENU_ACTION_CHANNEL = "context-menu:action";
+const isLdfFile = (filePath) => path__default.extname(filePath).toLowerCase() === ".ldf";
 const copyEntryToDirectory = (sourcePath, destinationDirectory) => {
   const entryName = path__default.basename(sourcePath);
   const destinationPath = path__default.join(destinationDirectory, entryName);
@@ -2821,6 +2828,25 @@ ipcMain.handle("window:get-state", () => {
 });
 ipcMain.handle("window:set-theme", (_event, theme) => {
   applyWindowTheme(theme);
+  return { success: true };
+});
+ipcMain.handle("app:get-info", () => {
+  return {
+    name: app.getName(),
+    version: app.getVersion()
+  };
+});
+ipcMain.handle("app:show-about-dialog", async () => {
+  const targetWindow = mainWindow ?? BrowserWindow.getFocusedWindow() ?? void 0;
+  await dialog.showMessageBox(targetWindow, {
+    type: "info",
+    title: "关于",
+    message: "关于",
+    detail: `程序名称: ${app.getName()}
+版本信息: ${app.getVersion()}`,
+    buttons: ["确定"],
+    noLink: true
+  });
   return { success: true };
 });
 process.env.NODE_ENV = process.env.NODE_ENV || "development";
@@ -3132,9 +3158,16 @@ ipcMain.handle("explorer:import-entries", async (_event, targetDirectory, source
   }
 });
 ipcMain.handle("dialog:openFile", async () => {
-  const result = await dialog.showOpenDialog(mainWindow, {
-    properties: ["openFile"]
-  });
+  const options = {
+    title: "打开 LDF 文件",
+    properties: ["openFile"],
+    filters: [
+      { name: "LDF Files", extensions: ["ldf", "LDF"] },
+      { name: "All Files", extensions: ["*"] }
+    ]
+  };
+  console.log("[dialog:openFile] options:", JSON.stringify(options));
+  const result = await dialog.showOpenDialog(mainWindow, options);
   return result;
 });
 ipcMain.on("folder-opened", (event, folderPath) => {
@@ -3194,7 +3227,8 @@ ipcMain.handle("fs:readDirectory", async (event, directoryPath) => {
 ipcMain.handle("fs:readFile", async (event, filePath) => {
   try {
     console.log("读取文件:", filePath);
-    const content = fs__default.readFileSync(filePath, "utf-8");
+    const buffer = fs__default.readFileSync(filePath);
+    const content = isLdfFile(filePath) ? iconv.decode(buffer, "windows-1252") : buffer.toString("utf-8");
     return { success: true, content };
   } catch (error) {
     console.error("读取文件失败:", error);
@@ -3204,7 +3238,11 @@ ipcMain.handle("fs:readFile", async (event, filePath) => {
 ipcMain.handle("fs:writeFile", async (event, filePath, content) => {
   try {
     console.log("写入文件:", filePath);
-    fs__default.writeFileSync(filePath, content, "utf-8");
+    if (isLdfFile(filePath)) {
+      fs__default.writeFileSync(filePath, iconv.encode(content, "windows-1252"));
+    } else {
+      fs__default.writeFileSync(filePath, content, "utf-8");
+    }
     return { success: true };
   } catch (error) {
     console.error("写入文件失败:", error);

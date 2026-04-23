@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import iconv from 'iconv-lite';
 
 export type ExplorerEntryType = 'file' | 'directory';
 
@@ -13,6 +14,8 @@ export interface ExplorerEntry {
 
 const toEntryType = (isDirectory: boolean): ExplorerEntryType =>
   isDirectory ? 'directory' : 'file';
+
+const isLdfFile = (filePath: string): boolean => path.extname(filePath).toLowerCase() === '.ldf';
 
 export class FileExplorerService {
   static async readDirectory(directoryPath: string): Promise<ExplorerEntry[]> {
@@ -40,7 +43,11 @@ export class FileExplorerService {
   }
 
   static async readFile(filePath: string): Promise<string> {
-    return fs.readFile(filePath, 'utf-8');
+    const fileBuffer = await fs.readFile(filePath);
+    if (isLdfFile(filePath)) {
+      return iconv.decode(fileBuffer, 'windows-1252');
+    }
+    return fileBuffer.toString('utf-8');
   }
 
   static async createDirectory(directoryPath: string): Promise<void> {

@@ -10,6 +10,7 @@ import { logger, LogLevel } from './modules/logger.ts';
 import { TITLEBAR_OVERLAY_HEIGHT } from './modules/window-ui-constants.ts';
 import fs from 'fs';
 import path from 'path';
+import iconv from 'iconv-lite';
 
 // 禁用所有日志输出
 logger.setEnabled(false);
@@ -20,6 +21,7 @@ let settingsWindow: BrowserWindow | null = null;
 let explorerFolderWatcher: fs.FSWatcher | null = null;
 const EXPLORER_FOLDER_CHANGED_CHANNEL = 'explorer:folder-changed';
 const CONTEXT_MENU_ACTION_CHANNEL = 'context-menu:action';
+const isLdfFile = (filePath: string) => path.extname(filePath).toLowerCase() === '.ldf';
 
 const copyEntryToDirectory = (sourcePath: string, destinationDirectory: string) => {
   const entryName = path.basename(sourcePath);
@@ -147,6 +149,26 @@ ipcMain.handle('window:get-state', () => {
 
 ipcMain.handle('window:set-theme', (_event, theme: 'dark' | 'light') => {
   applyWindowTheme(theme);
+  return { success: true };
+});
+
+ipcMain.handle('app:get-info', () => {
+  return {
+    name: app.getName(),
+    version: app.getVersion()
+  };
+});
+
+ipcMain.handle('app:show-about-dialog', async () => {
+  const targetWindow = mainWindow ?? BrowserWindow.getFocusedWindow() ?? undefined;
+  await dialog.showMessageBox(targetWindow, {
+    type: 'info',
+    title: '关于',
+    message: '关于',
+    detail: `程序名称: ${app.getName()}\n版本信息: ${app.getVersion()}`,
+    buttons: ['确定'],
+    noLink: true
+  });
   return { success: true };
 });
 
@@ -542,9 +564,16 @@ ipcMain.handle('explorer:import-entries', async (_event, targetDirectory: string
 
 // 打开文件
 ipcMain.handle('dialog:openFile', async () => {
-  const result = await dialog.showOpenDialog(mainWindow!, {
-    properties: ['openFile']
-  });
+  const options = {
+    title: '打开 LDF 文件',
+    properties: ['openFile'] as const,
+    filters: [
+      { name: 'LDF Files', extensions: ['ldf', 'LDF'] },
+      { name: 'All Files', extensions: ['*'] }
+    ]
+  };
+  console.log('[dialog:openFile] options:', JSON.stringify(options));
+  const result = await dialog.showOpenDialog(mainWindow!, options);
   return result;
 });
 
@@ -622,7 +651,10 @@ ipcMain.handle('fs:readDirectory', async (event, directoryPath) => {
 ipcMain.handle('fs:readFile', async (event, filePath) => {
   try {
     console.log('读取文件:', filePath);
-    const content = fs.readFileSync(filePath, 'utf-8');
+    const buffer = fs.readFileSync(filePath);
+    const content = isLdfFile(filePath)
+      ? iconv.decode(buffer, 'windows-1252')
+      : buffer.toString('utf-8');
     return { success: true, content };
   } catch (error) {
     console.error('读取文件失败:', error);
@@ -633,7 +665,11 @@ ipcMain.handle('fs:readFile', async (event, filePath) => {
 ipcMain.handle('fs:writeFile', async (event, filePath, content) => {
   try {
     console.log('写入文件:', filePath);
-    fs.writeFileSync(filePath, content, 'utf-8');
+    if (isLdfFile(filePath)) {
+      fs.writeFileSync(filePath, iconv.encode(content, 'windows-1252'));
+    } else {
+      fs.writeFileSync(filePath, content, 'utf-8');
+    }
     return { success: true };
   } catch (error) {
     console.error('写入文件失败:', error);

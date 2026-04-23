@@ -40,6 +40,11 @@ contextBridge.exposeInMainWorld('electron', {
     readDirectory: (path: string) => ipcRenderer.invoke('fs:readDirectory', path),
     readSettings: () => ipcRenderer.invoke('fs:readSettings'),
     writeSettings: (settings: any) => ipcRenderer.invoke('fs:writeSettings', settings),
+    readFile: (path: string) => ipcRenderer.invoke('fs:readFile', path),
+    writeFile: (path: string, content: string) => ipcRenderer.invoke('fs:writeFile', path, content),
+    rename: (oldPath: string, newPath: string) => ipcRenderer.invoke('fs:rename', oldPath, newPath),
+    createDirectory: (path: string) => ipcRenderer.invoke('fs:createDirectory', path),
+    delete: (path: string) => ipcRenderer.invoke('fs:delete', path),
   },
   explorer: {
     openFolder: () => ipcRenderer.invoke('explorer:open-folder'),

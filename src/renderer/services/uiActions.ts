@@ -8,6 +8,20 @@ type UiPreferences = {
 };
 
 const SETTINGS_KEY = 'uiPreferences';
+let ldfDraftCounter = 0;
+
+const getNextLdfDocName = (titles: string[]) => {
+  const used = new Set<number>();
+  for (const title of titles) {
+    const matched = title.match(/^ldf-doc-(\d+)\.ldf$/i);
+    if (!matched) continue;
+    used.add(Number.parseInt(matched[1], 10));
+  }
+
+  let index = 1;
+  while (used.has(index)) index += 1;
+  return `ldf-doc-${index}.ldf`;
+};
 
 const applyTheme = (theme: UiPreferences['theme']) => {
   document.documentElement.setAttribute('data-theme', theme);
@@ -43,24 +57,41 @@ export const uiActions = {
     return this.openFolder();
   },
 
-  async openFileToHistory() {
-    const filePath = await electronBridge.openFile();
+  async openFileToHistory(preselectedPath?: string) {
+    const filePath = preselectedPath ?? await electronBridge.openFile();
     if (!filePath) return null;
 
-    const { addHistoryFile } = useUiState();
+    const { addHistoryFile, upsertTab, switchToTab } = useUiState();
     addHistoryFile(filePath);
+    const content = await electronBridge.readFile(filePath);
+    const fileName = filePath.match(/[^\\/]+$/)?.[0] ?? filePath;
+    const tabId = `lin-ldf-editor-import-${Date.now()}-${ldfDraftCounter++}`;
+    upsertTab({
+      id: tabId,
+      title: fileName,
+      content: content ?? ''
+    });
+    switchToTab(tabId);
     return filePath;
   },
 
-  openLinLdfEditor() {
-    const { upsertTab, switchToTab } = useUiState();
-    const tabId = 'lin-ldf-editor';
+  openLinLdfEditor(standard?: string) {
+    const { upsertTab, switchToTab, state } = useUiState();
+    const tabId = `lin-ldf-editor-draft-${Date.now()}-${ldfDraftCounter++}`;
+    const initialContent = standard
+      ? `/* ${standard} */\n\n`
+      : '';
     upsertTab({
       id: tabId,
-      title: i18n.global.t('layout.header.linLdfEditor'),
-      content: 'lin-ldf-editor'
+      title: getNextLdfDocName(state.tabs.map((tab) => tab.title)),
+      content: initialContent
     });
     switchToTab(tabId);
+  },
+
+  async createLdfFile(standard?: string) {
+    this.openLinLdfEditor(standard);
+    return { success: true as const, reason: null, filePath: null };
   },
 
   refreshTree() {

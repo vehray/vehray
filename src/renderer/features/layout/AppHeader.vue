@@ -10,9 +10,47 @@
           </span>
         </button>
         <div class="custom-dropdown-menu" v-if="dropdownVisible">
-          <div class="custom-dropdown-item" @click="handleNew">
+          <div class="custom-dropdown-item new-menu-trigger" @click.stop="toggleNewMenu" @mouseenter="openNewSubmenu">
             <el-icon><Plus /></el-icon>
             <span>{{ t('common.newFile') }}</span>
+            <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+            <div class="new-submenu" v-if="newSubmenuVisible">
+              <div class="custom-dropdown-item" @click.stop="handleNewProject">
+                <el-icon><Plus /></el-icon>
+                <span>{{ t('layout.header.newProject') }}</span>
+              </div>
+              <div class="custom-dropdown-item ldf-standard-trigger" @click.stop="openLdfStandardSubmenu" @mouseenter="openLdfStandardSubmenu">
+                <el-icon><Plus /></el-icon>
+                <span>{{ t('layout.header.newLdfFile') }}</span>
+                <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
+                <div class="ldf-standard-submenu" v-if="ldfStandardSubmenuVisible">
+                  <div class="custom-dropdown-item" @click.stop="handleCreateLdfFile('LDF 1.3')">
+                    <span>LDF 1.3</span>
+                  </div>
+                  <div class="custom-dropdown-item is-disabled">
+                    <span>LDF 2.0</span>
+                  </div>
+                  <div class="custom-dropdown-item is-disabled">
+                    <span>LDF 2.1</span>
+                  </div>
+                  <div class="custom-dropdown-item is-disabled">
+                    <span>LDF 2.2</span>
+                  </div>
+                  <div class="custom-dropdown-item is-disabled">
+                    <span>SAE J2602:2012</span>
+                  </div>
+                  <div class="custom-dropdown-item is-disabled">
+                    <span>ISO 17987:2015</span>
+                  </div>
+                  <div class="custom-dropdown-item is-disabled">
+                    <span>SAE J2602:2021</span>
+                  </div>
+                  <div class="custom-dropdown-item is-disabled">
+                    <span>OEM variant</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="custom-dropdown-item" @click="handleOpenFile">
             <el-icon><Document /></el-icon>
@@ -80,13 +118,9 @@
           <span class="menu-label">{{ t('layout.header.help') }}(<span class="mnemonic-char" :class="{ 'mnemonic-active': isAltPressed }">H</span>)</span>
         </button>
         <div class="custom-dropdown-menu" v-if="helpDropdownVisible">
-          <div class="custom-dropdown-item" @click="handlePlaceholderAction">
+          <div class="custom-dropdown-item" @click="handleAbout">
             <el-icon><Help /></el-icon>
-            <span>{{ t('layout.header.placeholderHelp1') }}</span>
-          </div>
-          <div class="custom-dropdown-item" @click="handlePlaceholderAction">
-            <el-icon><Help /></el-icon>
-            <span>{{ t('layout.header.placeholderHelp2') }}</span>
+            <span>{{ t('layout.header.about') }}</span>
           </div>
         </div>
       </div>
@@ -239,6 +273,8 @@ const windowDropdownVisible = ref(false);
 const helpDropdownVisible = ref(false);
 const themeSubmenuVisible = ref(false);
 const localeSubmenuVisible = ref(false);
+const newSubmenuVisible = ref(false);
+const ldfStandardSubmenuVisible = ref(false);
 const avatarDropdownVisible = ref(false);
 const loginStatus = ref<'loggedOut' | 'loggingIn' | 'loggedIn'>('loggedOut');
 const isAltPressed = ref(false);
@@ -276,6 +312,8 @@ const closeAllDropdowns = () => {
   helpDropdownVisible.value = false;
   themeSubmenuVisible.value = false;
   localeSubmenuVisible.value = false;
+  newSubmenuVisible.value = false;
+  ldfStandardSubmenuVisible.value = false;
 };
 
 const scheduleAutoClose = () => {
@@ -298,6 +336,8 @@ const activateLeftDropdown = (type: LeftDropdownType) => {
   toolsDropdownVisible.value = type === 'tools';
   windowDropdownVisible.value = type === 'window';
   helpDropdownVisible.value = type === 'help';
+  newSubmenuVisible.value = false;
+  ldfStandardSubmenuVisible.value = false;
   scheduleAutoClose();
 };
 
@@ -403,6 +443,36 @@ const handleNew = () => {
   dropdownVisible.value = false;
 };
 
+const toggleNewMenu = () => {
+  if (!dropdownVisible.value) return;
+  newSubmenuVisible.value = true;
+  ldfStandardSubmenuVisible.value = false;
+  scheduleAutoClose();
+};
+
+const openNewSubmenu = () => {
+  if (!dropdownVisible.value) return;
+  newSubmenuVisible.value = true;
+  ldfStandardSubmenuVisible.value = false;
+  scheduleAutoClose();
+};
+
+const openLdfStandardSubmenu = () => {
+  if (!dropdownVisible.value || !newSubmenuVisible.value) return;
+  ldfStandardSubmenuVisible.value = true;
+  scheduleAutoClose();
+};
+
+const handleNewProject = async () => {
+  await uiActions.openProject();
+  closeAllDropdowns();
+};
+
+const handleCreateLdfFile = async (standard?: string) => {
+  await uiActions.createLdfFile(standard);
+  closeAllDropdowns();
+};
+
 const handleOpenFile = async () => {
   const filePath = await uiActions.openFileToHistory();
   if (filePath) {
@@ -436,10 +506,9 @@ const handlePreferences = () => {
   localeSubmenuVisible.value = false;
 };
 
-const handleAbout = () => {
-  settingDropdownVisible.value = false;
-  themeSubmenuVisible.value = false;
-  localeSubmenuVisible.value = false;
+const handleAbout = async () => {
+  await window.electron?.ipcRenderer?.invoke?.('app:show-about-dialog');
+  closeAllDropdowns();
 };
 
 const handleLogin = () => {
@@ -809,6 +878,14 @@ onUnmounted(() => {
   position: relative;
 }
 
+.new-menu-trigger {
+  position: relative;
+}
+
+.ldf-standard-trigger {
+  position: relative;
+}
+
 .submenu-arrow {
   margin-left: auto;
   font-size: 12px;
@@ -841,6 +918,40 @@ onUnmounted(() => {
   border-radius: 3px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   z-index: 1001;
+}
+
+.new-submenu {
+  position: absolute;
+  top: -1px;
+  left: calc(100% + 4px);
+  width: max-content;
+  min-width: max-content;
+  max-width: min(80vw, 420px);
+  background-color: var(--app-bg-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+}
+
+.ldf-standard-submenu {
+  position: absolute;
+  top: -1px;
+  left: calc(100% + 4px);
+  width: max-content;
+  min-width: max-content;
+  max-width: min(80vw, 420px);
+  background-color: var(--app-bg-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 1002;
+}
+
+.ldf-standard-submenu .custom-dropdown-item.is-disabled {
+  color: var(--app-text-muted);
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .theme-submenu .custom-dropdown-item {
