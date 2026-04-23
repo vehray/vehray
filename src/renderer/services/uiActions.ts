@@ -65,7 +65,7 @@ export const uiActions = {
     addHistoryFile(filePath);
     const content = await electronBridge.readFile(filePath);
     const fileName = filePath.match(/[^\\/]+$/)?.[0] ?? filePath;
-    const tabId = `lin-ldf-editor-import-${Date.now()}-${ldfDraftCounter++}`;
+    const tabId = `lin-ldf-editor-file:${encodeURIComponent(filePath)}`;
     upsertTab({
       id: tabId,
       title: fileName,

@@ -21,6 +21,7 @@
               class="tree-item-header group-leaf-btn"
               type="button"
               @click="switchToTab(tab.id)"
+              @contextmenu.prevent.stop="openContextMenuForOpenedEditor(tab.id, $event)"
             >
               <el-icon class="expand-icon placeholder-icon"></el-icon>
               <el-icon class="file-icon"><Document /></el-icon>
@@ -138,32 +139,37 @@
       :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
       @click.stop
     >
+      <button v-if="contextEditorTabId" class="context-menu-item" @click="handleCloseEditorFromContextMenu">
+        <el-icon><Close /></el-icon>
+        {{ t('common.close') }}
+      </button>
+      <div v-if="contextEditorTabId" class="context-menu-divider"></div>
       <button v-if="!state.activeFolderPath" class="context-menu-item" @click="handleOpenFolderFromContextMenu">
         <el-icon><Folder /></el-icon>
         {{ t('layout.header.openFolder') }}
       </button>
-      <button v-if="state.activeFolderPath" class="context-menu-item" @click="handleRevealInFolder">
+      <button v-if="state.activeFolderPath && !contextEditorTabId" class="context-menu-item" @click="handleRevealInFolder">
         <el-icon><FolderOpened /></el-icon>
         {{ t('layout.explorer.openContainingFolder') }}
       </button>
-      <button v-if="state.activeFolderPath" class="context-menu-item" @click="handleCreateFolder">
+      <button v-if="state.activeFolderPath && !contextEditorTabId" class="context-menu-item" @click="handleCreateFolder">
         <el-icon><FolderAdd /></el-icon>
         {{ t('layout.explorer.createFolder') }}
       </button>
-      <button v-if="contextTarget" class="context-menu-item" @click="handleStartRename">
+      <button v-if="contextTarget && !contextEditorTabId" class="context-menu-item" @click="handleStartRename">
         <el-icon><EditPen /></el-icon>
         {{ t('layout.explorer.rename') }}
       </button>
       <button
-        v-if="!contextTarget && state.activeFolderPath"
+        v-if="!contextTarget && state.activeFolderPath && !contextEditorTabId"
         class="context-menu-item"
         @click="handleCloseFolder"
       >
         <el-icon><FolderDelete /></el-icon>
         {{ t('layout.explorer.closeFolder') }}
       </button>
-      <div v-if="contextTarget" class="context-menu-divider"></div>
-      <button v-if="contextTarget" class="context-menu-item danger" @click="toggleDeleteConfirm">
+      <div v-if="contextTarget && !contextEditorTabId" class="context-menu-divider"></div>
+      <button v-if="contextTarget && !contextEditorTabId" class="context-menu-item danger" @click="toggleDeleteConfirm">
         <el-icon><Delete /></el-icon>
         {{ t('layout.explorer.delete') }}
       </button>
@@ -211,12 +217,13 @@ import { useUiState } from '../../state/uiState';
 
 const { rootFolder, fileTree, rootExpanded, toggleRootFolder, toggleItem, loadFolder, closeFolder } = useProjectExplorer();
 const { t } = useI18n();
-const { state, setSelectedExplorerEntry, switchToTab } = useUiState();
+const { state, setSelectedExplorerEntry, switchToTab, closeTab } = useUiState();
 let unsubscribeFolderOpened: (() => void) | null = null;
 let unsubscribeFolderChanged: (() => void) | null = null;
 let refreshTimer: number | null = null;
 const selectedPath = ref<string | null>(null);
 const contextTarget = ref<FileTreeNode | null>(null);
+const contextEditorTabId = ref<string | null>(null);
 const creatingParentPath = ref<string | null>(null);
 const creatingFolderName = ref('');
 const renamingPath = ref<string | null>(null);
@@ -310,6 +317,7 @@ const selectNodeEntry = (item: FileTreeNode) => {
 const closeContextMenu = () => {
   contextMenu.visible = false;
   showDeleteConfirm.value = false;
+  contextEditorTabId.value = null;
 };
 
 const handleExplorerClick = (event: MouseEvent) => {
@@ -351,6 +359,7 @@ const openContextMenuForRoot = (event: MouseEvent) => {
   selectedPath.value = state.activeFolderPath;
   selectRootEntry();
   contextTarget.value = null;
+  contextEditorTabId.value = null;
   if (!state.activeFolderPath) return;
   openContextMenu(event);
 };
@@ -363,6 +372,7 @@ const openContextMenuForBlank = (event: MouseEvent) => {
   selectedPath.value = state.activeFolderPath;
   selectRootEntry();
   contextTarget.value = null;
+  contextEditorTabId.value = null;
   openContextMenu(event);
 };
 
@@ -372,6 +382,16 @@ const openContextMenuForNode = (item: FileTreeNode, event: MouseEvent) => {
   selectedPath.value = item.path;
   selectNodeEntry(item);
   contextTarget.value = item;
+  contextEditorTabId.value = null;
+  openContextMenu(event);
+};
+
+const openContextMenuForOpenedEditor = (tabId: string, event: MouseEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  switchToTab(tabId);
+  contextTarget.value = null;
+  contextEditorTabId.value = tabId;
   openContextMenu(event);
 };
 
@@ -397,6 +417,12 @@ const handleExplorerDoubleClick = async (event: MouseEvent) => {
 const handleOpenFolderFromContextMenu = async () => {
   closeContextMenu();
   await uiActions.openFolder();
+};
+
+const handleCloseEditorFromContextMenu = () => {
+  if (!contextEditorTabId.value) return;
+  closeTab(contextEditorTabId.value);
+  closeContextMenu();
 };
 
 const handleDragEnterExplorer = () => {
