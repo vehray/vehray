@@ -22,6 +22,7 @@ export interface UiTabItem {
   id: string;
   title: string;
   content: string;
+  dirty?: boolean;
 }
 
 export interface HistoryFileItem {
@@ -49,7 +50,7 @@ const state = reactive<UiState>({
   selectedExplorerEntry: null,
   activeTab: 'home',
   rightPanelVisible: false,
-  tabs: [{ id: 'home', title: '主页', content: 'home-content' }],
+  tabs: [{ id: 'home', title: '主页', content: 'home-content', dirty: false }],
   historyFiles: [],
   theme: 'dark',
   locale: 'zh-CN'
@@ -62,7 +63,7 @@ const resetState = () => {
   state.selectedExplorerEntry = null;
   state.activeTab = 'home';
   state.rightPanelVisible = false;
-  state.tabs = [{ id: 'home', title: '主页', content: 'home-content' }];
+  state.tabs = [{ id: 'home', title: '主页', content: 'home-content', dirty: false }];
   state.historyFiles = [];
   state.theme = 'dark';
   state.locale = 'zh-CN';
@@ -108,7 +109,7 @@ export function useUiState() {
 
   const ensureHomeTab = () => {
     if (!state.tabs.some((tab) => tab.id === 'home')) {
-      state.tabs.push({ id: 'home', title: '主页', content: 'home-content' });
+      state.tabs.push({ id: 'home', title: '主页', content: 'home-content', dirty: false });
     }
   };
 
@@ -117,7 +118,7 @@ export function useUiState() {
     if (index === -1) {
       state.tabs.push(tab);
     } else {
-      state.tabs[index] = tab;
+      state.tabs[index] = { ...state.tabs[index], ...tab };
     }
   };
 

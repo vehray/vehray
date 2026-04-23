@@ -17,12 +17,18 @@
         @dragover.prevent="handleTabDragOver(tab.id, $event)"
         @drop.prevent="handleTabDrop(tab.id)"
         @dragend="handleTabDragEnd"
+        @contextmenu.prevent.stop="openTabContextMenu(tab.id, $event)"
+        @mouseenter="hoveringTabId = tab.id"
+        @mouseleave="hoveringTabId = null"
       >
         <el-icon v-if="isLdfTabId(tab.id)" class="main-tab-file-icon"><Document /></el-icon>
         <span class="main-tab-title">{{ tab.id === 'home' ? t('tabs.homeTab') : tab.title }}</span>
-        <button class="main-tab-close" @click.stop="closeTab(tab.id)">
-          <el-icon><Close /></el-icon>
-        </button>
+        <span class="main-tab-status-slot">
+          <span v-if="shouldShowDirtyDot(tab.id)" class="main-tab-dirty-dot" aria-hidden="true"></span>
+          <button v-if="shouldShowCloseButton(tab.id)" class="main-tab-close" @click.stop="requestCloseTab(tab.id, $event)">
+            <el-icon><Close /></el-icon>
+          </button>
+        </span>
       </div>
     </div>
     <div class="main-tab-content">
@@ -67,16 +73,43 @@
       </div>
       <div v-else class="no-tabs-content"><p>{{ t('tabs.noTabsHint') }}</p></div>
     </div>
+    <div
+      v-if="tabContextMenu.visible"
+      class="tab-context-menu"
+      :style="{ left: `${tabContextMenu.x}px`, top: `${tabContextMenu.y}px` }"
+      @click.stop
+    >
+      <button class="tab-context-item" @click="handleCloseFromContextMenu">{{ t('common.close') }}</button>
+      <button class="tab-context-item" @click="handleCloseOthersFromContextMenu">关闭其他</button>
+      <button class="tab-context-item" @click="handleCloseAllFromContextMenu">关闭全部</button>
+      <div v-if="contextMenuFilePath" class="tab-context-divider"></div>
+      <button v-if="contextMenuFilePath" class="tab-context-item" @click="handleRevealTabInFolder">
+        {{ t('layout.explorer.openContainingFolder') }}
+      </button>
+    </div>
+    <div
+      v-if="closeConfirmPopup.visible"
+      class="tab-close-confirm"
+      :style="{ left: `${closeConfirmPopup.x}px`, top: `${closeConfirmPopup.y}px` }"
+      @click.stop
+    >
+      <div class="tab-close-confirm-title">该文件尚未保存</div>
+      <div class="tab-close-confirm-actions">
+        <button class="tab-close-confirm-btn danger" @click="confirmCloseDirtyTab">确认关闭</button>
+        <button class="tab-close-confirm-btn" @click="cancelCloseDirtyTab">取消</button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { Close, Document } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { uiActions } from '../../services/uiActions';
 import { useUiState } from '../../state/uiState';
 import type { HistoryFileItem } from '../../state/uiState';
+import { electronBridge } from '../../services/electronBridge';
 
 const { state, ensureHomeTab, switchToTab, closeTab: closeStateTab, upsertTab, reorderTabs } = useUiState();
 const { t } = useI18n();
@@ -91,9 +124,21 @@ const draggingTabId = ref<string | null>(null);
 const dragOverTabId = ref<string | null>(null);
 const dragInsertPosition = ref<'before' | 'after'>('before');
 const previewAnchor = ref<{ tabId: string; position: 'before' | 'after' } | null>(null);
+const hoveringTabId = ref<string | null>(null);
+const tabContextMenu = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+  tabId: ''
+});
+const closeConfirmPopup = reactive({
+  visible: false,
+  x: 0,
+  y: 0,
+  tabId: ''
+});
 
 const switchTab = (id: string) => switchToTab(id);
-const closeTab = (id: string) => closeStateTab(id);
 const handleTabDragStart = (tabId: string) => {
   draggingTabId.value = tabId;
   previewAnchor.value = null;
@@ -130,8 +175,27 @@ const loadHomeTab = () => {
   switchToTab('home');
 };
 const getActiveTab = () => tabs.value.find(tab => tab.id === activeTabId.value);
+const isTabDirty = (tabId: string) => Boolean(tabs.value.find((tab) => tab.id === tabId)?.dirty);
+const shouldShowCloseButton = (tabId: string) => !isTabDirty(tabId) || hoveringTabId.value === tabId;
+const shouldShowDirtyDot = (tabId: string) => isTabDirty(tabId) && hoveringTabId.value !== tabId;
+const contextMenuTab = computed(() => tabs.value.find((tab) => tab.id === tabContextMenu.tabId) ?? null);
+const contextMenuFilePath = computed(() => {
+  const id = contextMenuTab.value?.id ?? '';
+  if (!id.startsWith('lin-ldf-editor-file:')) return null;
+  try {
+    return decodeURIComponent(id.slice('lin-ldf-editor-file:'.length));
+  } catch {
+    return null;
+  }
+});
 
 onMounted(() => loadHomeTab());
+onMounted(() => {
+  document.addEventListener('click', handleGlobalClick);
+});
+onUnmounted(() => {
+  document.removeEventListener('click', handleGlobalClick);
+});
 
 const handleOpenFolder = async () => {
   await uiActions.openFolder();
@@ -146,13 +210,100 @@ const openHistoryFile = (file: HistoryFileItem) => {
   void uiActions.openFileToHistory(file.path);
 };
 
+const openTabContextMenu = (tabId: string, event: MouseEvent) => {
+  tabContextMenu.tabId = tabId;
+  tabContextMenu.x = event.clientX;
+  tabContextMenu.y = event.clientY;
+  tabContextMenu.visible = true;
+};
+
+const closeTabContextMenu = () => {
+  tabContextMenu.visible = false;
+};
+
+const openCloseConfirmPopup = (tabId: string, x: number, y: number) => {
+  closeConfirmPopup.tabId = tabId;
+  closeConfirmPopup.x = x + 12;
+  closeConfirmPopup.y = y + 16;
+  closeConfirmPopup.visible = true;
+};
+
+const cancelCloseDirtyTab = () => {
+  closeConfirmPopup.visible = false;
+  closeConfirmPopup.tabId = '';
+};
+
+const confirmCloseDirtyTab = () => {
+  if (!closeConfirmPopup.tabId) return;
+  closeStateTab(closeConfirmPopup.tabId);
+  cancelCloseDirtyTab();
+};
+
+const handleGlobalClick = () => {
+  closeTabContextMenu();
+  cancelCloseDirtyTab();
+};
+
+const requestCloseTab = (tabId: string, event?: MouseEvent) => {
+  const tab = tabs.value.find((item) => item.id === tabId);
+  if (!tab) return;
+  if (!tab.dirty) {
+    closeStateTab(tabId);
+    return;
+  }
+  const pointerX = event?.clientX ?? tabContextMenu.x;
+  const pointerY = event?.clientY ?? tabContextMenu.y;
+  openCloseConfirmPopup(tabId, pointerX, pointerY);
+};
+
+const handleCloseFromContextMenu = () => {
+  if (!tabContextMenu.tabId) return;
+  requestCloseTab(tabContextMenu.tabId);
+  closeTabContextMenu();
+};
+
+const handleCloseOthersFromContextMenu = () => {
+  const currentId = tabContextMenu.tabId;
+  if (!currentId) return;
+  const targetTabs = tabs.value.filter((tab) => tab.id !== currentId && tab.id !== 'home');
+  for (const tab of targetTabs) {
+    if (tab.dirty) {
+      requestCloseTab(tab.id);
+      break;
+    }
+    closeStateTab(tab.id);
+  }
+  switchToTab(currentId);
+  closeTabContextMenu();
+};
+
+const handleCloseAllFromContextMenu = () => {
+  const targetTabs = tabs.value.filter((tab) => tab.id !== 'home');
+  for (const tab of targetTabs) {
+    if (tab.dirty) {
+      requestCloseTab(tab.id);
+      break;
+    }
+    closeStateTab(tab.id);
+  }
+  switchToTab('home');
+  closeTabContextMenu();
+};
+
+const handleRevealTabInFolder = async () => {
+  if (!contextMenuFilePath.value) return;
+  await electronBridge.revealInFolder(contextMenuFilePath.value);
+  closeTabContextMenu();
+};
+
 const handleLdfInput = (event: Event) => {
   if (!isActiveLdfTab.value || !activeLdfTab.value) return;
   const target = event.target as HTMLTextAreaElement;
   upsertTab({
     id: activeLdfTab.value.id,
     title: activeLdfTab.value.title,
-    content: target.value
+    content: target.value,
+    dirty: true
   });
 };
 
@@ -219,6 +370,8 @@ defineExpose({ loadHomeTab });
   color: var(--app-text-primary);
 }
 .main-tab-item.active {
+  background-color: var(--app-bg-hover);
+  box-shadow: inset 0 0 0 1px var(--app-border);
   color: var(--app-text-primary);
 }
 .main-tab-item.dragging {
@@ -244,6 +397,14 @@ defineExpose({ loadHomeTab });
   font-size: 13px;
   color: var(--app-text-muted);
 }
+.main-tab-status-slot {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 .main-tab-close {
   width: 16px;
   height: 16px;
@@ -259,6 +420,12 @@ defineExpose({ loadHomeTab });
 .main-tab-close:hover {
   background-color: var(--app-bg-hover);
   color: var(--app-text-primary);
+}
+.main-tab-dirty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: #ef4444;
 }
 .main-tab-content {
   flex: 1;
@@ -302,5 +469,84 @@ defineExpose({ loadHomeTab });
   font-size: 12px;
   line-height: 1.5;
   outline: none;
+}
+
+.tab-context-menu {
+  position: fixed;
+  z-index: 2600;
+  min-width: 156px;
+  padding: 4px;
+  background-color: var(--app-bg-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.tab-context-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--app-text-regular);
+  text-align: left;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tab-context-item:hover {
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
+}
+
+.tab-context-divider {
+  height: 1px;
+  background-color: var(--app-border);
+  margin: 4px 0;
+}
+
+.tab-close-confirm {
+  position: fixed;
+  z-index: 2700;
+  min-width: 188px;
+  padding: 8px;
+  background-color: var(--app-bg-elevated);
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.tab-close-confirm-title {
+  font-size: 12px;
+  color: var(--app-text-regular);
+  margin-bottom: 8px;
+}
+
+.tab-close-confirm-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab-close-confirm-btn {
+  border: 1px solid var(--app-border);
+  background: transparent;
+  color: var(--app-text-regular);
+  font-size: 12px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tab-close-confirm-btn:hover {
+  background-color: var(--app-bg-hover);
+}
+
+.tab-close-confirm-btn.danger {
+  border-color: #dc2626;
+  color: #f87171;
+  font-size: 11px;
+  padding: 3px 7px;
 }
 </style>

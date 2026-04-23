@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld('electron', {
   dialog: {
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
     openFile: () => ipcRenderer.invoke('dialog:openFile'),
+    saveFile: (defaultPath?: string) => ipcRenderer.invoke('dialog:saveFile', defaultPath),
   },
   fs: {
     readDirectory: (path: string) => ipcRenderer.invoke('fs:readDirectory', path),

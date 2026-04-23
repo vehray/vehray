@@ -33,6 +33,7 @@ declare global {
       dialog: {
         openDirectory: () => Promise<{ canceled: boolean; filePaths: string[] }>;
         openFile: () => Promise<{ canceled: boolean; filePaths: string[] }>;
+        saveFile: (defaultPath?: string) => Promise<{ canceled: boolean; filePath?: string }>;
       };
       fs: {
         readDirectory: (path: string) => Promise<{ name: string; path: string; type: string }[]>;

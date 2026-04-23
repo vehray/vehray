@@ -25,7 +25,17 @@
             >
               <el-icon class="expand-icon placeholder-icon"></el-icon>
               <el-icon class="file-icon"><Document /></el-icon>
-              <span class="file-name">{{ tab.title }}</span>
+              <input
+                v-if="renamingEditorTabId === tab.id"
+                ref="renamingEditorInputRef"
+                class="create-input"
+                v-model="renamingEditorName"
+                @click.stop
+                @keydown.enter.prevent="submitRenameOpenedEditor"
+                @keydown.esc.prevent="cancelRenameOpenedEditor"
+                @blur="submitRenameOpenedEditor"
+              />
+              <span v-else class="file-name">{{ tab.title }}</span>
             </button>
           </div>
         </div>
@@ -143,8 +153,31 @@
         <el-icon><Close /></el-icon>
         {{ t('common.close') }}
       </button>
-      <div v-if="contextEditorTabId" class="context-menu-divider"></div>
-      <button v-if="!state.activeFolderPath" class="context-menu-item" @click="handleOpenFolderFromContextMenu">
+      <button
+        v-if="contextEditorTabId && contextEditorFilePath"
+        class="context-menu-item"
+        @click="handleShowPropertiesFromContextMenu"
+      >
+        <el-icon><EditPen /></el-icon>
+        {{ t('layout.sidebar.properties') }}
+      </button>
+      <button
+        v-if="contextEditorTabId && contextEditorFilePath"
+        class="context-menu-item"
+        @click="handleRenameOpenedEditorFromContextMenu"
+      >
+        <el-icon><EditPen /></el-icon>
+        {{ t('layout.explorer.rename') }}
+      </button>
+      <button
+        v-if="contextEditorTabId && contextEditorFilePath"
+        class="context-menu-item"
+        @click="handleRevealOpenedEditorInFolder"
+      >
+        <el-icon><FolderOpened /></el-icon>
+        {{ t('layout.explorer.openContainingFolder') }}
+      </button>
+      <button v-if="!state.activeFolderPath && !contextEditorTabId" class="context-menu-item" @click="handleOpenFolderFromContextMenu">
         <el-icon><Folder /></el-icon>
         {{ t('layout.header.openFolder') }}
       </button>
@@ -159,6 +192,10 @@
       <button v-if="contextTarget && !contextEditorTabId" class="context-menu-item" @click="handleStartRename">
         <el-icon><EditPen /></el-icon>
         {{ t('layout.explorer.rename') }}
+      </button>
+      <button v-if="contextTarget && !contextEditorTabId" class="context-menu-item" @click="handleShowPropertiesFromContextMenu">
+        <el-icon><EditPen /></el-icon>
+        {{ t('layout.sidebar.properties') }}
       </button>
       <button
         v-if="!contextTarget && state.activeFolderPath && !contextEditorTabId"
@@ -217,7 +254,7 @@ import { useUiState } from '../../state/uiState';
 
 const { rootFolder, fileTree, rootExpanded, toggleRootFolder, toggleItem, loadFolder, closeFolder } = useProjectExplorer();
 const { t } = useI18n();
-const { state, setSelectedExplorerEntry, switchToTab, closeTab } = useUiState();
+const { state, setSelectedExplorerEntry, setRightPanelVisible, switchToTab, closeTab, upsertTab } = useUiState();
 let unsubscribeFolderOpened: (() => void) | null = null;
 let unsubscribeFolderChanged: (() => void) | null = null;
 let refreshTimer: number | null = null;
@@ -229,6 +266,7 @@ const creatingFolderName = ref('');
 const renamingPath = ref<string | null>(null);
 const renamingName = ref('');
 const explorerRootRef = ref<HTMLElement | null>(null);
+const renamingEditorInputRef = ref<HTMLInputElement | null>(null);
 const isDeleting = ref(false);
 const isDragImportActive = ref(false);
 const dragEnterCounter = ref(0);
@@ -254,6 +292,16 @@ const TOOLTIP_OFFSET_Y = 18;
 const openEditorsExpanded = ref(false);
 const openFoldersExpanded = ref(true);
 const openedEditorTabs = computed(() => state.tabs.filter((tab) => tab.id !== 'home'));
+const renamingEditorTabId = ref<string | null>(null);
+const renamingEditorName = ref('');
+const contextEditorFilePath = computed(() => {
+  if (!contextEditorTabId.value?.startsWith('lin-ldf-editor-file:')) return null;
+  try {
+    return decodeURIComponent(contextEditorTabId.value.slice('lin-ldf-editor-file:'.length));
+  } catch {
+    return null;
+  }
+});
 const openedFolders = computed(() =>
   state.activeFolderPath && state.activeFolderName ? [{ path: state.activeFolderPath, name: state.activeFolderName }] : []
 );
@@ -423,6 +471,112 @@ const handleCloseEditorFromContextMenu = () => {
   if (!contextEditorTabId.value) return;
   closeTab(contextEditorTabId.value);
   closeContextMenu();
+};
+
+const handleRevealOpenedEditorInFolder = async () => {
+  if (!contextEditorFilePath.value) return;
+  await explorerService.revealInFolder(contextEditorFilePath.value);
+  closeContextMenu();
+};
+
+const handleShowPropertiesFromContextMenu = () => {
+  if (contextEditorFilePath.value) {
+    const filePath = contextEditorFilePath.value;
+    const fileName = filePath.match(/[^\\/]+$/)?.[0] ?? filePath;
+    selectedPath.value = filePath;
+    setSelectedExplorerEntry({
+      name: fileName,
+      path: filePath,
+      type: 'file'
+    });
+    setRightPanelVisible(true);
+    closeContextMenu();
+    return;
+  }
+
+  if (contextTarget.value) {
+    selectedPath.value = contextTarget.value.path;
+    setSelectedExplorerEntry({
+      name: contextTarget.value.name,
+      path: contextTarget.value.path,
+      type: contextTarget.value.type,
+      size: contextTarget.value.size,
+      modifiedAt: contextTarget.value.modifiedAt
+    });
+    setRightPanelVisible(true);
+    closeContextMenu();
+  }
+};
+
+const handleRenameOpenedEditorFromContextMenu = () => {
+  if (!contextEditorFilePath.value || !contextEditorTabId.value) return;
+  const oldPath = contextEditorFilePath.value;
+  const oldName = oldPath.match(/[^\\/]+$/)?.[0] ?? oldPath;
+  renamingEditorTabId.value = contextEditorTabId.value;
+  renamingEditorName.value = oldName;
+  closeContextMenu();
+  void nextTick(() => {
+    if (!renamingEditorInputRef.value) return;
+    renamingEditorInputRef.value.focus();
+    renamingEditorInputRef.value.select();
+  });
+};
+
+const cancelRenameOpenedEditor = () => {
+  renamingEditorTabId.value = null;
+  renamingEditorName.value = '';
+};
+
+const submitRenameOpenedEditor = async () => {
+  if (!renamingEditorTabId.value) return;
+  const tabId = renamingEditorTabId.value;
+  const filePath = tabId.startsWith('lin-ldf-editor-file:') ? decodeURIComponent(tabId.slice('lin-ldf-editor-file:'.length)) : '';
+  if (!filePath) {
+    cancelRenameOpenedEditor();
+    return;
+  }
+
+  const oldName = filePath.match(/[^\\/]+$/)?.[0] ?? filePath;
+  const nextName = renamingEditorName.value.trim();
+  if (!nextName || nextName === oldName) {
+    cancelRenameOpenedEditor();
+    return;
+  }
+  if (/[\\/:"*?<>|]/.test(nextName)) {
+    ElMessage.warning(t('layout.explorer.folderNameInvalid'));
+    return;
+  }
+
+  const tabItem = state.tabs.find((tab) => tab.id === tabId);
+  const result = await explorerService.renameEntry(filePath, nextName);
+  if (!result.success) {
+    ElMessage.error(t('layout.explorer.renameFailed'));
+    return;
+  }
+
+  const newPath = result.nextPath;
+  const newTabId = `lin-ldf-editor-file:${encodeURIComponent(newPath)}`;
+  if (tabItem) {
+    upsertTab({
+      id: newTabId,
+      title: nextName,
+      content: tabItem.content
+    });
+    closeTab(tabItem.id);
+    switchToTab(newTabId);
+  }
+
+  setSelectedExplorerEntry({
+    name: nextName,
+    path: newPath,
+    type: 'file'
+  });
+  selectedPath.value = newPath;
+  cancelRenameOpenedEditor();
+  ElMessage.success(t('layout.explorer.renameSuccess'));
+  if (state.activeFolderPath) {
+    await loadFolder(state.activeFolderPath);
+  }
 };
 
 const handleDragEnterExplorer = () => {

@@ -258,6 +258,10 @@ contextBridge.exposeInMainWorld("electron", {
     // 打开文件选择对话框
     openFile: async () => {
       return await ipcRenderer.invoke("dialog:openFile");
+    },
+    // 打开保存文件对话框
+    saveFile: async (defaultPath) => {
+      return await ipcRenderer.invoke("dialog:saveFile", defaultPath);
     }
   }
 });

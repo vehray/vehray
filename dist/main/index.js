@@ -3170,6 +3170,17 @@ ipcMain.handle("dialog:openFile", async () => {
   const result = await dialog.showOpenDialog(mainWindow, options);
   return result;
 });
+ipcMain.handle("dialog:saveFile", async (_event, defaultPath) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: "保存 LDF 文件",
+    defaultPath,
+    filters: [
+      { name: "LDF Files", extensions: ["ldf", "LDF"] },
+      { name: "All Files", extensions: ["*"] }
+    ]
+  });
+  return result;
+});
 ipcMain.on("folder-opened", (event, folderPath) => {
   console.log("主进程接收到folder-opened事件:", folderPath);
   if (mainWindow) {

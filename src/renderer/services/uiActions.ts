@@ -23,6 +23,16 @@ const getNextLdfDocName = (titles: string[]) => {
   return `ldf-doc-${index}.ldf`;
 };
 
+const toFileName = (filePath: string) => filePath.match(/[^\\/]+$/)?.[0] ?? filePath;
+const tabIdToFilePath = (tabId: string) => {
+  if (!tabId.startsWith('lin-ldf-editor-file:')) return null;
+  try {
+    return decodeURIComponent(tabId.slice('lin-ldf-editor-file:'.length));
+  } catch {
+    return null;
+  }
+};
+
 const applyTheme = (theme: UiPreferences['theme']) => {
   document.documentElement.setAttribute('data-theme', theme);
   if (window.electron?.ipcRenderer?.invoke) {
@@ -69,7 +79,8 @@ export const uiActions = {
     upsertTab({
       id: tabId,
       title: fileName,
-      content: content ?? ''
+      content: content ?? '',
+      dirty: false
     });
     switchToTab(tabId);
     return filePath;
@@ -84,7 +95,8 @@ export const uiActions = {
     upsertTab({
       id: tabId,
       title: getNextLdfDocName(state.tabs.map((tab) => tab.title)),
-      content: initialContent
+      content: initialContent,
+      dirty: true
     });
     switchToTab(tabId);
   },
@@ -92,6 +104,30 @@ export const uiActions = {
   async createLdfFile(standard?: string) {
     this.openLinLdfEditor(standard);
     return { success: true as const, reason: null, filePath: null };
+  },
+
+  async saveActiveTab() {
+    const { state, upsertTab, switchToTab } = useUiState();
+    const activeTab = state.tabs.find((tab) => tab.id === state.activeTab);
+    if (!activeTab || activeTab.id === 'home') {
+      return { success: false as const, reason: 'no-active-tab' as const };
+    }
+
+    const existingPath = tabIdToFilePath(activeTab.id);
+    const selectedPath = await electronBridge.saveFile(existingPath ?? activeTab.title || 'ldf-doc-1.ldf');
+    if (!selectedPath) return { success: false as const, reason: 'cancelled' as const };
+    const success = await electronBridge.writeFile(selectedPath, activeTab.content ?? '');
+    if (!success) return { success: false as const, reason: 'write-failed' as const };
+
+    const nextTabId = `lin-ldf-editor-file:${encodeURIComponent(selectedPath)}`;
+    upsertTab({
+      id: nextTabId,
+      title: toFileName(selectedPath),
+      content: activeTab.content ?? '',
+      dirty: false
+    });
+    switchToTab(nextTabId);
+    return { success: true as const, filePath: selectedPath };
   },
 
   refreshTree() {

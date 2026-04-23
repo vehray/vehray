@@ -16,6 +16,7 @@ import { uiActions } from '../services/uiActions';
 
 let disposeOpenFileShortcut: (() => void) | null = null;
 let disposeOpenFolderShortcut: (() => void) | null = null;
+let disposeSaveFileShortcut: (() => void) | null = null;
 
 onMounted(() => {
   void shortcutService.initialize();
@@ -25,13 +26,18 @@ onMounted(() => {
   disposeOpenFolderShortcut = shortcutService.onAction('openFolder', () => {
     void uiActions.openFolder();
   });
+  disposeSaveFileShortcut = shortcutService.onAction('saveFile', () => {
+    void uiActions.saveActiveTab();
+  });
 });
 
 onUnmounted(() => {
   disposeOpenFileShortcut?.();
   disposeOpenFolderShortcut?.();
+  disposeSaveFileShortcut?.();
   disposeOpenFileShortcut = null;
   disposeOpenFolderShortcut = null;
+  disposeSaveFileShortcut = null;
   shortcutService.dispose();
 });
 </script>

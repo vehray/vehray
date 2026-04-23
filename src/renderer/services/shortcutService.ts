@@ -4,7 +4,8 @@ export type ShortcutActionId =
   | 'toggleBottomPanel'
   | 'goHome'
   | 'openFile'
-  | 'openFolder';
+  | 'openFolder'
+  | 'saveFile';
 
 export interface ShortcutBinding {
   ctrl: boolean;
@@ -27,7 +28,8 @@ const DEFAULT_SHORTCUT_BINDINGS: Record<ShortcutActionId, string> = {
   toggleBottomPanel: 'Ctrl+J',
   goHome: 'Ctrl+Shift+H',
   openFile: 'Ctrl+O',
-  openFolder: 'Ctrl+Shift+O'
+  openFolder: 'Ctrl+Shift+O',
+  saveFile: 'Ctrl+S'
 };
 
 const isEditableTarget = (target: EventTarget | null) => {

@@ -50,6 +50,13 @@ export const electronBridge = {
     return result.filePaths[0];
   },
 
+  async saveFile(defaultPath?: string): Promise<string | null> {
+    if (!hasDialog() || !window.electron.dialog.saveFile) return null;
+    const result = await window.electron.dialog.saveFile(defaultPath);
+    if (result.canceled || !result.filePath) return null;
+    return result.filePath;
+  },
+
   publishFolderOpened(folderPath: string) {
     if (!hasIpc()) return;
     window.electron.ipcRenderer.send(FOLDER_OPENED_CHANNEL, folderPath);
