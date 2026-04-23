@@ -2,6 +2,7 @@ export default {
   common: {
     close: '关闭',
     newFile: '新建',
+    copy: '复制',
     confirm: '确定',
     cancel: '取消'
   },
@@ -21,13 +22,32 @@ export default {
       openFolder: '打开文件夹',
       refreshExplorer: '刷新资源管理器',
       settings: '设置',
+      login: '登录',
+      loginEntry: '登录账号',
+      accountCenter: '账号中心',
+      logout: '退出登录',
+      loginStatusLoggedOut: '未登录',
+      loginStatusPending: '登录中',
+      loginStatusLoggedIn: '已登录',
+      accountName: '用户名',
+      accountEmail: '邮箱',
+      accountTier: '会员等级',
+      accountLastLogin: '上次登录',
       preferences: '偏好设置',
       theme: '主题',
       language: '语言',
       themeDark: '深色',
       themeLight: '白色',
       about: '关于',
-      toggleMenu: '切换菜单'
+      toggleMenu: '切换菜单',
+      placeholderEdit1: '空白示例：编辑项 1',
+      placeholderEdit2: '空白示例：编辑项 2',
+      placeholderTools1: '空白示例：工具项 1',
+      placeholderTools2: '空白示例：工具项 2',
+      placeholderWindow1: '空白示例：窗口项 1',
+      placeholderWindow2: '空白示例：窗口项 2',
+      placeholderHelp1: '空白示例：帮助项 1',
+      placeholderHelp2: '空白示例：帮助项 2'
     },
     explorer: {
       title: '文件资源管理器',
@@ -75,12 +95,20 @@ export default {
     tabContentPlaceholder: '标签内容区域 - {title}'
   },
   properties: {
+    currentSelection: '当前选择',
+    selectHint: '请先在左侧文件资源管理器中选择一个文件或文件夹',
     name: '名称',
     type: '类型',
+    path: '路径',
     size: '大小',
     modifiedAt: '修改时间',
     unnamed: '未命名',
     file: '文件',
+    directory: '文件夹',
+    unselected: '未选择',
+    notApplicable: '-',
+    pathCopied: '路径已复制',
+    pathCopyFailed: '复制路径失败',
     zeroKb: '0 KB',
     unmodified: '未修改'
   }

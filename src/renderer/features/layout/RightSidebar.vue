@@ -1,15 +1,24 @@
 <template>
   <div class="right-sidebar">
-    <button class="sidebar-btn" :title="t('layout.sidebar.properties')" @click="$emit('toggle-activity')">
-      <el-icon><Operation /></el-icon>
-    </button>
+    <el-tooltip
+      :content="propertiesTooltipText"
+      placement="left"
+      :show-after="250"
+      popper-class="app-unified-tooltip"
+    >
+      <button class="sidebar-btn" @click="$emit('toggle-activity')">
+        <el-icon><Operation /></el-icon>
+      </button>
+    </el-tooltip>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { Operation } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
+const propertiesTooltipText = computed(() => `${t('layout.sidebar.properties')} (Ctrl+Shift+P)`);
 
 defineEmits<{
   (e: 'toggle-activity'): void;

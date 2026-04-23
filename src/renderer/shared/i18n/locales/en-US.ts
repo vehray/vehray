@@ -2,6 +2,7 @@ export default {
   common: {
     close: 'Close',
     newFile: 'New',
+    copy: 'Copy',
     confirm: 'Confirm',
     cancel: 'Cancel'
   },
@@ -21,13 +22,32 @@ export default {
       openFolder: 'Open Folder',
       refreshExplorer: 'Refresh Explorer',
       settings: 'Settings',
+      login: 'Sign In',
+      loginEntry: 'Sign In',
+      accountCenter: 'Account Center',
+      logout: 'Sign Out',
+      loginStatusLoggedOut: 'Signed Out',
+      loginStatusPending: 'Signing In',
+      loginStatusLoggedIn: 'Signed In',
+      accountName: 'Username',
+      accountEmail: 'Email',
+      accountTier: 'Plan',
+      accountLastLogin: 'Last Login',
       preferences: 'Preferences',
       theme: 'Theme',
       language: 'Language',
       themeDark: 'Dark',
       themeLight: 'Light',
       about: 'About',
-      toggleMenu: 'Toggle Menu'
+      toggleMenu: 'Toggle Menu',
+      placeholderEdit1: 'Placeholder: Edit Item 1',
+      placeholderEdit2: 'Placeholder: Edit Item 2',
+      placeholderTools1: 'Placeholder: Tools Item 1',
+      placeholderTools2: 'Placeholder: Tools Item 2',
+      placeholderWindow1: 'Placeholder: Window Item 1',
+      placeholderWindow2: 'Placeholder: Window Item 2',
+      placeholderHelp1: 'Placeholder: Help Item 1',
+      placeholderHelp2: 'Placeholder: Help Item 2'
     },
     explorer: {
       title: 'Explorer',
@@ -75,12 +95,20 @@ export default {
     tabContentPlaceholder: 'Tab content area - {title}'
   },
   properties: {
+    currentSelection: 'Current Selection',
+    selectHint: 'Select a file or folder in the Explorer first',
     name: 'Name',
     type: 'Type',
+    path: 'Path',
     size: 'Size',
     modifiedAt: 'Modified',
     unnamed: 'Untitled',
     file: 'File',
+    directory: 'Folder',
+    unselected: 'Unselected',
+    notApplicable: '-',
+    pathCopied: 'Path copied',
+    pathCopyFailed: 'Failed to copy path',
     zeroKb: '0 KB',
     unmodified: 'Unmodified'
   }

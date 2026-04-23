@@ -4,7 +4,7 @@ import { i18n } from '../shared/i18n';
 
 type UiPreferences = {
   theme: 'dark' | 'light';
-  locale: 'zh-CN' | 'en-US';
+  locale: 'zh-CN' | 'zh-TW' | 'en-US';
 };
 
 const SETTINGS_KEY = 'uiPreferences';
@@ -68,7 +68,7 @@ export const uiActions = {
     const settings = await electronBridge.readSettings<Record<string, unknown>>();
     const saved = (settings?.[SETTINGS_KEY] as Partial<UiPreferences> | undefined) ?? {};
     const theme = saved.theme === 'dark' || saved.theme === 'light' ? saved.theme : state.theme;
-    const locale = saved.locale === 'en-US' || saved.locale === 'zh-CN' ? saved.locale : state.locale;
+    const locale = saved.locale === 'en-US' || saved.locale === 'zh-CN' || saved.locale === 'zh-TW' ? saved.locale : state.locale;
     setTheme(theme);
     setLocale(locale);
     applyTheme(theme);

@@ -28,7 +28,14 @@
               <ArrowRight v-else />
             </el-icon>
             <el-icon class="file-icon"><Folder /></el-icon>
-            <span class="file-name">{{ rootFolder }}</span>
+            <span
+              class="file-name"
+              @mouseenter="showNameTooltip($event, rootFolder ?? '')"
+              @mousemove="moveNameTooltip"
+              @mouseleave="hideNameTooltip"
+            >
+              {{ rootFolder }}
+            </span>
           </div>
         </div>
         <div class="tree-children" v-if="rootExpanded">
@@ -134,6 +141,13 @@
         </button>
       </div>
     </div>
+    <div
+      v-if="nameTooltip.visible"
+      class="name-hover-tip"
+      :style="{ left: `${nameTooltip.x}px`, top: `${nameTooltip.y}px` }"
+    >
+      {{ nameTooltip.text }}
+    </div>
   </div>
 </template>
 
@@ -152,7 +166,7 @@ import { useUiState } from '../../state/uiState';
 
 const { rootFolder, fileTree, rootExpanded, toggleRootFolder, toggleItem, loadFolder, closeFolder } = useProjectExplorer();
 const { t } = useI18n();
-const { state } = useUiState();
+const { state, setSelectedExplorerEntry } = useUiState();
 let unsubscribeFolderOpened: (() => void) | null = null;
 let unsubscribeFolderChanged: (() => void) | null = null;
 let refreshTimer: number | null = null;
@@ -177,6 +191,56 @@ const deleteConfirmPopup = reactive({
   x: 0,
   y: 0
 });
+const nameTooltip = reactive({
+  visible: false,
+  text: '',
+  x: 0,
+  y: 0
+});
+const TOOLTIP_OFFSET_X = 14;
+const TOOLTIP_OFFSET_Y = 18;
+
+const showNameTooltip = (event: MouseEvent, text: string) => {
+  const target = event.currentTarget as HTMLElement | null;
+  if (!target) return;
+  if (target.scrollWidth <= target.clientWidth) return;
+  nameTooltip.visible = true;
+  nameTooltip.text = text;
+  nameTooltip.x = event.clientX + TOOLTIP_OFFSET_X;
+  nameTooltip.y = event.clientY + TOOLTIP_OFFSET_Y;
+};
+
+const moveNameTooltip = (event: MouseEvent) => {
+  if (!nameTooltip.visible) return;
+  nameTooltip.x = event.clientX + TOOLTIP_OFFSET_X;
+  nameTooltip.y = event.clientY + TOOLTIP_OFFSET_Y;
+};
+
+const hideNameTooltip = () => {
+  nameTooltip.visible = false;
+};
+
+const selectRootEntry = () => {
+  if (!state.activeFolderPath || !rootFolder.value) {
+    setSelectedExplorerEntry(null);
+    return;
+  }
+  setSelectedExplorerEntry({
+    name: rootFolder.value,
+    path: state.activeFolderPath,
+    type: 'directory'
+  });
+};
+
+const selectNodeEntry = (item: FileTreeNode) => {
+  setSelectedExplorerEntry({
+    name: item.name,
+    path: item.path,
+    type: item.type,
+    size: item.size,
+    modifiedAt: item.modifiedAt
+  });
+};
 
 const closeContextMenu = () => {
   contextMenu.visible = false;
@@ -220,6 +284,7 @@ const openContextMenuForRoot = (event: MouseEvent) => {
   event.preventDefault();
   event.stopPropagation();
   selectedPath.value = state.activeFolderPath;
+  selectRootEntry();
   contextTarget.value = null;
   if (!state.activeFolderPath) return;
   openContextMenu(event);
@@ -231,6 +296,7 @@ const openContextMenuForBlank = (event: MouseEvent) => {
   const target = event.target as HTMLElement | null;
   if (target?.closest('.tree-item-header')) return;
   selectedPath.value = state.activeFolderPath;
+  selectRootEntry();
   contextTarget.value = null;
   openContextMenu(event);
 };
@@ -239,16 +305,19 @@ const openContextMenuForNode = (item: FileTreeNode, event: MouseEvent) => {
   event.preventDefault();
   event.stopPropagation();
   selectedPath.value = item.path;
+  selectNodeEntry(item);
   contextTarget.value = item;
   openContextMenu(event);
 };
 
 const handleSelectNode = (item: FileTreeNode) => {
   selectedPath.value = item.path;
+  selectNodeEntry(item);
 };
 
 const handleRootClick = () => {
   selectedPath.value = state.activeFolderPath;
+  selectRootEntry();
   toggleRootFolder();
 };
 
@@ -331,6 +400,7 @@ const handleDropOnExplorer = async (event: DragEvent) => {
   try {
     await loadFolder(folderPath);
     selectedPath.value = folderPath;
+    selectRootEntry();
     await electronBridge.watchExplorerFolder(folderPath);
     electronBridge.publishFolderOpened(folderPath);
   } catch {
@@ -554,6 +624,13 @@ const submitRename = async () => {
     fileTree.value = applyRenameToTree(fileTree.value, previousPath, result.nextPath, nextName);
     if (selectedPath.value === previousPath) {
       selectedPath.value = result.nextPath;
+      setSelectedExplorerEntry({
+        name: nextName,
+        path: result.nextPath,
+        type: contextTarget.value?.type ?? 'file',
+        size: contextTarget.value?.size,
+        modifiedAt: contextTarget.value?.modifiedAt
+      });
     }
   }
   cancelRename();
@@ -581,6 +658,7 @@ const handleCloseFolder = () => {
   void electronBridge.unwatchExplorerFolder();
   closeFolder();
   selectedPath.value = null;
+  setSelectedExplorerEntry(null);
   contextTarget.value = null;
   cancelCreateFolder();
   cancelRename();
@@ -693,6 +771,7 @@ const confirmDeleteEntry = async () => {
 
     if (target.path === selectedPath.value) {
       selectedPath.value = rootPath;
+      selectRootEntry();
     }
     await loadFolder(rootPath);
     ElMessage.success(t('layout.explorer.deleteSuccess'));
@@ -716,12 +795,21 @@ const confirmDeleteEntry = async () => {
 
 onMounted(() => {
   if (state.activeFolderPath) {
+    selectedPath.value = state.activeFolderPath;
+    selectRootEntry();
+  }
+  if (state.activeFolderPath) {
     void electronBridge.watchExplorerFolder(state.activeFolderPath);
   }
 
   unsubscribeFolderOpened = electronBridge.subscribeFolderOpened((folderPath) => {
     cancelRename();
     selectedPath.value = folderPath;
+    setSelectedExplorerEntry({
+      name: folderPath.split(/[\\/]/).filter(Boolean).at(-1) ?? folderPath,
+      path: folderPath,
+      type: 'directory'
+    });
     void electronBridge.watchExplorerFolder(folderPath);
     void loadFolder(folderPath).catch(() => {
       ElMessage.error(t('layout.explorer.loadFolderFailed'));
@@ -744,6 +832,7 @@ onMounted(() => {
   document.addEventListener('click', closeContextMenu);
 });
 onUnmounted(() => {
+  hideNameTooltip();
   unsubscribeFolderOpened?.();
   unsubscribeFolderChanged?.();
   unsubscribeFolderOpened = null;
@@ -766,23 +855,69 @@ onUnmounted(() => {
   box-shadow: inset 0 0 0 1px var(--app-accent, #3b82f6);
   background-color: color-mix(in srgb, var(--app-accent, #3b82f6) 8%, transparent);
 }
-.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--app-text-subtle); }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 100%;
+  color: var(--app-text-subtle);
+  text-align: center;
+  padding: 0 12px;
+}
+.empty-state p {
+  max-width: 170px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.empty-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.empty-hint {
+  font-size: 12px;
+}
 .tree-item-header {
   display: flex;
   align-items: center;
+  min-width: 0;
   min-height: 26px;
   padding: 0 12px;
   font-size: 12px;
   color: var(--app-text-regular);
   cursor: pointer;
-  user-select: none;
 }
 .tree-item-header:hover { background-color: var(--app-bg-soft-hover); }
 .tree-item-header.selected { background-color: var(--app-bg-hover); color: var(--app-text-primary); }
 .expand-icon { width: 12px; height: 12px; margin-right: 4px; color: var(--app-text-subtle); }
 .placeholder-icon { opacity: 0; }
 .file-icon { width: 14px; height: 14px; margin-right: 6px; color: var(--app-text-subtle); }
-.file-name { line-height: 1; color: var(--app-text-regular); }
+.file-name {
+  flex: 1;
+  min-width: 0;
+  line-height: 1;
+  color: var(--app-text-regular);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.name-hover-tip {
+  position: fixed;
+  z-index: 5000;
+  max-width: 260px;
+  padding: 5px 8px;
+  border: 1px solid var(--app-border);
+  background-color: var(--app-bg-elevated);
+  color: var(--app-text-regular);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+  pointer-events: none;
+}
+
 .tree-children {
   margin-left: 16px;
   overflow: visible;

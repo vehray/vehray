@@ -5,7 +5,17 @@ export interface FileTreeNode {
   path: string;
   type: 'file' | 'directory';
   expanded: boolean;
+  size?: number;
+  modifiedAt?: number;
   children?: FileTreeNode[];
+}
+
+export interface ExplorerSelection {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size?: number;
+  modifiedAt?: number;
 }
 
 export interface UiTabItem {
@@ -23,18 +33,20 @@ interface UiState {
   activeFolderPath: string | null;
   activeFolderName: string | null;
   fileTree: FileTreeNode[];
+  selectedExplorerEntry: ExplorerSelection | null;
   activeTab: string;
   rightPanelVisible: boolean;
   tabs: UiTabItem[];
   historyFiles: HistoryFileItem[];
   theme: 'dark' | 'light';
-  locale: 'zh-CN' | 'en-US';
+  locale: 'zh-CN' | 'zh-TW' | 'en-US';
 }
 
 const state = reactive<UiState>({
   activeFolderPath: null,
   activeFolderName: null,
   fileTree: [],
+  selectedExplorerEntry: null,
   activeTab: 'home',
   rightPanelVisible: false,
   tabs: [{ id: 'home', title: '主页', content: 'home-content' }],
@@ -47,6 +59,7 @@ const resetState = () => {
   state.activeFolderPath = null;
   state.activeFolderName = null;
   state.fileTree = [];
+  state.selectedExplorerEntry = null;
   state.activeTab = 'home';
   state.rightPanelVisible = false;
   state.tabs = [{ id: 'home', title: '主页', content: 'home-content' }];
@@ -70,6 +83,11 @@ export function useUiState() {
     state.activeFolderPath = null;
     state.activeFolderName = null;
     state.fileTree = [];
+    state.selectedExplorerEntry = null;
+  };
+
+  const setSelectedExplorerEntry = (entry: ExplorerSelection | null) => {
+    state.selectedExplorerEntry = entry;
   };
 
   const setActiveTab = (tabId: string) => {
@@ -143,6 +161,7 @@ export function useUiState() {
     setActiveFolder,
     setFileTree,
     clearActiveFolder,
+    setSelectedExplorerEntry,
     setActiveTab,
     setRightPanelVisible,
     setTheme,

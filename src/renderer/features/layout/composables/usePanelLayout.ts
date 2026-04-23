@@ -49,6 +49,7 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
   let leftWidthRatio = LAYOUT_CONSTANTS.MIN_SIDE_PERCENT / 100;
   let rightWidthRatio = LAYOUT_CONSTANTS.MIN_SIDE_PERCENT / 100;
   let tabHeightRatio = 0.3;
+  let lastExpandedTabHeight = LAYOUT_CONSTANTS.INITIAL_TAB_HEIGHT;
 
   const getContainerWidth = () => {
     if (!contentWrapper.value) return 0;
@@ -173,6 +174,30 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
     tabPanelHeight.value = clampedTabPanelHeight;
     mainContentHeight.value = totalHeight - clampedTabPanelHeight;
     tabHeightRatio = clampedTabPanelHeight / totalHeight;
+    if (clampedTabPanelHeight > 0) {
+      lastExpandedTabHeight = clampedTabPanelHeight;
+    }
+  };
+
+  const toggleBottomPanel = () => {
+    const totalHeight = getContainerHeight();
+    if (totalHeight <= 0) return;
+
+    if (tabPanelHeight.value > 0) {
+      lastExpandedTabHeight = tabPanelHeight.value;
+      tabPanelHeight.value = 0;
+      mainContentHeight.value = totalHeight;
+      tabHeightRatio = 0;
+      return;
+    }
+
+    const restoredHeight = Math.max(
+      LAYOUT_CONSTANTS.MIN_TAB_PANEL_HEIGHT,
+      Math.min(totalHeight - LAYOUT_CONSTANTS.MIN_MAIN_CONTENT_HEIGHT, lastExpandedTabHeight)
+    );
+    tabPanelHeight.value = restoredHeight;
+    mainContentHeight.value = totalHeight - restoredHeight;
+    tabHeightRatio = restoredHeight / totalHeight;
   };
 
   const stopLeftDrag = () => {
@@ -406,6 +431,7 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
     startRightDrag,
     startVerticalDrag,
     calculateActivityWidth,
-    calculateHeights
+    calculateHeights,
+    toggleBottomPanel
   };
 }

@@ -5,7 +5,7 @@
  */
 
 // 语言类型
-export type Language = 'zh-CN' | 'en-US';
+export type Language = 'zh-CN' | 'zh-TW' | 'en-US';
 
 // 主题类型
 export type Theme = 'light' | 'dark';

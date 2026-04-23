@@ -7,9 +7,33 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, onUnmounted } from 'vue';
 import AppHeader from '../features/layout/AppHeader.vue';
 import MainLayout from '../features/layout/MainLayout.vue';
 import AppStatusBar from '../features/layout/AppStatusBar.vue';
+import { shortcutService } from '../services/shortcutService';
+import { uiActions } from '../services/uiActions';
+
+let disposeOpenFileShortcut: (() => void) | null = null;
+let disposeOpenFolderShortcut: (() => void) | null = null;
+
+onMounted(() => {
+  void shortcutService.initialize();
+  disposeOpenFileShortcut = shortcutService.onAction('openFile', () => {
+    void uiActions.openFileToHistory();
+  });
+  disposeOpenFolderShortcut = shortcutService.onAction('openFolder', () => {
+    void uiActions.openFolder();
+  });
+});
+
+onUnmounted(() => {
+  disposeOpenFileShortcut?.();
+  disposeOpenFolderShortcut?.();
+  disposeOpenFileShortcut = null;
+  disposeOpenFolderShortcut = null;
+  shortcutService.dispose();
+});
 </script>
 
 <style>
@@ -85,5 +109,36 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.app-root,
+.app-root * {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.app-root input,
+.app-root textarea,
+.app-root [contenteditable='true'] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.app-unified-tooltip.el-popper {
+  max-width: 260px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background-color: var(--app-bg-elevated);
+  color: var(--app-text-regular);
+  padding: 6px 8px;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.app-unified-tooltip .el-popper__arrow {
+  display: none;
 }
 </style>

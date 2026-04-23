@@ -4,20 +4,18 @@
       <span class="activity-bar-title">{{ title }}</span>
       <div class="activity-bar-actions" :class="{ 'activity-bar-actions-right': position === 'right' }">
         <template v-if="position === 'left'">
-          <button class="action-btn" :title="t('layout.header.toggleMenu')" @click="toggleFloat">
-            <el-icon :size="14"><Menu /></el-icon>
-          </button>
-          <button class="action-btn" :title="t('common.close')" @click="close">
-            <el-icon :size="14"><Close /></el-icon>
-          </button>
+          <el-tooltip :content="t('common.close')" placement="bottom" :show-after="250" popper-class="app-unified-tooltip">
+            <button class="action-btn" @click="close">
+              <el-icon :size="14"><Close /></el-icon>
+            </button>
+          </el-tooltip>
         </template>
         <template v-else>
-          <button class="action-btn" :title="t('common.close')" @click="close">
-            <el-icon :size="14"><Close /></el-icon>
-          </button>
-          <button class="action-btn" :title="t('layout.header.toggleMenu')" @click="toggleFloat">
-            <el-icon :size="14"><Menu /></el-icon>
-          </button>
+          <el-tooltip :content="t('common.close')" placement="bottom" :show-after="250" popper-class="app-unified-tooltip">
+            <button class="action-btn" @click="close">
+              <el-icon :size="14"><Close /></el-icon>
+            </button>
+          </el-tooltip>
         </template>
       </div>
     </div>
@@ -25,6 +23,7 @@
       <div v-if="items.length > 0" class="activity-items-container">
         <div class="activity-item" v-for="item in items" :key="item.id" :title="item.title">
           <el-icon :size="16"><component :is="item.icon" /></el-icon>
+          <span class="activity-item-text">{{ item.title }}</span>
         </div>
       </div>
       <slot name="content">
@@ -42,7 +41,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Close, Menu } from '@element-plus/icons-vue';
+import { Close } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 
 interface ActivityItem {
@@ -78,7 +77,6 @@ const emit = defineEmits<{
 }>();
 
 const close = () => emit('close');
-const toggleFloat = () => emit('toggle-float');
 const { t } = useI18n();
 const panelStyle = computed(() => ({
   width: `${props.customWidth}px`
@@ -185,18 +183,24 @@ const panelStyle = computed(() => ({
 }
 
 .activity-item {
-  width: 24px;
-  height: 24px;
+  min-height: 24px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
   color: var(--app-text-regular);
-  cursor: pointer;
+  cursor: default;
   border-radius: 3px;
+  padding: 2px 4px;
 }
 
 .activity-item:hover {
   background-color: var(--app-bg-hover);
+}
+
+.activity-item-text {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--app-text-regular);
 }
 
 .properties-container {

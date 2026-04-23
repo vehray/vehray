@@ -1,18 +1,25 @@
 <template>
   <div class="main-sidebar">
-    <button class="sidebar-btn" :title="t('layout.sidebar.home')" @click="$emit('button-click', 'home')">
-      <el-icon><House /></el-icon>
-    </button>
-    <button class="sidebar-btn" :title="t('layout.sidebar.file')" @click="$emit('button-click', 'file')">
-      <el-icon><Folder /></el-icon>
-    </button>
+    <el-tooltip :content="homeTooltipText" placement="right" :show-after="250" popper-class="app-unified-tooltip">
+      <button class="sidebar-btn" @click="$emit('button-click', 'home')">
+        <el-icon><House /></el-icon>
+      </button>
+    </el-tooltip>
+    <el-tooltip :content="fileTooltipText" placement="right" :show-after="250" popper-class="app-unified-tooltip">
+      <button class="sidebar-btn" @click="$emit('button-click', 'file')">
+        <el-icon><Folder /></el-icon>
+      </button>
+    </el-tooltip>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { House, Folder } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
+const homeTooltipText = computed(() => `${t('layout.sidebar.home')} (Ctrl+Shift+H)`);
+const fileTooltipText = computed(() => `${t('layout.sidebar.file')} (Ctrl+Shift+E)`);
 
 defineEmits<{
   (e: 'button-click', view: string): void;

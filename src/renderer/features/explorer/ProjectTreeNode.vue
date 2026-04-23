@@ -29,7 +29,15 @@
         />
         <span v-if="renameNameDuplicate" class="rename-duplicate-hint">{{ t('layout.explorer.renameDuplicateName') }}</span>
       </div>
-      <span v-else class="file-name">{{ item.name }}</span>
+      <span
+        v-else
+        class="file-name"
+        @mouseenter="showNameTooltip($event, item.name)"
+        @mousemove="moveNameTooltip"
+        @mouseleave="hideNameTooltip"
+      >
+        {{ item.name }}
+      </span>
     </div>
     <div v-if="item.expanded && ((item.children && item.children.length > 0) || isCreatingParent)" class="tree-children">
       <div v-if="isCreatingParent" class="tree-item-header creating-row creating-folder-inline">
@@ -75,11 +83,18 @@
         @contextmenu="(childItem, mouseEvent) => $emit('contextmenu', childItem, mouseEvent)"
       />
     </div>
+    <div
+      v-if="nameTooltip.visible"
+      class="name-hover-tip"
+      :style="{ left: `${nameTooltip.x}px`, top: `${nameTooltip.y}px` }"
+    >
+      {{ nameTooltip.text }}
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, reactive } from 'vue';
 import { ArrowDown, ArrowRight, Document, Folder } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import type { FileTreeNode } from '../../state/uiState';
@@ -99,6 +114,34 @@ const props = defineProps<{
 const isSelected = computed(() => props.selectedPath === props.item.path);
 const isCreatingParent = computed(() => props.creatingParentPath === props.item.path);
 const isRenaming = computed(() => props.renamingPath === props.item.path);
+const nameTooltip = reactive({
+  visible: false,
+  text: '',
+  x: 0,
+  y: 0
+});
+const TOOLTIP_OFFSET_X = 14;
+const TOOLTIP_OFFSET_Y = 18;
+
+const showNameTooltip = (event: MouseEvent, text: string) => {
+  const target = event.currentTarget as HTMLElement | null;
+  if (!target) return;
+  if (target.scrollWidth <= target.clientWidth) return;
+  nameTooltip.visible = true;
+  nameTooltip.text = text;
+  nameTooltip.x = event.clientX + TOOLTIP_OFFSET_X;
+  nameTooltip.y = event.clientY + TOOLTIP_OFFSET_Y;
+};
+
+const moveNameTooltip = (event: MouseEvent) => {
+  if (!nameTooltip.visible) return;
+  nameTooltip.x = event.clientX + TOOLTIP_OFFSET_X;
+  nameTooltip.y = event.clientY + TOOLTIP_OFFSET_Y;
+};
+
+const hideNameTooltip = () => {
+  nameTooltip.visible = false;
+};
 
 const handleClick = () => {
   emit('select', props.item);
@@ -124,12 +167,12 @@ const emit = defineEmits<{
 .tree-item-header {
   display: flex;
   align-items: center;
+  min-width: 0;
   min-height: 26px;
   padding: 0 12px;
   font-size: 12px;
   color: var(--app-text-regular);
   cursor: pointer;
-  user-select: none;
 }
 
 .tree-item-header:hover {
@@ -160,8 +203,28 @@ const emit = defineEmits<{
 }
 
 .file-name {
+  flex: 1;
+  min-width: 0;
   line-height: 1;
   color: var(--app-text-regular);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.name-hover-tip {
+  position: fixed;
+  z-index: 5000;
+  max-width: 260px;
+  padding: 5px 8px;
+  border: 1px solid var(--app-border);
+  background-color: var(--app-bg-elevated);
+  color: var(--app-text-regular);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+  pointer-events: none;
 }
 
 .rename-input-group {

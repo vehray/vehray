@@ -28,7 +28,9 @@ export const explorerService = {
         name: item.name,
         path: item.path,
         type: item.type,
-        expanded: false
+        expanded: false,
+        size: item.size,
+        modifiedAt: item.modifiedAt
       }))
     );
   },

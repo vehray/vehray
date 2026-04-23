@@ -10,9 +10,11 @@
       >
         <div class="activity-header">
           <div class="activity-title">{{ t('layout.explorer.title') }}</div>
-          <button class="activity-close-btn" :title="t('common.close')" @click="closeLeftActivity">
-            <el-icon :size="14"><Close /></el-icon>
-          </button>
+          <el-tooltip :content="t('common.close')" placement="bottom" :show-after="250" popper-class="app-unified-tooltip">
+            <button class="activity-close-btn" @click="closeLeftActivity">
+              <el-icon :size="14"><Close /></el-icon>
+            </button>
+          </el-tooltip>
         </div>
         <ProjectExplorer />
         <div class="activity-right-border"></div>
@@ -87,8 +89,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { Operation, Close } from '@element-plus/icons-vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { Operation, Close, Folder, Document } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import Sidebar from './Sidebar.vue';
 import RightSidebar from './RightSidebar.vue';
@@ -100,11 +102,14 @@ import ProjectExplorer from '../explorer/ProjectExplorer.vue';
 import { useLayoutPanels } from './composables/useLayoutPanels';
 import { usePanelLayout } from './composables/usePanelLayout';
 import { uiActions } from '../../services/uiActions';
+import { useUiState } from '../../state/uiState';
+import { shortcutService } from '../../services/shortcutService';
 
 const mainTabPanelRef = ref<any>(null);
 const contentWrapper = ref<HTMLElement | null>(null);
 const mainArea = ref<HTMLElement | null>(null);
 const { t } = useI18n();
+const { state } = useUiState();
 
 const { currentView, showLeftActivity, showRightActivity, toggleLeftActivity, closeLeftActivity, closeRightActivity } =
   useLayoutPanels();
@@ -126,7 +131,8 @@ const {
   isRightCloseArmed,
   startLeftDrag,
   startRightDrag,
-  startVerticalDrag
+  startVerticalDrag,
+  toggleBottomPanel
 } = usePanelLayout({ contentWrapper, mainArea, showLeftActivity, showRightActivity });
 
 const handleSidebarClick = (view: string) => {
@@ -137,7 +143,56 @@ const handleSidebarClick = (view: string) => {
 
 const handleRightActivityToggleFloat = () => {};
 
-const rightActivityItems = computed(() => [{ id: '1', title: t('layout.sidebar.properties'), icon: Operation }]);
+const handleToggleExplorerShortcut = () => {
+  toggleLeftActivity();
+};
+
+const handleTogglePropertiesShortcut = () => {
+  uiActions.toggleRightPanel();
+};
+
+const handleToggleBottomPanelShortcut = () => {
+  toggleBottomPanel();
+};
+
+const handleGoHomeShortcut = () => {
+  handleSidebarClick('home');
+};
+
+const selectedEntryTypeLabel = computed(() => {
+  if (!state.selectedExplorerEntry) return t('properties.unselected');
+  return state.selectedExplorerEntry.type === 'directory' ? t('properties.directory') : t('properties.file');
+});
+
+const selectedEntryTypeIcon = computed(() => {
+  if (!state.selectedExplorerEntry) return Operation;
+  return state.selectedExplorerEntry.type === 'directory' ? Folder : Document;
+});
+
+const rightActivityItems = computed(() => [{ id: '1', title: selectedEntryTypeLabel.value, icon: selectedEntryTypeIcon.value }]);
+
+let disposeToggleExplorerShortcut: (() => void) | null = null;
+let disposeTogglePropertiesShortcut: (() => void) | null = null;
+let disposeToggleBottomPanelShortcut: (() => void) | null = null;
+let disposeGoHomeShortcut: (() => void) | null = null;
+
+onMounted(() => {
+  disposeToggleExplorerShortcut = shortcutService.onAction('toggleExplorer', handleToggleExplorerShortcut);
+  disposeTogglePropertiesShortcut = shortcutService.onAction('toggleProperties', handleTogglePropertiesShortcut);
+  disposeToggleBottomPanelShortcut = shortcutService.onAction('toggleBottomPanel', handleToggleBottomPanelShortcut);
+  disposeGoHomeShortcut = shortcutService.onAction('goHome', handleGoHomeShortcut);
+});
+
+onUnmounted(() => {
+  disposeToggleExplorerShortcut?.();
+  disposeTogglePropertiesShortcut?.();
+  disposeToggleBottomPanelShortcut?.();
+  disposeGoHomeShortcut?.();
+  disposeToggleExplorerShortcut = null;
+  disposeTogglePropertiesShortcut = null;
+  disposeToggleBottomPanelShortcut = null;
+  disposeGoHomeShortcut = null;
+});
 </script>
 
 <style scoped>
