@@ -135,6 +135,10 @@ export default {
           list: '列表',
           matrix: '位图'
         },
+        matrixDrag: {
+          startBit: '开始',
+          endBit: '结束',
+        },
         name: '帧名称',
         id: '帧 ID',
         publisher: '发布者',

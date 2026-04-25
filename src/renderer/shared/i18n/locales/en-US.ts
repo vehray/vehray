@@ -135,6 +135,10 @@ export default {
           list: 'List',
           matrix: 'Bit Map'
         },
+        matrixDrag: {
+          startBit: 'Start',
+          endBit: 'End',
+        },
         name: 'Frame Name',
         id: 'Frame ID',
         publisher: 'Publisher',

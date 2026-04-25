@@ -135,6 +135,10 @@ export default {
           list: '列表',
           matrix: '位圖'
         },
+        matrixDrag: {
+          startBit: '開始',
+          endBit: '結束',
+        },
         name: '訊框名稱',
         id: '訊框 ID',
         publisher: '發布者',

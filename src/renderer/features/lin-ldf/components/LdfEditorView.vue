@@ -167,6 +167,7 @@
                     v-for="(row, index) in frameSignalRows"
                     :key="row.id"
                     :class="{ selected: selectedSignalRowIndex === index }"
+                    :style="getSignalRowStyle(row, index)"
                     @click="selectSignalRow(index)"
                     @dblclick="handleSignalRowEdit(index)"
                     @contextmenu.prevent="openSignalContextMenu($event, index)"
@@ -181,7 +182,12 @@
                 </tbody>
               </table>
             </div>
-            <div v-else ref="signalMatrixWrapRef" class="ldf-signal-matrix-wrap">
+            <div
+              v-else
+              ref="signalMatrixWrapRef"
+              class="ldf-signal-matrix-wrap"
+              :class="{ 'is-repositioning-range': isRepositioningCreated }"
+            >
               <div class="ldf-signal-matrix-byte-index-row">
                 <span
                   v-for="byteIndex in 8"
@@ -210,6 +216,9 @@
                     active: isBitCovered(bit),
                     preview: isDraftBitCovered(bit),
                     committed: isCreatedBitCovered(bit),
+                    'repositioning-arm': isLongPressArmingBit(bit),
+                    'repositioning-lift': isBitInRepositioningRange(bit),
+                    'created-drag-mask': isCreatedBitDragMasked(bit),
                     'selected-created': isSelectedCreatedBitCovered(bit),
                     'selected-created-start': isSelectedCreatedRangeStart(bit),
                     'selected-created-end': isSelectedCreatedRangeEnd(bit),
@@ -218,24 +227,50 @@
                   }"
                   :style="getBitCellStyle(bit)"
                   @mousedown.left.prevent="!isBitDisabled(bit) && startBitDrag(bit, $event)"
-                  @mouseenter="updateBitDrag(bit)"
-                  @mousemove="handleBitCellMouseMove"
+                  @mouseenter="updateBitDrag(bit, $event)"
+                  @mousemove="handleBitCellMouseMove($event, bit)"
                   @mouseup.left.prevent="endBitDrag(bit, $event)"
-                  @contextmenu.prevent="openCreatedRangeContextMenu($event, bit)"
+                  @contextmenu.prevent="openMatrixSignalContextMenu($event, bit)"
                 />
+                <div class="ldf-signal-matrix-label-layer" aria-hidden="true">
+                  <div
+                    v-for="range in createdSignalRanges"
+                    :key="`label-${range.id}`"
+                    class="ldf-signal-matrix-range-label"
+                    :class="{
+                      selected: selectedCreatedRangeId === range.id,
+                      moving: isRepositioningCreated && repositionRangeId === range.id,
+                      'multi-bit': range.end > range.start,
+                    }"
+                    :style="getMatrixRangeLabelStyle(range)"
+                  >
+                    <span class="ldf-signal-matrix-range-label-text">{{ getMatrixRangeLabel(range) }}</span>
+                  </div>
+                </div>
               </div>
               <div
-                v-if="isDraggingBits && draftRange"
+                v-if="dragIndicatorRange"
                 class="ldf-signal-drag-indicator"
                 :style="{ left: `${dragIndicatorPosition.x}px`, top: `${dragIndicatorPosition.y}px` }"
               >
-                bit {{ draftRange.start }} - {{ draftRange.end }}
+                <div class="ldf-signal-drag-indicator-inner">
+                  <div class="ldf-signal-drag-line">
+                    <span class="ldf-signal-drag-label">{{ t('tabs.ldfEditor.frameEditor.matrixDrag.startBit') }}</span>
+                    <span class="ldf-signal-drag-num">{{ dragIndicatorRange.start }}</span>
+                  </div>
+                  <div class="ldf-signal-drag-line">
+                    <span class="ldf-signal-drag-label">{{ t('tabs.ldfEditor.frameEditor.matrixDrag.endBit') }}</span>
+                    <span class="ldf-signal-drag-num">{{ dragIndicatorRange.end }}</span>
+                  </div>
+                </div>
               </div>
               <div
                 v-if="draftRange && !isDraggingBits"
+                ref="draftPopupRef"
                 class="ldf-signal-matrix-actions floating"
                 :style="{ left: `${draftPopupPosition.x}px`, top: `${draftPopupPosition.y}px` }"
               >
+                <div class="ldf-signal-create-title">创建并映射信号</div>
                 <div class="ldf-signal-create-row info">
                   <span class="ldf-signal-matrix-hint">开始 bit：{{ draftRange.start }}</span>
                   <span class="ldf-signal-matrix-hint">结束 bit：{{ draftRange.end }}</span>
@@ -310,8 +345,8 @@
       :style="{ left: `${signalContextMenu.x}px`, top: `${signalContextMenu.y}px` }"
       @click.stop
     >
-      <button class="ldf-node-context-menu-item" @click="revealSignalInBitmap">
-        {{ t('tabs.ldfEditor.frameEditor.contextMenu.revealInBitmap') }}
+      <button class="ldf-node-context-menu-item" @click="revealSignalInOppositeView">
+        {{ revealSignalContextMenuLabel }}
       </button>
       <button class="ldf-node-context-menu-item" @click="triggerCreateAndMapSignal">
         {{ t('tabs.ldfEditor.frameEditor.actions.createAndMapSignal') }}
@@ -324,19 +359,6 @@
       </button>
       <button class="ldf-node-context-menu-item danger" @click="triggerRemoveSignalRow">
         {{ t('tabs.ldfEditor.frameEditor.actions.removeSignal') }}
-      </button>
-    </div>
-    <div
-      v-if="createdRangeContextMenu.visible"
-      class="ldf-node-context-menu"
-      :style="{ left: `${createdRangeContextMenu.x}px`, top: `${createdRangeContextMenu.y}px` }"
-      @click.stop
-    >
-      <button class="ldf-node-context-menu-item" @click="openCreatedSignalRow">
-        {{ t('tabs.ldfEditor.frameEditor.contextMenu.open') }}
-      </button>
-      <button class="ldf-node-context-menu-item" @click="revealCreatedSignalInList">
-        {{ t('tabs.ldfEditor.frameEditor.contextMenu.revealInList') }}
       </button>
     </div>
   </div>
@@ -360,6 +382,7 @@ const { t } = useI18n();
 const { setSelectedInspectorEntry } = useUiState();
 const editorBodyRef = ref<HTMLDivElement | null>(null);
 const signalMatrixWrapRef = ref<HTMLDivElement | null>(null);
+const draftPopupRef = ref<HTMLDivElement | null>(null);
 const leftPaneWidth = ref(240);
 const outlineViewMode = ref<'nodes' | 'frames' | 'schedules'>('nodes');
 const currentOutlineNodeId = ref('nodes-root');
@@ -385,6 +408,18 @@ const bitHeader = Array.from({ length: 64 }, (_, i) => i);
 const isDraggingBits = ref(false);
 const dragAnchorBit = ref<number | null>(null);
 const dragHoverBit = ref<number | null>(null);
+/** 鼠标当前所在 bit 格（用于遮罩：须指针落在已创建区内，而非仅靠选区边界推断） */
+const lastPointerBit = ref<number | null>(null);
+/** 长按已创建区后平移该区段 */
+const isRepositioningCreated = ref(false);
+const repositionRangeId = ref('');
+const repositionGrabOffset = ref(0);
+let createdLongPressTimer: ReturnType<typeof setTimeout> | null = null;
+let createdLongPressContext: { rangeId: string; grabBit: number } | null = null;
+let repositionSnapshot: { rangeId: string; rowId: string; start: number; end: number } | null = null;
+/** 长按等待进入平移时，高亮当前帧区段 */
+const longPressArmRangeId = ref('');
+
 const createdSignalRanges = ref<Array<{ id: string; rowId: string; start: number; end: number; label: string }>>([]);
 const selectedCreatedRangeId = ref('');
 const draftSignalName = ref('');
@@ -411,12 +446,6 @@ const signalContextMenu = reactive({
   x: 0,
   y: 0,
   rowIndex: -1,
-});
-const createdRangeContextMenu = reactive({
-  visible: false,
-  x: 0,
-  y: 0,
-  rangeId: '',
 });
 
 const currentOutlineTreeData = computed(() => {
@@ -662,7 +691,7 @@ const createAndMapSignal = () => {
   const nextIndex = frameSignalRows.value.length + 1;
   frameSignalRows.value.push({
     id: `sig-${Date.now()}-${nextIndex}`,
-    signal: `Signal_${nextIndex}`,
+    signal: buildDefaultSignalName(nextIndex),
     startBit: 0,
     updateBit: 0,
     length: 8,
@@ -676,10 +705,14 @@ const mapExistingSignal = () => {
   ElMessage.info(t('tabs.ldfEditor.frameEditor.hints.mapExistingSignalTodo'));
 };
 
+const buildDefaultSignalName = (index: number) => {
+  const frameName = (frameEditor.name || '').trim() || 'Frame';
+  return `${frameName}_Signal_${index}`;
+};
+
 const openSignalContextMenu = (event: MouseEvent, index: number) => {
   selectSignalRow(index);
   closeNodeContextMenu();
-  closeCreatedRangeContextMenu();
   signalContextMenu.x = event.clientX;
   signalContextMenu.y = event.clientY;
   signalContextMenu.rowIndex = index;
@@ -691,9 +724,40 @@ const closeSignalContextMenu = () => {
   signalContextMenu.rowIndex = -1;
 };
 
-const closeCreatedRangeContextMenu = () => {
-  createdRangeContextMenu.visible = false;
-  createdRangeContextMenu.rangeId = '';
+const resolveSignalRowIndexAtBit = (bit: number): number => {
+  if (isBitDisabled(bit)) return -1;
+  const created = getCreatedRangeAtBit(bit);
+  if (created) {
+    const idx = frameSignalRows.value.findIndex((row) => row.id === created.rowId);
+    if (idx >= 0) return idx;
+  }
+  for (let i = 0; i < frameSignalRows.value.length; i++) {
+    const row = frameSignalRows.value[i]!;
+    const start = Math.max(0, Number(row.startBit) || 0);
+    const len = Math.max(1, Number(row.length) || 1);
+    const end = start + len - 1;
+    if (bit >= start && bit <= end) {
+      return i;
+    }
+  }
+  return -1;
+};
+
+const openMatrixSignalContextMenu = (event: MouseEvent, bit: number) => {
+  clearCreatedLongPressTimer();
+  if (isRepositioningCreated.value) {
+    cancelRepositionFromSnapshot();
+    closeSignalContextMenu();
+    return;
+  }
+  if (draftRange.value && !isDraggingBits.value) {
+    clearDraftRange();
+    closeSignalContextMenu();
+    return;
+  }
+  const rowIndex = resolveSignalRowIndexAtBit(bit);
+  if (rowIndex < 0) return;
+  openSignalContextMenu(event, rowIndex);
 };
 
 const triggerCreateAndMapSignal = () => {
@@ -716,11 +780,17 @@ const triggerRemoveSignalRow = () => {
   closeSignalContextMenu();
 };
 
-const revealSignalInBitmap = () => {
+const revealSignalContextMenuLabel = computed(() =>
+  signalMappingViewMode.value === 'matrix'
+    ? t('tabs.ldfEditor.frameEditor.contextMenu.revealInList')
+    : t('tabs.ldfEditor.frameEditor.contextMenu.revealInBitmap')
+);
+
+const revealSignalInOppositeView = () => {
   if (signalContextMenu.rowIndex >= 0) {
     selectSignalRow(signalContextMenu.rowIndex);
   }
-  signalMappingViewMode.value = 'matrix';
+  signalMappingViewMode.value = signalMappingViewMode.value === 'matrix' ? 'list' : 'matrix';
   closeSignalContextMenu();
 };
 
@@ -739,6 +809,16 @@ const draftRange = computed(() => {
   return { start, end };
 });
 
+const dragIndicatorRange = computed(() => {
+  if (isDraggingBits.value && draftRange.value) {
+    return { start: draftRange.value.start, end: draftRange.value.end };
+  }
+  if (isRepositioningCreated.value && repositionRangeId.value) {
+    const r = createdSignalRanges.value.find((x) => x.id === repositionRangeId.value);
+    if (r) return { start: r.start, end: r.end };
+  }
+  return null;
+});
 
 const isBitCovered = (bit: number) => {
   const row = currentSignalRow.value;
@@ -783,23 +863,149 @@ const isSelectedCreatedRangeEnd = (bit: number) =>
 const getCreatedRangeAtBit = (bit: number) =>
   createdSignalRanges.value.find((range) => bit >= range.start && bit <= range.end) ?? null;
 
-const getRangeHue = (range: { id: string; start: number; end: number; label: string }) => {
-  const index = createdSignalRanges.value.findIndex((item) => item.id === range.id);
-  if (index < 0) return 210;
-  return (index * 53) % 360;
+const isLongPressArmingBit = (bit: number) => {
+  if (!longPressArmRangeId.value || isRepositioningCreated.value) return false;
+  if (isBitDisabled(bit)) return false;
+  const r = createdSignalRanges.value.find((x) => x.id === longPressArmRangeId.value);
+  if (!r) return false;
+  return bit >= r.start && bit <= r.end;
+};
+
+const isBitInRepositioningRange = (bit: number) => {
+  if (!isRepositioningCreated.value || !repositionRangeId.value) return false;
+  if (isBitDisabled(bit)) return false;
+  const r = createdSignalRanges.value.find((x) => x.id === repositionRangeId.value);
+  if (!r) return false;
+  return bit >= r.start && bit <= r.end;
+};
+
+const canDraftExtendToBit = (targetBit: number) => {
+  if (dragAnchorBit.value === null) return false;
+  const start = Math.min(dragAnchorBit.value, targetBit);
+  const end = Math.max(dragAnchorBit.value, targetBit);
+  return !createdSignalRanges.value.some((range) => !(end < range.start || start > range.end));
+};
+
+/** 从锚点朝向 targetBit：最后一个仍不与已创建区重叠的 bit（光标划过已创建格时可继续向远端选） */
+const clampDraftHoverBit = (targetBit: number): number | null => {
+  if (dragAnchorBit.value === null) return null;
+  const anchor = dragAnchorBit.value;
+  if (isBitDisabled(targetBit)) return null;
+  if (targetBit === anchor) return anchor;
+  const step = targetBit > anchor ? 1 : -1;
+  let last = anchor;
+  for (let b = anchor + step; ; b += step) {
+    if (step > 0 && b > targetBit) break;
+    if (step < 0 && b < targetBit) break;
+    if (!canDraftExtendToBit(b)) break;
+    last = b;
+  }
+  return last;
+};
+
+const draftTouchesCreatedRange = (s: number, e: number, r: { start: number; end: number }) =>
+  !(e < r.start - 1 || s > r.end + 1);
+
+/**
+ * 遮罩须同时满足：指针落在某已创建区 R 内、选区与 R 在 bit 轴上足够近、
+ * 多格区段时指针至少进入 R 的第二列（避免仅在 R 首格外沿就整块提示）。
+ */
+const createdDragMaskRangeId = computed(() => {
+  if (!isDraggingBits.value) return '';
+  if (dragAnchorBit.value === null || dragHoverBit.value === null) return '';
+  if (dragHoverBit.value === dragAnchorBit.value) return '';
+  if (!draftRange.value) return '';
+  const pb = lastPointerBit.value;
+  if (pb === null || isBitDisabled(pb)) return '';
+  const r = getCreatedRangeAtBit(pb);
+  if (!r) return '';
+  const s = draftRange.value.start;
+  const e = draftRange.value.end;
+  if (!draftTouchesCreatedRange(s, e, r)) return '';
+  if (r.end > r.start && pb < r.start + 1) return '';
+  return r.id;
+});
+
+const isCreatedBitDragMasked = (bit: number) => {
+  const id = createdDragMaskRangeId.value;
+  if (!id || !isCreatedBitCovered(bit)) return false;
+  return createdSignalRanges.value.some((range) => range.id === id && bit >= range.start && bit <= range.end);
+};
+
+/** >1 时在色相环上多走几圈，帧短、相邻区段多时色差更明显 */
+const HUE_POSITION_STRETCH = 2.9;
+
+/** 区段在 bit 轴上的位置 → 色相（起点略加权，相邻短区段更易区分） */
+const getRangeHue = (range: { start: number; end: number }) => {
+  const maxB = Math.max(1, maxEditableBit.value);
+  const center = (range.start + range.end) / 2;
+  const tStart = range.start / maxB;
+  const tCenter = center / maxB;
+  const t = Math.min(1, Math.max(0, 0.42 * tStart + 0.58 * tCenter));
+  return (t * 360 * HUE_POSITION_STRETCH) % 360;
+};
+
+const getSignalRowStyle = (row: { startBit: number; length: number }, index: number): Record<string, string> => {
+  const start = Math.max(0, Number(row.startBit) || 0);
+  const len = Math.max(1, Number(row.length) || 1);
+  const end = Math.min(maxEditableBit.value, start + len - 1);
+  const hue = getRangeHue({ start, end });
+  const hi = (hue + 34) % 360;
+  const base = `linear-gradient(180deg, hsla(${hue}, 82%, 91%, 0.82) 0%, hsla(${hi}, 72%, 86%, 0.86) 100%)`;
+  if (selectedSignalRowIndex.value === index) {
+    return {
+      background: `linear-gradient(180deg, color-mix(in srgb, var(--app-accent) 20%, hsla(${hue}, 82%, 91%, 1)) 0%, color-mix(in srgb, var(--app-accent) 16%, hsla(${hi}, 72%, 86%, 1)) 100%)`,
+    };
+  }
+  return { background: base };
+};
+
+const signalNameByRowId = computed(() => {
+  const map = new Map<string, string>();
+  for (const row of frameSignalRows.value) {
+    map.set(row.id, row.signal);
+  }
+  return map;
+});
+
+const getMatrixRangeLabel = (range: { rowId: string; label: string }) =>
+  signalNameByRowId.value.get(range.rowId) ?? range.label;
+
+const getMatrixRangeLabelStyle = (range: { start: number; end: number }): Record<string, string> => {
+  const start = Math.max(0, Math.min(63, Number(range.start) || 0));
+  return {
+    left: `calc(${start} * (100% / 64))`,
+    width: `calc(100% / 64)`,
+  };
 };
 
 const getBitCellStyle = (bit: number) => {
   const style: Record<string, string> = {};
   if (isDraftBitCovered(bit)) {
-    const draftHue = 28;
-    style.background = `linear-gradient(180deg, hsla(${draftHue}, 86%, 82%, 0.48) 0%, hsla(${draftHue + 12}, 78%, 76%, 0.56) 100%)`;
+    const dr = draftRange.value;
+    if (!dr) return undefined;
+    const hue = getRangeHue({ start: dr.start, end: dr.end });
+    const hi = (hue + 34) % 360;
+    if (isDraggingBits.value) {
+      style.background = `linear-gradient(180deg, hsla(${hue}, 84%, 76%, 0.96) 0%, hsla(${hi}, 76%, 70%, 0.96) 100%)`;
+    } else {
+      style.background = `linear-gradient(180deg, hsla(${hue}, 84%, 78%, 0.52) 0%, hsla(${hi}, 76%, 72%, 0.6) 100%)`;
+    }
+    // 草稿拖动区段内部隐藏 bit/byte 分割线，仅保留区段末端边界。
+    if (bit < dr.end) {
+      style.borderRight = 'none';
+    }
     return style;
   }
   const range = getCreatedRangeAtBit(bit);
   if (!range) return undefined;
   const hue = getRangeHue(range);
-  style.background = `linear-gradient(180deg, hsla(${hue}, 78%, 82%, 0.52) 0%, hsla(${(hue + 26) % 360}, 72%, 74%, 0.62) 100%)`;
+  const hi = (hue + 34) % 360;
+  if (isRepositioningCreated.value && repositionRangeId.value === range.id) {
+    style.background = `linear-gradient(180deg, hsla(${hue}, 82%, 78%, 0.96) 0%, hsla(${hi}, 74%, 70%, 0.96) 100%)`;
+  } else {
+    style.background = `linear-gradient(180deg, hsla(${hue}, 82%, 80%, 0.54) 0%, hsla(${hi}, 74%, 72%, 0.64) 100%)`;
+  }
   // 让创建区段内部成为整片填充色，隐藏内部 bit 分割线，仅保留区段末端边界。
   if (bit < range.end) {
     style.borderRight = 'none';
@@ -811,12 +1017,29 @@ const updateDraftPopupPosition = (event?: MouseEvent) => {
   if (!event) return;
   const hostRect = signalMatrixWrapRef.value?.getBoundingClientRect();
   if (!hostRect) return;
-  const rawX = event.clientX - hostRect.left + 12;
-  const rawY = event.clientY - hostRect.top + 12;
-  const maxX = Math.max(8, hostRect.width - 320);
-  const maxY = Math.max(8, hostRect.height - 42);
-  draftPopupPosition.x = Math.min(maxX, Math.max(8, rawX));
-  draftPopupPosition.y = Math.min(maxY, Math.max(8, rawY));
+  const popupRect = draftPopupRef.value?.getBoundingClientRect();
+  const popupWidth = popupRect?.width ?? 320;
+  const popupHeight = popupRect?.height ?? 110;
+  const gap = 10;
+
+  let nextX = event.clientX - hostRect.left + 12;
+  let nextY = event.clientY - hostRect.top + 12;
+
+  // 右侧空间不足时，向左侧翻转，避免超出容器。
+  if (nextX + popupWidth + gap > hostRect.width) {
+    nextX = event.clientX - hostRect.left - popupWidth - gap;
+  }
+  // 下方空间不足时，改为显示在鼠标上方（左下角相对鼠标位置翻转）。
+  if (nextY + popupHeight + gap > hostRect.height) {
+    nextY = event.clientY - hostRect.top - popupHeight - gap;
+  }
+
+  const minX = 8;
+  const minY = 8;
+  const maxX = Math.max(minX, hostRect.width - popupWidth - minX);
+  const maxY = Math.max(minY, hostRect.height - popupHeight - minY);
+  draftPopupPosition.x = Math.min(maxX, Math.max(minX, nextX));
+  draftPopupPosition.y = Math.min(maxY, Math.max(minY, nextY));
 };
 
 const updateDragIndicatorPosition = (event?: MouseEvent) => {
@@ -825,50 +1048,216 @@ const updateDragIndicatorPosition = (event?: MouseEvent) => {
   if (!hostRect) return;
   const rawX = event.clientX - hostRect.left + 12;
   const rawY = event.clientY - hostRect.top - 30;
-  const maxX = Math.max(8, hostRect.width - 180);
-  const maxY = Math.max(8, hostRect.height - 28);
+  const maxX = Math.max(8, hostRect.width - 200);
+  const maxY = Math.max(8, hostRect.height - 50);
   dragIndicatorPosition.x = Math.min(maxX, Math.max(8, rawX));
   dragIndicatorPosition.y = Math.min(maxY, Math.max(8, rawY));
 };
 
+const clearCreatedLongPressTimer = () => {
+  if (createdLongPressTimer !== null) {
+    clearTimeout(createdLongPressTimer);
+    createdLongPressTimer = null;
+  }
+  createdLongPressContext = null;
+  longPressArmRangeId.value = '';
+};
+
+const rangeClearExcept = (start: number, end: number, excludeRangeId: string) =>
+  !createdSignalRanges.value.some(
+    (other) => other.id !== excludeRangeId && !(end < other.start || start > other.end)
+  );
+
+const scheduleCreatedLongPress = (grabBit: number, rangeId: string) => {
+  clearCreatedLongPressTimer();
+  createdLongPressContext = { rangeId, grabBit };
+  longPressArmRangeId.value = rangeId;
+  createdLongPressTimer = window.setTimeout(() => {
+    createdLongPressTimer = null;
+    const ctx = createdLongPressContext;
+    createdLongPressContext = null;
+    if (ctx) {
+      beginRepositionCreatedRange(ctx.rangeId, ctx.grabBit);
+    }
+  }, 280);
+};
+
+const cancelRepositionFromSnapshot = () => {
+  if (repositionSnapshot && isRepositioningCreated.value) {
+    const snap = repositionSnapshot;
+    const r = createdSignalRanges.value.find((x) => x.id === snap.rangeId);
+    if (r) {
+      r.start = snap.start;
+      r.end = snap.end;
+    }
+    const row = frameSignalRows.value.find((x) => x.id === snap.rowId);
+    if (row) {
+      row.startBit = snap.start;
+      row.length = snap.end - snap.start + 1;
+    }
+  }
+  repositionSnapshot = null;
+  isRepositioningCreated.value = false;
+  repositionRangeId.value = '';
+  repositionGrabOffset.value = 0;
+  clearCreatedLongPressTimer();
+};
+
+const finishRepositionCreatedRange = () => {
+  repositionSnapshot = null;
+  isRepositioningCreated.value = false;
+  repositionRangeId.value = '';
+  repositionGrabOffset.value = 0;
+  longPressArmRangeId.value = '';
+};
+
+const updateRepositionPreview = (hoverBit: number) => {
+  const moveRange = createdSignalRanges.value.find((x) => x.id === repositionRangeId.value);
+  if (!moveRange || !isRepositioningCreated.value) return;
+  const len = moveRange.end - moveRange.start + 1;
+  const maxB = maxEditableBit.value;
+  let newStart = hoverBit - repositionGrabOffset.value;
+  let newEnd = newStart + len - 1;
+  if (newEnd > maxB) {
+    newStart = maxB - len + 1;
+    newEnd = maxB;
+  }
+  if (newStart < 0) {
+    newStart = 0;
+    newEnd = len - 1;
+  }
+  if (!rangeClearExcept(newStart, newEnd, moveRange.id)) {
+    let bestStart = newStart;
+    let bestDist = Number.POSITIVE_INFINITY;
+    let found = false;
+    for (let s = 0; s <= maxB - len + 1; s++) {
+      const e = s + len - 1;
+      if (!rangeClearExcept(s, e, moveRange.id)) continue;
+      found = true;
+      const d = Math.abs(s - (hoverBit - repositionGrabOffset.value));
+      if (d < bestDist) {
+        bestDist = d;
+        bestStart = s;
+      }
+    }
+    if (!found) {
+      return;
+    }
+    newStart = bestStart;
+    newEnd = newStart + len - 1;
+  }
+  moveRange.start = newStart;
+  moveRange.end = newEnd;
+  const row = frameSignalRows.value.find((x) => x.id === moveRange.rowId);
+  if (row) {
+    row.startBit = newStart;
+    row.length = len;
+  }
+};
+
+const beginRepositionCreatedRange = (rangeId: string, grabBit: number) => {
+  const r = createdSignalRanges.value.find((x) => x.id === rangeId);
+  if (!r || grabBit < r.start || grabBit > r.end) return;
+  longPressArmRangeId.value = '';
+  clearDraftRange();
+  closeSignalContextMenu();
+  repositionSnapshot = { rangeId: r.id, rowId: r.rowId, start: r.start, end: r.end };
+  repositionGrabOffset.value = grabBit - r.start;
+  repositionRangeId.value = rangeId;
+  isRepositioningCreated.value = true;
+  selectedCreatedRangeId.value = rangeId;
+  updateRepositionPreview(grabBit);
+};
+
 const startBitDrag = (bit: number, event?: MouseEvent) => {
   if (isBitDisabled(bit)) return;
+  if (isRepositioningCreated.value) {
+    finishRepositionCreatedRange();
+    clearCreatedLongPressTimer();
+  }
   const createdRange = getCreatedRangeAtBit(bit);
   if (createdRange) {
     selectedCreatedRangeId.value = createdRange.id;
     clearDraftRange();
+    scheduleCreatedLongPress(bit, createdRange.id);
     return;
   }
+  clearCreatedLongPressTimer();
   selectedCreatedRangeId.value = '';
-  closeCreatedRangeContextMenu();
+  closeSignalContextMenu();
   isDraggingBits.value = true;
   dragAnchorBit.value = bit;
   dragHoverBit.value = bit;
+  lastPointerBit.value = bit;
   updateDraftPopupPosition(event);
   updateDragIndicatorPosition(event);
 };
 
-const updateBitDrag = (bit: number) => {
+const updateBitDrag = (bit: number, event?: MouseEvent) => {
+  if (isRepositioningCreated.value) {
+    if (isBitDisabled(bit)) return;
+    updateRepositionPreview(bit);
+    if (event) {
+      updateDragIndicatorPosition(event);
+    }
+    return;
+  }
+  if (createdLongPressTimer && createdLongPressContext) {
+    const r = createdSignalRanges.value.find((x) => x.id === createdLongPressContext.rangeId);
+    if (!r || bit < r.start || bit > r.end) {
+      clearCreatedLongPressTimer();
+    }
+  }
   if (!isDraggingBits.value) return;
   if (isBitDisabled(bit)) return;
-  dragHoverBit.value = bit;
+  const clamped = clampDraftHoverBit(bit);
+  if (clamped === null) return;
+  dragHoverBit.value = clamped;
+  lastPointerBit.value = bit;
 };
 
-const handleBitCellMouseMove = (event: MouseEvent) => {
+const handleBitCellMouseMove = (event: MouseEvent, bit: number) => {
+  if (isRepositioningCreated.value) {
+    lastPointerBit.value = bit;
+    updateDragIndicatorPosition(event);
+    return;
+  }
   if (!isDraggingBits.value) return;
+  if (isBitDisabled(bit)) return;
+  lastPointerBit.value = bit;
+  const clamped = clampDraftHoverBit(bit);
+  if (clamped !== null) {
+    dragHoverBit.value = clamped;
+  }
   updateDragIndicatorPosition(event);
 };
 
 const endBitDrag = (bit?: number, event?: MouseEvent) => {
+  if (isRepositioningCreated.value) {
+    if (typeof bit === 'number' && !isBitDisabled(bit)) {
+      updateRepositionPreview(bit);
+    }
+    finishRepositionCreatedRange();
+    clearCreatedLongPressTimer();
+    updateDraftPopupPosition(event);
+    return;
+  }
+  clearCreatedLongPressTimer();
   if (!isDraggingBits.value) return;
   if (typeof bit === 'number' && !isBitDisabled(bit)) {
-    dragHoverBit.value = bit;
+    const clamped = clampDraftHoverBit(bit);
+    if (clamped !== null) {
+      dragHoverBit.value = clamped;
+      lastPointerBit.value = bit;
+    }
   }
   isDraggingBits.value = false;
+  lastPointerBit.value = null;
   updateDraftPopupPosition(event);
   if (draftRange.value) {
     const nextIndex = createdSignalRanges.value.length + 1;
-    draftSignalName.value = `Frame_${nextIndex}`;
+    draftSignalName.value = buildDefaultSignalName(nextIndex);
+    nextTick(() => updateDraftPopupPosition(event));
   }
 };
 
@@ -876,13 +1265,14 @@ const clearDraftRange = () => {
   dragAnchorBit.value = null;
   dragHoverBit.value = null;
   isDraggingBits.value = false;
+  lastPointerBit.value = null;
   draftSignalName.value = '';
 };
 
 const commitDraftRangeToFrame = () => {
   if (!draftRange.value) return;
   const nextIndex = createdSignalRanges.value.length + 1;
-  const nextLabel = draftSignalName.value || `Frame_${nextIndex}`;
+  const nextLabel = draftSignalName.value || buildDefaultSignalName(nextIndex);
   const rangeLength = draftRange.value.end - draftRange.value.start + 1;
   const nextRowId = `sig-${Date.now()}-${nextIndex}`;
   frameSignalRows.value.push({
@@ -904,33 +1294,6 @@ const commitDraftRangeToFrame = () => {
   });
   selectedCreatedRangeId.value = createdSignalRanges.value[createdSignalRanges.value.length - 1]?.id ?? '';
   clearDraftRange();
-};
-
-const openCreatedRangeContextMenu = (event: MouseEvent, bit: number) => {
-  const range = getCreatedRangeAtBit(bit);
-  if (!range) return;
-  closeNodeContextMenu();
-  closeSignalContextMenu();
-  createdRangeContextMenu.x = event.clientX;
-  createdRangeContextMenu.y = event.clientY;
-  createdRangeContextMenu.rangeId = range.id;
-  createdRangeContextMenu.visible = true;
-};
-
-const openCreatedSignalRow = () => {
-  const range = createdSignalRanges.value.find((item) => item.id === createdRangeContextMenu.rangeId);
-  if (!range) return;
-  selectedCreatedRangeId.value = range.id;
-  const index = frameSignalRows.value.findIndex((row) => row.id === range.rowId);
-  if (index >= 0) {
-    selectSignalRow(index);
-  }
-  closeCreatedRangeContextMenu();
-};
-
-const revealCreatedSignalInList = () => {
-  openCreatedSignalRow();
-  signalMappingViewMode.value = 'list';
 };
 
 const handleGlobalBitMouseUp = (event: MouseEvent) => {
@@ -1372,22 +1735,23 @@ const startResize = () => {
 
 onUnmounted(() => {
   stopResize();
+  clearCreatedLongPressTimer();
+  if (isRepositioningCreated.value) {
+    cancelRepositionFromSnapshot();
+  }
   closeNodeContextMenu();
   closeSignalContextMenu();
-  closeCreatedRangeContextMenu();
 });
 
 onMounted(() => {
   document.addEventListener('click', closeNodeContextMenu);
   document.addEventListener('click', closeSignalContextMenu);
-  document.addEventListener('click', closeCreatedRangeContextMenu);
   window.addEventListener('mouseup', handleGlobalBitMouseUp);
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', closeNodeContextMenu);
   document.removeEventListener('click', closeSignalContextMenu);
-  document.removeEventListener('click', closeCreatedRangeContextMenu);
   window.removeEventListener('mouseup', handleGlobalBitMouseUp);
 });
 
@@ -1693,14 +2057,23 @@ const runQuickCheck = () => {
   white-space: nowrap;
 }
 
+.ldf-frame-mapping-table tbody td {
+  background-color: transparent;
+}
+
 .ldf-frame-mapping-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
   background-color: var(--app-bg-elevated);
   color: var(--app-text-primary);
   font-weight: 500;
+  box-shadow: 0 1px 0 var(--app-border);
 }
 
 .ldf-frame-mapping-table tbody tr.selected {
-  background-color: color-mix(in srgb, var(--app-accent) 20%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--app-accent) 58%, transparent);
+  outline-offset: -2px;
 }
 
 .ldf-frame-mapping-actions {
@@ -1712,6 +2085,14 @@ const runQuickCheck = () => {
 
 .ldf-frame-mapping-actions .ldf-frame-editor-btn {
   min-width: 96px;
+}
+
+.ldf-signal-matrix-wrap.is-repositioning-range {
+  cursor: grabbing;
+}
+
+.ldf-signal-matrix-wrap.is-repositioning-range .ldf-signal-matrix-cell {
+  cursor: grabbing;
 }
 
 .ldf-signal-matrix-wrap {
@@ -1825,6 +2206,70 @@ const runQuickCheck = () => {
   user-select: none;
 }
 
+.ldf-signal-matrix-row {
+  position: relative;
+}
+
+.ldf-signal-matrix-label-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.ldf-signal-matrix-range-label {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 4px 2px 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--app-text-primary) 94%, #0f172a);
+  text-shadow: none;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  overflow: hidden;
+}
+
+.ldf-signal-matrix-range-label.multi-bit {
+  border-right: 1px solid color-mix(in srgb, var(--app-border) 78%, #334155);
+  box-shadow:
+    inset -1px 0 0 color-mix(in srgb, #ffffff 28%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 16%, transparent);
+  background: color-mix(in srgb, var(--app-bg-elevated) 34%, transparent);
+}
+
+.ldf-signal-matrix-range-label-text {
+  display: block;
+  inline-size: 100%;
+  block-size: calc(100% - 4px);
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ldf-signal-matrix-range-label.selected {
+  color: color-mix(in srgb, var(--app-text-primary) 94%, #0f172a);
+  font-weight: 600;
+}
+
+.ldf-signal-matrix-range-label.moving {
+  color: color-mix(in srgb, var(--app-accent) 78%, #111827);
+  text-shadow: none;
+  z-index: 10;
+  background: color-mix(in srgb, var(--app-bg-elevated) 72%, transparent);
+  border-radius: 3px;
+  box-shadow:
+    0 8px 16px rgba(15, 23, 42, 0.16),
+    inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 24%, transparent);
+}
+
 .ldf-signal-matrix-row .ldf-signal-matrix-cell.disabled {
   background: color-mix(in srgb, #9ca3af 28%, var(--app-bg));
   cursor: not-allowed;
@@ -1861,25 +2306,84 @@ const runQuickCheck = () => {
   box-shadow: none;
 }
 
+.ldf-signal-matrix-row .ldf-signal-matrix-cell.created-drag-mask {
+  position: relative;
+  cursor: not-allowed;
+}
+
+.ldf-signal-matrix-row .ldf-signal-matrix-cell.created-drag-mask::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 2px;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, #0f172a 18%, transparent) 0 5px,
+      color-mix(in srgb, #0f172a 6%, transparent) 5px 10px
+    ),
+    color-mix(in srgb, #0f172a 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #f97316 35%, transparent);
+}
+
 .ldf-signal-matrix-row .ldf-signal-matrix-cell.selected-created {
   box-shadow:
-    inset 0 2px 0 0 color-mix(in srgb, var(--app-accent) 68%, #0f172a),
-    inset 0 -2px 0 0 color-mix(in srgb, var(--app-accent) 68%, #0f172a);
-  filter: saturate(1.05) brightness(1.03);
+    inset 0 2px 0 0 color-mix(in srgb, var(--app-accent) 86%, #0f172a),
+    inset 0 -2px 0 0 color-mix(in srgb, var(--app-accent) 86%, #0f172a);
+  filter: none;
 }
 
 .ldf-signal-matrix-row .ldf-signal-matrix-cell.selected-created-start {
   box-shadow:
-    inset 2px 0 0 0 color-mix(in srgb, var(--app-accent) 72%, #0f172a),
-    inset 0 2px 0 0 color-mix(in srgb, var(--app-accent) 68%, #0f172a),
-    inset 0 -2px 0 0 color-mix(in srgb, var(--app-accent) 68%, #0f172a);
+    inset 2px 0 0 0 color-mix(in srgb, var(--app-accent) 86%, #0f172a),
+    inset 0 2px 0 0 color-mix(in srgb, var(--app-accent) 86%, #0f172a),
+    inset 0 -2px 0 0 color-mix(in srgb, var(--app-accent) 86%, #0f172a);
 }
 
 .ldf-signal-matrix-row .ldf-signal-matrix-cell.selected-created-end {
   box-shadow:
-    inset -2px 0 0 0 color-mix(in srgb, var(--app-accent) 72%, #0f172a),
-    inset 0 2px 0 0 color-mix(in srgb, var(--app-accent) 68%, #0f172a),
-    inset 0 -2px 0 0 color-mix(in srgb, var(--app-accent) 68%, #0f172a);
+    inset -2px 0 0 0 color-mix(in srgb, var(--app-accent) 86%, #0f172a),
+    inset 0 2px 0 0 color-mix(in srgb, var(--app-accent) 86%, #0f172a),
+    inset 0 -2px 0 0 color-mix(in srgb, var(--app-accent) 86%, #0f172a);
+}
+
+.ldf-signal-matrix-row .ldf-signal-matrix-cell.repositioning-arm {
+  position: relative;
+  z-index: 3;
+  filter: saturate(1.06) brightness(1.02);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--app-accent) 52%, #38bdf8),
+    0 0 0 3px color-mix(in srgb, var(--app-accent) 14%, transparent),
+    0 6px 14px rgba(15, 23, 42, 0.12);
+  transition:
+    box-shadow 0.28s ease,
+    filter 0.28s ease;
+}
+
+.ldf-signal-matrix-row .ldf-signal-matrix-cell.repositioning-lift {
+  position: relative;
+  z-index: 6;
+  filter: saturate(1.08) brightness(1.04);
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.24),
+    0 6px 14px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 38%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 42%, rgba(15, 23, 42, 0.35));
+  transition:
+    box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.22s ease;
+}
+
+.ldf-signal-matrix-row .ldf-signal-matrix-cell.repositioning-lift.selected-created,
+.ldf-signal-matrix-row .ldf-signal-matrix-cell.repositioning-lift.selected-created-start,
+.ldf-signal-matrix-row .ldf-signal-matrix-cell.repositioning-lift.selected-created-end {
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.24),
+    0 6px 14px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 0 color-mix(in srgb, #ffffff 38%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 48%, rgba(15, 23, 42, 0.32));
 }
 
 .ldf-signal-matrix-actions {
@@ -1887,8 +2391,8 @@ const runQuickCheck = () => {
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  gap: 6px;
-  padding: 10px;
+  gap: 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--app-border);
   background: color-mix(in srgb, var(--app-bg-hover) 55%, var(--app-bg));
 }
@@ -1896,33 +2400,80 @@ const runQuickCheck = () => {
 .ldf-signal-matrix-actions.floating {
   position: absolute;
   z-index: 12;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-  background: color-mix(in srgb, var(--app-bg) 90%, #0b1220);
-  min-width: 280px;
-  max-width: 340px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 82%, #9ca3af);
+  border-radius: 10px;
+  box-shadow:
+    0 14px 30px rgba(15, 23, 42, 0.2),
+    0 2px 10px rgba(15, 23, 42, 0.12);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--app-bg-elevated) 94%, #ffffff) 0%,
+    color-mix(in srgb, var(--app-bg) 92%, #eef2ff) 100%
+  );
+  min-width: 292px;
+  max-width: 360px;
+  backdrop-filter: blur(4px);
+}
+
+.ldf-signal-create-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--app-text-primary) 90%, #111827);
 }
 
 .ldf-signal-drag-indicator {
   position: absolute;
   z-index: 13;
   pointer-events: none;
-  height: 22px;
-  line-height: 22px;
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--app-bg) 88%, #111827);
-  color: var(--app-text-primary);
-  font-size: 11px;
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  width: fit-content;
+  min-width: 0;
+  padding: 6px 9px 7px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 88%, #94a3b8);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-bg-elevated) 98%, #ffffff);
+  box-shadow:
+    0 10px 20px rgba(15, 23, 42, 0.2),
+    0 2px 6px rgba(15, 23, 42, 0.12);
+}
+
+.ldf-signal-drag-indicator-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: stretch;
+}
+
+.ldf-signal-drag-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.24);
+}
+
+.ldf-signal-drag-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--app-text-secondary) 88%, #475569);
+}
+
+.ldf-signal-drag-num {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--app-text-primary) 92%, #0f172a);
 }
 
 .ldf-signal-matrix-hint {
   font-size: 11px;
-  color: var(--app-text-secondary);
+  font-weight: 500;
+  color: color-mix(in srgb, var(--app-text-secondary) 92%, #475569);
 }
 
 .ldf-signal-create-row {
@@ -1933,29 +2484,32 @@ const runQuickCheck = () => {
 
 .ldf-signal-create-row.info {
   justify-content: space-between;
-  padding-bottom: 2px;
-  border-bottom: 1px dashed color-mix(in srgb, var(--app-border) 65%, transparent);
+  padding: 2px 2px 7px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--app-border) 72%, transparent);
 }
 
 .ldf-signal-create-row.actions {
   justify-content: flex-end;
-  padding-top: 2px;
+  padding-top: 4px;
 }
 
 .ldf-signal-name-input {
   width: 100%;
-  height: 28px;
-  border: 1px solid var(--app-border);
-  border-radius: 4px;
-  background: var(--app-bg);
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 80%, #94a3b8);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--app-bg) 92%, #ffffff);
   color: var(--app-text-primary);
   font-size: 12px;
-  padding: 0 8px;
+  padding: 0 10px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
 
 .ldf-signal-name-input:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--app-accent) 55%, var(--app-border));
+  border-color: color-mix(in srgb, var(--app-accent) 62%, #3b82f6);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-accent) 16%, transparent);
+  background: color-mix(in srgb, var(--app-bg-elevated) 94%, #ffffff);
 }
 
 .ldf-frame-editor-btn {
@@ -2029,20 +2583,65 @@ const runQuickCheck = () => {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 6px 4px;
+  padding: 4px 0;
   background-color: transparent;
   color: var(--app-text-regular);
   font-size: 12px;
+}
+
+.ldf-outline-tree :deep(.el-tree) {
+  --el-tree-node-hover-bg-color: var(--app-bg-soft-hover);
+  --el-tree-text-color: var(--app-text-regular);
+  --el-tree-expand-icon-color: var(--app-text-subtle);
+  background: transparent;
+  color: var(--app-text-regular);
+}
+
+.ldf-outline-tree :deep(.el-tree-node__content) {
+  min-height: 26px;
+  height: 26px;
+  padding-right: 8px;
+  border-radius: 0;
+}
+
+.ldf-outline-tree :deep(.el-tree-node__content:hover) {
+  background: var(--app-bg-soft-hover);
+}
+
+.ldf-outline-tree :deep(.el-tree-node:focus > .el-tree-node__content) {
+  background: var(--app-bg-soft-hover);
+}
+
+.ldf-outline-tree :deep(.el-tree--highlight-current .el-tree-node.is-current > .el-tree-node__content) {
+  background: var(--app-bg-hover);
+  color: var(--app-text-primary);
+}
+
+.ldf-outline-tree :deep(.el-tree-node__expand-icon) {
+  font-size: 12px;
+  color: var(--app-text-subtle);
+}
+
+.ldf-outline-tree :deep(.el-tree-node__expand-icon.expanded) {
+  color: var(--app-text-regular);
+}
+
+.ldf-outline-tree :deep(.el-tree-node__label) {
+  color: inherit;
 }
 
 .ldf-tree-node-content {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .ldf-tree-node-label {
+  flex: 1;
+  min-width: 0;
+  line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
