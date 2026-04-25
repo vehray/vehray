@@ -59,15 +59,11 @@
           </div>
         </div>
       </div>
-      <div v-else-if="isActiveLdfTab" class="lin-ldf-editor-view">
-        <div class="editor-content">
-          <textarea
-            class="ldf-textarea"
-            :value="activeLdfText"
-            @input="handleLdfInput"
-          ></textarea>
-        </div>
-      </div>
+      <LdfEditorView
+        v-else-if="isActiveLdfTab"
+        :model-value="activeLdfText"
+        @update:model-value="handleLdfTextChange"
+      />
       <div v-else-if="tabs.length > 0" class="tab-content-placeholder">
         {{ t('tabs.tabContentPlaceholder', { title: getActiveTab()?.title ?? '' }) }}
       </div>
@@ -111,6 +107,7 @@ import { uiActions } from '../../services/uiActions';
 import { useUiState } from '../../state/uiState';
 import type { HistoryFileItem } from '../../state/uiState';
 import { electronBridge } from '../../services/electronBridge';
+import LdfEditorView from '../lin-ldf/components/LdfEditorView.vue';
 
 const { state, ensureHomeTab, switchToTab, closeTab: closeStateTab, upsertTab, reorderTabs } = useUiState();
 const { t } = useI18n();
@@ -303,13 +300,12 @@ const handleRevealTabInFolder = async () => {
   closeTabContextMenu();
 };
 
-const handleLdfInput = (event: Event) => {
+const handleLdfTextChange = (value: string) => {
   if (!isActiveLdfTab.value || !activeLdfTab.value) return;
-  const target = event.target as HTMLTextAreaElement;
   upsertTab({
     id: activeLdfTab.value.id,
     title: activeLdfTab.value.title,
-    content: target.value,
+    content: value,
     dirty: true
   });
 };
@@ -452,32 +448,6 @@ defineExpose({ loadHomeTab });
 .history-item-name { color: var(--app-text-primary); font-size: 14px; }
 .history-item-path { color: var(--app-text-muted); font-size: 12px; }
 .tab-content-placeholder, .no-tabs-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--app-text-faint); }
-.lin-ldf-editor-view {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-}
-.editor-content {
-  flex: 1;
-  min-height: 0;
-}
-.ldf-textarea {
-  width: 100%;
-  height: 100%;
-  resize: none;
-  border: none;
-  border-radius: 0;
-  background-color: transparent;
-  color: var(--app-text-regular);
-  padding: 0;
-  font-family: Consolas, 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.5;
-  outline: none;
-}
-
 .tab-context-menu {
   position: fixed;
   z-index: 2600;

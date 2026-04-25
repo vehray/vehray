@@ -112,7 +112,104 @@ export default {
     linLdfPlaceholder: '在此粘贴或输入 LIN LDF 内容...',
     linLdfValidateSuccess: 'LDF 校验通过',
     linLdfValidateFailed: 'LDF 校验失败',
-    linLdfExportDone: 'LDF 已规范化'
+    linLdfExportDone: 'LDF 已规范化',
+    ldfEditor: {
+      newSlaveNode: '新建从机节点',
+      newFrame: '新建帧',
+      newScheduleTable: '新建调度表',
+      check: '检查',
+      toggleHexDec: '十六进制与十进制切换',
+      nodeView: '节点视图',
+      frameView: '帧视图',
+      scheduleView: '调度表视图',
+      propertyView: '属性',
+      checkFailed: '检查未通过，缺少区块',
+      checkPassed: '检查通过',
+      frameEditor: {
+        title: '帧编辑区',
+        frameProperties: '帧属性',
+        relations: '发布者 / 订阅者关系',
+        subscriber: '订阅者',
+        signalMapping: '信号映射',
+        viewModes: {
+          list: '列表',
+          matrix: '位图'
+        },
+        name: '帧名称',
+        id: '帧 ID',
+        publisher: '发布者',
+        length: '长度',
+        apply: '应用到文本',
+        updated: '帧已更新',
+        inserted: '帧已写入',
+        columns: {
+          signal: '信号',
+          startBit: '起始位',
+          updateBit: '更新位',
+          length: '长度',
+          publisher: '发布者',
+          subscribers: '订阅者'
+        },
+        actions: {
+          editSignal: '编辑信号',
+          removeSignal: '删除信号',
+          createAndMapSignal: '创建并映射信号',
+          mapExistingSignal: '映射已有信号'
+        },
+        contextMenu: {
+          open: '打开',
+          revealInList: '在列表中显示',
+          revealInBitmap: '在位图中显示'
+        },
+        hints: {
+          editSignalTodo: '编辑信号功能待实现',
+          mapExistingSignalTodo: '映射已有信号功能待实现'
+        }
+      },
+      scheduleEditor: {
+        title: '调度表编辑区',
+        name: '调度表名称',
+        entry: '调度项',
+        apply: '应用到文本',
+        updated: '调度表已更新',
+        inserted: '调度表已写入'
+      },
+      propertyEditor: {
+        title: '属性',
+        common: 'Common(常规)',
+        linbusProperties: 'Linbus Properties',
+        linProtocolVersion: 'LIN_protocol_version',
+        linLanguageVersion: 'LIN_language_version',
+        name: 'Name',
+        baudrate: 'Baudrate',
+        comment: 'Comment',
+        apply: '应用到文本',
+        updated: '属性已更新'
+      },
+      graphicEditorPlaceholder: '图形化编辑区域（待实现）',
+      graphicEditorFramePlaceholder: '帧图形化编辑区域（待实现）',
+      graphicEditorSchedulePlaceholder: '调度表图形化编辑区域（待实现）',
+      graphicEditorPropertyPlaceholder: '属性图形化编辑区域（待实现）',
+      tree: {
+        linBusDefault: 'LIN Bus',
+        nodes: '节点',
+        masterNode: '主节点',
+        slaveNode: '从机节点',
+        frames: '帧',
+        unconditionalFrames: '无条件帧',
+        newFrame0: '新建帧 (0)',
+        newFrame1: '新建帧_1 (1)',
+        diagnosticFrames: '诊断帧',
+        masterReq60: '主请求帧 (60)',
+        slaveResp61: '从响应帧 (61)',
+        eventTriggeredFrames: '事件触发帧',
+        scheduleTables: '调度表',
+        newSchedule0: '新建调度表 (0)',
+        pulishedSignaals: '发布信号',
+        subscribedSignals: '订阅信号',
+        pulishedFrames: '发布帧'
+      }
+    }
   },
   properties: {
     currentSelection: '当前选择',
@@ -130,6 +227,32 @@ export default {
     pathCopied: '路径已复制',
     pathCopyFailed: '复制路径失败',
     zeroKb: '0 KB',
-    unmodified: '未修改'
+    unmodified: '未修改',
+    context: {
+      common: '常规',
+      linbusProperties: 'LIN Bus 属性',
+      folderProperties: '文件夹属性',
+      fileProperties: '文件属性',
+      linProtocol: 'LIN 协议',
+      linProtocolVersion: 'LIN 协议版本',
+      linLanguageVersion: 'LIN 语言版本',
+      generalCommanderProperties: '主命令器常规属性',
+      commanderProperties: '命令器属性',
+      name: '名称',
+      baudrate: '波特率',
+      comment: '备注',
+      nodeProperties: '节点属性',
+      role: '角色',
+      master: '主节点',
+      slave: '从机节点',
+      timebaseMs: 'Timebase',
+      jitterMs: 'Jitter',
+      frameProperties: '帧属性',
+      id: 'ID',
+      publisher: '发布者',
+      length: '长度',
+      scheduleProperties: '调度表属性',
+      entry: '条目'
+    }
   }
 };

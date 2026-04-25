@@ -18,6 +18,22 @@ export interface ExplorerSelection {
   modifiedAt?: number;
 }
 
+export interface InspectorPropertyField {
+  label: string;
+  value: string;
+}
+
+export interface InspectorPropertyGroup {
+  title: string;
+  fields: InspectorPropertyField[];
+}
+
+export interface InspectorSelection {
+  kind: 'linbus';
+  title: string;
+  groups: InspectorPropertyGroup[];
+}
+
 export interface UiTabItem {
   id: string;
   title: string;
@@ -35,6 +51,7 @@ interface UiState {
   activeFolderName: string | null;
   fileTree: FileTreeNode[];
   selectedExplorerEntry: ExplorerSelection | null;
+  selectedInspectorEntry: InspectorSelection | null;
   activeTab: string;
   rightPanelVisible: boolean;
   tabs: UiTabItem[];
@@ -48,6 +65,7 @@ const state = reactive<UiState>({
   activeFolderName: null,
   fileTree: [],
   selectedExplorerEntry: null,
+  selectedInspectorEntry: null,
   activeTab: 'home',
   rightPanelVisible: false,
   tabs: [{ id: 'home', title: '主页', content: 'home-content', dirty: false }],
@@ -61,6 +79,7 @@ const resetState = () => {
   state.activeFolderName = null;
   state.fileTree = [];
   state.selectedExplorerEntry = null;
+  state.selectedInspectorEntry = null;
   state.activeTab = 'home';
   state.rightPanelVisible = false;
   state.tabs = [{ id: 'home', title: '主页', content: 'home-content', dirty: false }];
@@ -89,6 +108,16 @@ export function useUiState() {
 
   const setSelectedExplorerEntry = (entry: ExplorerSelection | null) => {
     state.selectedExplorerEntry = entry;
+    if (entry) {
+      state.selectedInspectorEntry = null;
+    }
+  };
+
+  const setSelectedInspectorEntry = (entry: InspectorSelection | null) => {
+    state.selectedInspectorEntry = entry;
+    if (entry) {
+      state.selectedExplorerEntry = null;
+    }
   };
 
   const setActiveTab = (tabId: string) => {
@@ -181,6 +210,7 @@ export function useUiState() {
     setFileTree,
     clearActiveFolder,
     setSelectedExplorerEntry,
+    setSelectedInspectorEntry,
     setActiveTab,
     setRightPanelVisible,
     setTheme,

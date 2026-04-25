@@ -20,12 +20,6 @@
       </div>
     </div>
     <div class="activity-bar-content">
-      <div v-if="items.length > 0" class="activity-items-container">
-        <div class="activity-item" v-for="item in items" :key="item.id" :title="item.title">
-          <el-icon :size="16"><component :is="item.icon" /></el-icon>
-          <span class="activity-item-text">{{ item.title }}</span>
-        </div>
-      </div>
       <slot name="content">
         <div v-if="properties && properties.length > 0" class="properties-container">
           <div class="property-item" v-for="property in properties" :key="property.id">
@@ -171,36 +165,6 @@ const panelStyle = computed(() => ({
   border: 1px solid var(--app-border);
   border-radius: 3px;
   padding: 6px 8px;
-}
-
-.activity-items-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--app-border);
-}
-
-.activity-item {
-  min-height: 24px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--app-text-regular);
-  cursor: default;
-  border-radius: 3px;
-  padding: 2px 4px;
-}
-
-.activity-item:hover {
-  background-color: var(--app-bg-hover);
-}
-
-.activity-item-text {
-  font-size: 12px;
-  line-height: 1;
-  color: var(--app-text-regular);
 }
 
 .properties-container {

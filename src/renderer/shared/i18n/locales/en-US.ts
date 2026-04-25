@@ -112,7 +112,104 @@ export default {
     linLdfPlaceholder: 'Paste or type LIN LDF content here...',
     linLdfValidateSuccess: 'LDF validation passed',
     linLdfValidateFailed: 'LDF validation failed',
-    linLdfExportDone: 'LDF normalized'
+    linLdfExportDone: 'LDF normalized',
+    ldfEditor: {
+      newSlaveNode: 'New Slave Node',
+      newFrame: 'New Frame',
+      newScheduleTable: 'New Schedule Table',
+      check: 'Check',
+      toggleHexDec: 'Toggle hexadecimal and decimal',
+      nodeView: 'Node View',
+      frameView: 'Frame View',
+      scheduleView: 'Schedule View',
+      propertyView: 'Properties',
+      checkFailed: 'Check failed, missing blocks',
+      checkPassed: 'Check passed',
+      frameEditor: {
+        title: 'Frame Editor',
+        frameProperties: 'Frame Properties',
+        relations: 'Publisher / Subscriber Relations',
+        subscriber: 'Subscriber',
+        signalMapping: 'Signal Mapping',
+        viewModes: {
+          list: 'List',
+          matrix: 'Bit Map'
+        },
+        name: 'Frame Name',
+        id: 'Frame ID',
+        publisher: 'Publisher',
+        length: 'Length',
+        apply: 'Apply To Text',
+        updated: 'Frame updated',
+        inserted: 'Frame inserted',
+        columns: {
+          signal: 'Signal',
+          startBit: 'Start Bit',
+          updateBit: 'Update Bit',
+          length: 'Length',
+          publisher: 'Publisher',
+          subscribers: 'Subscribers'
+        },
+        actions: {
+          editSignal: 'Edit Signal',
+          removeSignal: 'Remove Signal',
+          createAndMapSignal: 'Create and Map Signal',
+          mapExistingSignal: 'Map Existing Signal'
+        },
+        contextMenu: {
+          open: 'Open',
+          revealInList: 'Reveal In List',
+          revealInBitmap: 'Reveal In Bitmap'
+        },
+        hints: {
+          editSignalTodo: 'Edit signal is not implemented yet',
+          mapExistingSignalTodo: 'Map existing signal is not implemented yet'
+        }
+      },
+      scheduleEditor: {
+        title: 'Schedule Editor',
+        name: 'Schedule Name',
+        entry: 'Schedule Entry',
+        apply: 'Apply To Text',
+        updated: 'Schedule updated',
+        inserted: 'Schedule inserted'
+      },
+      propertyEditor: {
+        title: 'Properties',
+        common: 'Common',
+        linbusProperties: 'Linbus Properties',
+        linProtocolVersion: 'LIN_protocol_version',
+        linLanguageVersion: 'LIN_language_version',
+        name: 'Name',
+        baudrate: 'Baudrate',
+        comment: 'Comment',
+        apply: 'Apply To Text',
+        updated: 'Properties updated'
+      },
+      graphicEditorPlaceholder: 'Graphic editing area (to be implemented)',
+      graphicEditorFramePlaceholder: 'Frame graphic editing area (to be implemented)',
+      graphicEditorSchedulePlaceholder: 'Schedule graphic editing area (to be implemented)',
+      graphicEditorPropertyPlaceholder: 'Property graphic editing area (to be implemented)',
+      tree: {
+        linBusDefault: 'LIN Bus',
+        nodes: 'Nodes',
+        masterNode: 'Master Node',
+        slaveNode: 'Slave Node',
+        frames: 'Frames',
+        unconditionalFrames: 'Unconditional Frames',
+        newFrame0: 'New_Frame (0)',
+        newFrame1: 'New_Frame_1 (1)',
+        diagnosticFrames: 'Diagnostic Frames',
+        masterReq60: 'MasterReq (60)',
+        slaveResp61: 'SlaveResp (61)',
+        eventTriggeredFrames: 'Event Triggered Frames',
+        scheduleTables: 'Schedule Tables',
+        newSchedule0: 'New_Schedule (0)',
+        pulishedSignaals: 'Pulished Signaals',
+        subscribedSignals: 'Subscribed Signals',
+        pulishedFrames: 'Pulished Frames'
+      }
+    }
   },
   properties: {
     currentSelection: 'Current Selection',
@@ -130,6 +227,32 @@ export default {
     pathCopied: 'Path copied',
     pathCopyFailed: 'Failed to copy path',
     zeroKb: '0 KB',
-    unmodified: 'Unmodified'
+    unmodified: 'Unmodified',
+    context: {
+      common: 'Common',
+      linbusProperties: 'LIN Bus Properties',
+      folderProperties: 'Folder Properties',
+      fileProperties: 'File Properties',
+      linProtocol: 'LIN Protocol',
+      linProtocolVersion: 'LIN Protocol Version',
+      linLanguageVersion: 'LIN Language Version',
+      generalCommanderProperties: 'General Commander Properties',
+      commanderProperties: 'Commander Properties',
+      name: 'Name',
+      baudrate: 'Baudrate',
+      comment: 'Comment',
+      nodeProperties: 'Node Properties',
+      role: 'Role',
+      master: 'Master',
+      slave: 'Slave',
+      timebaseMs: 'Timebase(ms)',
+      jitterMs: 'Jitter(ms)',
+      frameProperties: 'Frame Properties',
+      id: 'ID',
+      publisher: 'Publisher',
+      length: 'Length',
+      scheduleProperties: 'Schedule Properties',
+      entry: 'Entry'
+    }
   }
 };

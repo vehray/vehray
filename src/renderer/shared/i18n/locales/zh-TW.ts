@@ -112,7 +112,104 @@ export default {
     linLdfPlaceholder: '在此貼上或輸入 LIN LDF 內容...',
     linLdfValidateSuccess: 'LDF 校驗通過',
     linLdfValidateFailed: 'LDF 校驗失敗',
-    linLdfExportDone: 'LDF 已標準化'
+    linLdfExportDone: 'LDF 已標準化',
+    ldfEditor: {
+      newSlaveNode: '新增從機節點',
+      newFrame: '新增訊框',
+      newScheduleTable: '新增排程表',
+      check: '檢查',
+      toggleHexDec: '十六進位與十進位切換',
+      nodeView: '節點視圖',
+      frameView: '訊框視圖',
+      scheduleView: '排程表視圖',
+      propertyView: '屬性',
+      checkFailed: '檢查未通過，缺少區塊',
+      checkPassed: '檢查通過',
+      frameEditor: {
+        title: '訊框編輯區',
+        frameProperties: '訊框屬性',
+        relations: '發布者 / 訂閱者關係',
+        subscriber: '訂閱者',
+        signalMapping: '訊號映射',
+        viewModes: {
+          list: '列表',
+          matrix: '位圖'
+        },
+        name: '訊框名稱',
+        id: '訊框 ID',
+        publisher: '發布者',
+        length: '長度',
+        apply: '套用到文字',
+        updated: '訊框已更新',
+        inserted: '訊框已寫入',
+        columns: {
+          signal: '訊號',
+          startBit: '起始位',
+          updateBit: '更新位',
+          length: '長度',
+          publisher: '發布者',
+          subscribers: '訂閱者'
+        },
+        actions: {
+          editSignal: '編輯訊號',
+          removeSignal: '移除訊號',
+          createAndMapSignal: '建立並映射訊號',
+          mapExistingSignal: '映射既有訊號'
+        },
+        contextMenu: {
+          open: '打開',
+          revealInList: '在列表中顯示',
+          revealInBitmap: '在位圖中顯示'
+        },
+        hints: {
+          editSignalTodo: '編輯訊號功能尚未實作',
+          mapExistingSignalTodo: '映射既有訊號功能尚未實作'
+        }
+      },
+      scheduleEditor: {
+        title: '排程表編輯區',
+        name: '排程表名稱',
+        entry: '排程項',
+        apply: '套用到文字',
+        updated: '排程表已更新',
+        inserted: '排程表已寫入'
+      },
+      propertyEditor: {
+        title: '屬性',
+        common: 'Common(常規)',
+        linbusProperties: 'Linbus Properties',
+        linProtocolVersion: 'LIN_protocol_version',
+        linLanguageVersion: 'LIN_language_version',
+        name: 'Name',
+        baudrate: 'Baudrate',
+        comment: 'Comment',
+        apply: '套用到文字',
+        updated: '屬性已更新'
+      },
+      graphicEditorPlaceholder: '圖形化編輯區域（待實作）',
+      graphicEditorFramePlaceholder: '訊框圖形化編輯區域（待實作）',
+      graphicEditorSchedulePlaceholder: '排程表圖形化編輯區域（待實作）',
+      graphicEditorPropertyPlaceholder: '屬性圖形化編輯區域（待實作）',
+      tree: {
+        linBusDefault: 'LIN Bus',
+        nodes: '節點',
+        masterNode: '主節點',
+        slaveNode: '從機節點',
+        frames: '訊框',
+        unconditionalFrames: '無條件訊框',
+        newFrame0: '新建訊框 (0)',
+        newFrame1: '新建訊框_1 (1)',
+        diagnosticFrames: '診斷訊框',
+        masterReq60: '主請求訊框 (60)',
+        slaveResp61: '從回應訊框 (61)',
+        eventTriggeredFrames: '事件觸發訊框',
+        scheduleTables: '排程表',
+        newSchedule0: '新建排程表 (0)',
+        pulishedSignaals: '發布訊號',
+        subscribedSignals: '訂閱訊號',
+        pulishedFrames: '發布訊框'
+      }
+    }
   },
   properties: {
     currentSelection: '目前選擇',
@@ -130,6 +227,32 @@ export default {
     pathCopied: '路徑已複製',
     pathCopyFailed: '複製路徑失敗',
     zeroKb: '0 KB',
-    unmodified: '未修改'
+    unmodified: '未修改',
+    context: {
+      common: '常規',
+      linbusProperties: 'LIN Bus 屬性',
+      folderProperties: '資料夾屬性',
+      fileProperties: '檔案屬性',
+      linProtocol: 'LIN 協議',
+      linProtocolVersion: 'LIN 協議版本',
+      linLanguageVersion: 'LIN 語言版本',
+      generalCommanderProperties: '主命令器常規屬性',
+      commanderProperties: '命令器屬性',
+      name: '名稱',
+      baudrate: '鮑率',
+      comment: '備註',
+      nodeProperties: '節點屬性',
+      role: '角色',
+      master: '主節點',
+      slave: '從機節點',
+      timebaseMs: 'Timebase',
+      jitterMs: 'Jitter',
+      frameProperties: '訊框屬性',
+      id: 'ID',
+      publisher: '發布者',
+      length: '長度',
+      scheduleProperties: '排程表屬性',
+      entry: '條目'
+    }
   }
 };
