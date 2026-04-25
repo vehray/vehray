@@ -218,6 +218,7 @@
                     committed: isCreatedBitCovered(bit),
                     'repositioning-arm': isLongPressArmingBit(bit),
                     'repositioning-lift': isBitInRepositioningRange(bit),
+                    'ctrl-drag-hover': isCtrlDragHoverBit(bit),
                     'created-drag-mask': isCreatedBitDragMasked(bit),
                     'selected-created': isSelectedCreatedBitCovered(bit),
                     'selected-created-start': isSelectedCreatedRangeStart(bit),
@@ -414,6 +415,7 @@ const lastPointerBit = ref<number | null>(null);
 const isRepositioningCreated = ref(false);
 const repositionRangeId = ref('');
 const repositionGrabOffset = ref(0);
+const isCtrlPressed = ref(false);
 let createdLongPressTimer: ReturnType<typeof setTimeout> | null = null;
 let createdLongPressContext: { rangeId: string; grabBit: number } | null = null;
 let repositionSnapshot: { rangeId: string; rowId: string; start: number; end: number } | null = null;
@@ -863,6 +865,24 @@ const isSelectedCreatedRangeEnd = (bit: number) =>
 const getCreatedRangeAtBit = (bit: number) =>
   createdSignalRanges.value.find((range) => bit >= range.start && bit <= range.end) ?? null;
 
+const getCtrlRepositionTarget = (bit: number) => {
+  const direct = getCreatedRangeAtBit(bit);
+  if (direct) return { range: direct, grabBit: bit };
+  // 短区段更易命中：允许在区段左右各 1 bit 热区触发 Ctrl 平移。
+  for (const range of createdSignalRanges.value) {
+    if (bit === range.start - 1) return { range, grabBit: range.start };
+    if (bit === range.end + 1) return { range, grabBit: range.end };
+  }
+  return null;
+};
+
+const isCtrlDragHoverBit = (bit: number) =>
+  isCtrlPressed.value &&
+  !isBitDisabled(bit) &&
+  !isDraggingBits.value &&
+  !isRepositioningCreated.value &&
+  Boolean(getCtrlRepositionTarget(bit));
+
 const isLongPressArmingBit = (bit: number) => {
   if (!longPressArmRangeId.value || isRepositioningCreated.value) return false;
   if (isBitDisabled(bit)) return false;
@@ -1175,6 +1195,17 @@ const startBitDrag = (bit: number, event?: MouseEvent) => {
     finishRepositionCreatedRange();
     clearCreatedLongPressTimer();
   }
+  if (event?.ctrlKey) {
+    const target = getCtrlRepositionTarget(bit);
+    if (target) {
+      selectedCreatedRangeId.value = target.range.id;
+      clearDraftRange();
+      clearCreatedLongPressTimer();
+      beginRepositionCreatedRange(target.range.id, target.grabBit);
+      updateDragIndicatorPosition(event);
+      return;
+    }
+  }
   const createdRange = getCreatedRangeAtBit(bit);
   if (createdRange) {
     selectedCreatedRangeId.value = createdRange.id;
@@ -1298,6 +1329,18 @@ const commitDraftRangeToFrame = () => {
 
 const handleGlobalBitMouseUp = (event: MouseEvent) => {
   endBitDrag(undefined, event);
+};
+
+const handleGlobalKeyDown = (event: KeyboardEvent) => {
+  if (event.key === 'Control') {
+    isCtrlPressed.value = true;
+  }
+};
+
+const handleGlobalKeyUp = (event: KeyboardEvent) => {
+  if (event.key === 'Control') {
+    isCtrlPressed.value = false;
+  }
 };
 
 const parseScheduleByName = (source: string, scheduleName: string) => {
@@ -1747,12 +1790,16 @@ onMounted(() => {
   document.addEventListener('click', closeNodeContextMenu);
   document.addEventListener('click', closeSignalContextMenu);
   window.addEventListener('mouseup', handleGlobalBitMouseUp);
+  window.addEventListener('keydown', handleGlobalKeyDown);
+  window.addEventListener('keyup', handleGlobalKeyUp);
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', closeNodeContextMenu);
   document.removeEventListener('click', closeSignalContextMenu);
   window.removeEventListener('mouseup', handleGlobalBitMouseUp);
+  window.removeEventListener('keydown', handleGlobalKeyDown);
+  window.removeEventListener('keyup', handleGlobalKeyUp);
 });
 
 const viewMode = ref<'hex' | 'dec'>('hex');
@@ -2204,6 +2251,10 @@ const runQuickCheck = () => {
   text-overflow: ellipsis;
   cursor: crosshair;
   user-select: none;
+}
+
+.ldf-signal-matrix-row .ldf-signal-matrix-cell.ctrl-drag-hover {
+  cursor: grab;
 }
 
 .ldf-signal-matrix-row {
