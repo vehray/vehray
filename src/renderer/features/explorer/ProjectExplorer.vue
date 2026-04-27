@@ -194,6 +194,10 @@
         <el-icon><EditPen /></el-icon>
         {{ t('layout.explorer.rename') }}
       </button>
+      <button v-if="contextTarget && !contextEditorTabId" class="context-menu-item" @click="handleRevealInFolder">
+        <el-icon><FolderOpened /></el-icon>
+        {{ t('layout.explorer.openContainingFolder') }}
+      </button>
       <button v-if="contextTarget && !contextEditorTabId" class="context-menu-item" @click="handleShowPropertiesFromContextMenu">
         <el-icon><EditPen /></el-icon>
         {{ t('layout.sidebar.properties') }}

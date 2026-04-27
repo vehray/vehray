@@ -43,6 +43,13 @@ export default {
       language: '語言',
       themeDark: '深色',
       themeLight: '淺色',
+      localeNames: {
+        zhCN: '簡體中文',
+        zhTW: '繁體中文',
+        enUS: 'English',
+        jaJP: '日本語',
+        koKR: '한국어'
+      },
       about: '關於',
       toggleMenu: '切換選單',
       placeholderEdit1: '空白範例：編輯項 1',
@@ -102,6 +109,17 @@ export default {
     openFile: '開啟檔案',
     recentFiles: '最近開啟的檔案',
     emptyRecentFiles: '暫無歷史檔案',
+    tabActions: {
+      save: '儲存',
+      closeOthers: '關閉其他',
+      closeAll: '關閉全部',
+      unsavedFile: '此檔案尚未儲存',
+      confirmClose: '確認關閉'
+    },
+    bottomPanel: {
+      placeholder: '標籤內容區域',
+      fileTab: '檔案{index}'
+    },
     noTabsHint: '請點擊左側的主頁按鈕',
     tabContentPlaceholder: '標籤內容區域 - {title}',
     linLdfEditorTitle: 'LIN LDF 編輯器',
@@ -142,6 +160,11 @@ export default {
         name: '訊框名稱',
         id: '訊框 ID',
         publisher: '發布者',
+        relationRoles: {
+          commander: 'LIN_Commander',
+          responder: 'LIN_Responder',
+          lockedWarning: '至少需要一個映射訊號來定義使用者節點後，才能編輯發布者/訂閱者。'
+        },
         length: '長度',
         apply: '套用到文字',
         updated: '訊框已更新',
@@ -149,8 +172,10 @@ export default {
         columns: {
           signal: '訊號',
           startBit: '起始位',
-          updateBit: '更新位',
+          updateBit: '初始值',
           length: '長度',
+          unit: '單位',
+          encoding: 'Encoding',
           publisher: '發布者',
           subscribers: '訂閱者'
         },
@@ -168,6 +193,70 @@ export default {
         hints: {
           editSignalTodo: '編輯訊號功能尚未實作',
           mapExistingSignalTodo: '映射既有訊號功能尚未實作'
+        },
+        signalEditor: {
+          signalProperties: '訊號屬性',
+          encodingType: '編碼類型',
+          name: '名稱',
+          initialValue: '初始值',
+          signalType: '訊號類型',
+          length: '長度',
+          profilePlaceholder: '請輸入編碼方式名稱',
+          noneOption: '<無>',
+          minimumRaw: 'Minimum [raw]',
+          maximumRaw: 'Maximum [raw]',
+          unit: 'Unit',
+          factor: 'Factor',
+          offset: 'Offset',
+          newValueDescriptionPlaceholder: 'New Value Description',
+          ascii: 'ASCII',
+          bcd: 'BCD',
+          encodingTabs: {
+            physical: 'Physical',
+            logicalTextTable: 'Logical (Text Table)',
+            multiRange: 'Multi-Range',
+            asciiBcd: 'ASCII / BCD'
+          },
+          valueRaw: 'Value [raw]',
+          description: 'Description',
+          rightClickToCreateValueDescription: '右鍵此處新增 Value Description',
+          rightClickToCreateMultiRangeParam: '右鍵此處新增 Multi-Range 參數',
+          createAndMapSignal: '建立並映射訊號',
+          startBit: '開始 bit',
+          endBit: '結束 bit',
+          enterNamePlaceholder: '請輸入名稱',
+          publisherSubscriberRelations: '發布者 / 訂閱者關係',
+          ecus: 'ECUs',
+          subscribers: '訂閱者',
+          noAvailableNodes: '無可選節點',
+          dragHereToSubscribe: '拖曳到此處訂閱',
+          actions: {
+            rename: '重新命名',
+            create: '建立',
+            delete: '刪除'
+          },
+          hints: {
+            uncheckToSwitchEncoding: '提示：取消勾選核取方塊可選擇其他編碼方式。',
+            createOrSelectEncodingFirst: '請先在上方建立或選擇編碼方式；未選擇時此區域不可編輯。'
+          },
+          messages: {
+            encodingDeleted: '已刪除編碼方式',
+            noEncodingToDelete: '目前無可刪除項',
+            relationRoleLockedWarningFallback: '至少需要一個映射訊號來定義使用者節點後，才能編輯發布者/訂閱者。',
+            ldfValidateFailed: 'LDF 校驗失敗',
+            signalOutOfFrameLength: '訊號範圍超出目前訊框長度',
+            signalRangeOverlap: '訊號範圍與其他訊號重疊',
+            ldfParseFailedApplyFrame: 'LDF 解析失敗，無法套用訊框編輯',
+            ldfParseFailedApplySchedule: 'LDF 解析失敗，無法套用排程編輯',
+            scheduleEntryFormat: '排程項格式應為: FrameName delay 10 ms;',
+            frameCreatedUiOnly: '訊框已建立（僅 UI，尚未寫入文字）'
+          },
+          contextMenu: {
+            newValueDescription: '新增 Value Description',
+            deleteValueDescription: '刪除 Value Description',
+            newMultiRangeParam: '新增 Multi-Range 參數',
+            deleteMultiRangeParam: '刪除 Multi-Range 參數'
+          }
         }
       },
       scheduleEditor: {
@@ -211,7 +300,8 @@ export default {
         newSchedule0: '新建排程表 (0)',
         pulishedSignaals: '發布訊號',
         subscribedSignals: '訂閱訊號',
-        pulishedFrames: '發布訊框'
+        pulishedFrames: '發布訊框',
+        subscribedFrames: '訂閱訊框'
       }
     }
   },

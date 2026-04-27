@@ -176,30 +176,15 @@ function createWindow() {
   const isDev = process.env.NODE_ENV === "development";
   logger.info(`Current environment: ${isDev ? "development" : "production"}`);
   if (isDev) {
-    const vitePorts = [5173, 5174, 5175, 5176, 5177];
-    let currentPortIndex = 0;
-    const tryLoadVite = () => {
-      if (currentPortIndex >= vitePorts.length) {
-        logger.error("所有Vite端口都尝试失败，无法加载开发服务器");
-        return;
-      }
-      const vitePort = vitePorts[currentPortIndex];
-      const viteUrl = `http://localhost:${vitePort}`;
-      logger.info(`Trying to load Vite development server: ${viteUrl}`);
-      mainWindow2.webContents.removeAllListeners("did-fail-load");
-      mainWindow2.webContents.removeAllListeners("did-finish-load");
-      mainWindow2.webContents.once("did-fail-load", (event, errorCode, errorDescription) => {
-        logger.error(`Page load failed: ${errorDescription} (Error code: ${errorCode})`);
-        currentPortIndex++;
-        logger.info(`Trying alternative port ${vitePorts[currentPortIndex]}`);
-        tryLoadVite();
-      });
-      mainWindow2.webContents.once("did-finish-load", () => {
-        logger.info("Page loaded successfully");
-      });
-      mainWindow2.loadURL(viteUrl);
-    };
-    tryLoadVite();
+    const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+    if (rendererUrl) {
+      logger.info(`Loading renderer from injected dev URL: ${rendererUrl}`);
+      mainWindow2.loadURL(rendererUrl);
+    } else {
+      const fallbackUrl = "http://localhost:5173";
+      logger.warn(`ELECTRON_RENDERER_URL missing, fallback to ${fallbackUrl}`);
+      mainWindow2.loadURL(fallbackUrl);
+    }
   } else {
     const rendererHtmlPath = path__default.resolve(process.cwd(), "dist/renderer/index.html");
     logger.debug("app-window.ts: 渲染进程HTML路径:", rendererHtmlPath);
@@ -271,30 +256,16 @@ function createChildWindow(parentWindow, options) {
   childWindow.setMenu(null);
   const isDev = process.env.NODE_ENV === "development";
   if (isDev) {
-    const vitePorts = [5173, 5174, 5175, 5176, 5177];
-    let currentPortIndex = 0;
-    const tryLoadVite = () => {
-      if (currentPortIndex >= vitePorts.length) {
-        logger.error("所有Vite端口都尝试失败，无法加载开发服务器");
-        return;
-      }
-      const vitePort = vitePorts[currentPortIndex];
-      const viteUrl = `http://localhost:${vitePort}?window=settings`;
-      logger.info(`Trying to load Vite development server for child window: ${viteUrl}`);
-      childWindow.webContents.removeAllListeners("did-fail-load");
-      childWindow.webContents.removeAllListeners("did-finish-load");
-      childWindow.webContents.once("did-fail-load", (event, errorCode, errorDescription) => {
-        logger.error(`Child window page load failed: ${errorDescription} (Error code: ${errorCode})`);
-        currentPortIndex++;
-        logger.info(`Trying alternative port ${vitePorts[currentPortIndex]}`);
-        tryLoadVite();
-      });
-      childWindow.webContents.once("did-finish-load", () => {
-        logger.info("Child window page loaded successfully");
-      });
-      childWindow.loadURL(viteUrl);
-    };
-    tryLoadVite();
+    const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+    if (rendererUrl) {
+      const settingsUrl = `${rendererUrl}${rendererUrl.includes("?") ? "&" : "?"}window=settings`;
+      logger.info(`Loading child window from injected dev URL: ${settingsUrl}`);
+      childWindow.loadURL(settingsUrl);
+    } else {
+      const fallbackUrl = "http://localhost:5173?window=settings";
+      logger.warn(`ELECTRON_RENDERER_URL missing, fallback to ${fallbackUrl}`);
+      childWindow.loadURL(fallbackUrl);
+    }
   } else {
     const rendererHtmlPath = path__default.resolve(process.cwd(), "dist/renderer/index.html");
     logger.debug("app-window.ts: 子窗口渲染进程HTML路径:", rendererHtmlPath);

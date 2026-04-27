@@ -57,7 +57,7 @@ interface UiState {
   tabs: UiTabItem[];
   historyFiles: HistoryFileItem[];
   theme: 'dark' | 'light';
-  locale: 'zh-CN' | 'zh-TW' | 'en-US';
+  locale: 'zh-CN' | 'zh-TW' | 'en-US' | 'ja-JP' | 'ko-KR';
 }
 
 const state = reactive<UiState>({

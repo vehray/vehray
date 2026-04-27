@@ -135,45 +135,17 @@ export function createWindow(): BrowserWindow {
   logger.info(`Current environment: ${isDev ? 'development' : 'production'}`);
   
   if (isDev) {
-    // 开发模式：加载Vite开发服务器
-    // 尝试从环境变量获取Vite端口，或者使用默认端口5173
-    const vitePorts = [5173, 5174, 5175, 5176, 5177];
-    let currentPortIndex = 0;
-    
-    // 递归尝试加载不同端口
-    const tryLoadVite = () => {
-      if (currentPortIndex >= vitePorts.length) {
-        logger.error('所有Vite端口都尝试失败，无法加载开发服务器');
-        return;
-      }
-      
-      const vitePort = vitePorts[currentPortIndex];
-      const viteUrl = `http://localhost:${vitePort}`;
-      logger.info(`Trying to load Vite development server: ${viteUrl}`);
-      
-      // 清除之前的事件监听器
-      mainWindow.webContents.removeAllListeners('did-fail-load');
-      mainWindow.webContents.removeAllListeners('did-finish-load');
-      
-      // 监听加载失败事件
-      mainWindow.webContents.once('did-fail-load', (event, errorCode, errorDescription) => {
-        logger.error(`Page load failed: ${errorDescription} (Error code: ${errorCode})`);
-        currentPortIndex++;
-        logger.info(`Trying alternative port ${vitePorts[currentPortIndex]}`);
-        tryLoadVite(); // 尝试下一个端口
-      });
-      
-      // 监听加载完成事件
-      mainWindow.webContents.once('did-finish-load', () => {
-        logger.info('Page loaded successfully');
-      });
-      
-      // 尝试加载URL
-      mainWindow.loadURL(viteUrl);
-    };
-    
-    // 开始尝试加载Vite开发服务器
-    tryLoadVite();
+    // electron-vite 会注入当前可用的渲染进程 URL，避免端口被占用时连到错误服务
+    const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+    if (rendererUrl) {
+      logger.info(`Loading renderer from injected dev URL: ${rendererUrl}`);
+      mainWindow.loadURL(rendererUrl);
+    } else {
+      // 兼容极端情况下环境变量缺失，回退到默认地址并保留错误日志
+      const fallbackUrl = 'http://localhost:5173';
+      logger.warn(`ELECTRON_RENDERER_URL missing, fallback to ${fallbackUrl}`);
+      mainWindow.loadURL(fallbackUrl);
+    }
   } else {
     // 生产模式：加载本地文件
     // 使用process.cwd()获取项目根目录，确保路径正确
@@ -255,45 +227,16 @@ export function createChildWindow(parentWindow: BrowserWindow, options?: { width
   const isDev = process.env.NODE_ENV === 'development';
   
   if (isDev) {
-    // 开发模式：加载Vite开发服务器
-    // 尝试从环境变量获取Vite端口，或者使用默认端口5173
-    const vitePorts = [5173, 5174, 5175, 5176, 5177];
-    let currentPortIndex = 0;
-    
-    // 递归尝试加载不同端口
-    const tryLoadVite = () => {
-      if (currentPortIndex >= vitePorts.length) {
-        logger.error('所有Vite端口都尝试失败，无法加载开发服务器');
-        return;
-      }
-      
-      const vitePort = vitePorts[currentPortIndex];
-      const viteUrl = `http://localhost:${vitePort}?window=settings`;
-      logger.info(`Trying to load Vite development server for child window: ${viteUrl}`);
-      
-      // 清除之前的事件监听器
-      childWindow.webContents.removeAllListeners('did-fail-load');
-      childWindow.webContents.removeAllListeners('did-finish-load');
-      
-      // 监听加载失败事件
-      childWindow.webContents.once('did-fail-load', (event, errorCode, errorDescription) => {
-        logger.error(`Child window page load failed: ${errorDescription} (Error code: ${errorCode})`);
-        currentPortIndex++;
-        logger.info(`Trying alternative port ${vitePorts[currentPortIndex]}`);
-        tryLoadVite(); // 尝试下一个端口
-      });
-      
-      // 监听加载完成事件
-      childWindow.webContents.once('did-finish-load', () => {
-        logger.info('Child window page loaded successfully');
-      });
-      
-      // 尝试加载URL
-      childWindow.loadURL(viteUrl);
-    };
-    
-    // 开始尝试加载Vite开发服务器
-    tryLoadVite();
+    const rendererUrl = process.env.ELECTRON_RENDERER_URL;
+    if (rendererUrl) {
+      const settingsUrl = `${rendererUrl}${rendererUrl.includes('?') ? '&' : '?'}window=settings`;
+      logger.info(`Loading child window from injected dev URL: ${settingsUrl}`);
+      childWindow.loadURL(settingsUrl);
+    } else {
+      const fallbackUrl = 'http://localhost:5173?window=settings';
+      logger.warn(`ELECTRON_RENDERER_URL missing, fallback to ${fallbackUrl}`);
+      childWindow.loadURL(fallbackUrl);
+    }
   } else {
     // 生产模式：加载本地文件
     // 使用process.cwd()获取项目根目录，确保路径正确

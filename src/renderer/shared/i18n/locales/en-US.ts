@@ -43,6 +43,13 @@ export default {
       language: 'Language',
       themeDark: 'Dark',
       themeLight: 'Light',
+      localeNames: {
+        zhCN: 'Simplified Chinese',
+        zhTW: 'Traditional Chinese',
+        enUS: 'English',
+        jaJP: 'Japanese',
+        koKR: 'Korean'
+      },
       about: 'About',
       toggleMenu: 'Toggle Menu',
       placeholderEdit1: 'Placeholder: Edit Item 1',
@@ -102,6 +109,17 @@ export default {
     openFile: 'Open File',
     recentFiles: 'Recent Files',
     emptyRecentFiles: 'No recent files',
+    tabActions: {
+      save: 'Save',
+      closeOthers: 'Close Others',
+      closeAll: 'Close All',
+      unsavedFile: 'This file has unsaved changes',
+      confirmClose: 'Confirm Close'
+    },
+    bottomPanel: {
+      placeholder: 'Tab content area',
+      fileTab: 'File {index}'
+    },
     noTabsHint: 'Please click the home button on the left',
     tabContentPlaceholder: 'Tab content area - {title}',
     linLdfEditorTitle: 'LIN LDF Editor',
@@ -142,6 +160,11 @@ export default {
         name: 'Frame Name',
         id: 'Frame ID',
         publisher: 'Publisher',
+        relationRoles: {
+          commander: 'LIN_Commander',
+          responder: 'LIN_Responder',
+          lockedWarning: 'Define at least one mapped signal user node before editing Publisher/Subscriber.'
+        },
         length: 'Length',
         apply: 'Apply To Text',
         updated: 'Frame updated',
@@ -149,8 +172,10 @@ export default {
         columns: {
           signal: 'Signal',
           startBit: 'Start Bit',
-          updateBit: 'Update Bit',
+          updateBit: 'Initial Value',
           length: 'Length',
+          unit: 'Unit',
+          encoding: 'Encoding',
           publisher: 'Publisher',
           subscribers: 'Subscribers'
         },
@@ -168,6 +193,70 @@ export default {
         hints: {
           editSignalTodo: 'Edit signal is not implemented yet',
           mapExistingSignalTodo: 'Map existing signal is not implemented yet'
+        },
+        signalEditor: {
+          signalProperties: 'Signal Properties',
+          encodingType: 'Encoding Type',
+          name: 'Name',
+          initialValue: 'Initial Value',
+          signalType: 'Signal Type',
+          length: 'Length',
+          profilePlaceholder: 'Enter encoding profile name',
+          noneOption: '<None>',
+          minimumRaw: 'Minimum [raw]',
+          maximumRaw: 'Maximum [raw]',
+          unit: 'Unit',
+          factor: 'Factor',
+          offset: 'Offset',
+          newValueDescriptionPlaceholder: 'New Value Description',
+          ascii: 'ASCII',
+          bcd: 'BCD',
+          encodingTabs: {
+            physical: 'Physical',
+            logicalTextTable: 'Logical (Text Table)',
+            multiRange: 'Multi-Range',
+            asciiBcd: 'ASCII / BCD'
+          },
+          valueRaw: 'Value [raw]',
+          description: 'Description',
+          rightClickToCreateValueDescription: 'Right-click here to create Value Description',
+          rightClickToCreateMultiRangeParam: 'Right-click here to create Multi-Range parameter',
+          createAndMapSignal: 'Create and Map Signal',
+          startBit: 'Start bit',
+          endBit: 'End bit',
+          enterNamePlaceholder: 'Enter name',
+          publisherSubscriberRelations: 'Publisher / Subscriber Relations',
+          ecus: 'ECUs',
+          subscribers: 'Subscriber(s)',
+          noAvailableNodes: 'No available nodes',
+          dragHereToSubscribe: 'Drag here to subscribe',
+          actions: {
+            rename: 'Rename',
+            create: 'Create',
+            delete: 'Delete'
+          },
+          hints: {
+            uncheckToSwitchEncoding: 'Tip: Uncheck the current option to choose another encoding type.',
+            createOrSelectEncodingFirst: 'Create or select an encoding profile above first; this area is read-only when none is selected.'
+          },
+          messages: {
+            encodingDeleted: 'Encoding profile deleted',
+            noEncodingToDelete: 'No encoding profile to delete',
+            relationRoleLockedWarningFallback: 'Define at least one mapped signal user node before editing Publisher/Subscriber.',
+            ldfValidateFailed: 'LDF validation failed',
+            signalOutOfFrameLength: 'Signal range exceeds current frame length',
+            signalRangeOverlap: 'Signal range overlaps with other signals',
+            ldfParseFailedApplyFrame: 'LDF parsing failed; unable to apply frame edits',
+            ldfParseFailedApplySchedule: 'LDF parsing failed; unable to apply schedule edits',
+            scheduleEntryFormat: 'Schedule entry format should be: FrameName delay 10 ms;',
+            frameCreatedUiOnly: 'Frame created (UI only, not written to text yet)'
+          },
+          contextMenu: {
+            newValueDescription: 'New Value Description',
+            deleteValueDescription: 'Delete Value Description',
+            newMultiRangeParam: 'New Multi-Range Parameter',
+            deleteMultiRangeParam: 'Delete Multi-Range Parameter'
+          }
         }
       },
       scheduleEditor: {
@@ -211,7 +300,8 @@ export default {
         newSchedule0: 'New_Schedule (0)',
         pulishedSignaals: 'Pulished Signaals',
         subscribedSignals: 'Subscribed Signals',
-        pulishedFrames: 'Pulished Frames'
+        pulishedFrames: 'Pulished Frames',
+        subscribedFrames: 'Subscribed Frames'
       }
     }
   },
