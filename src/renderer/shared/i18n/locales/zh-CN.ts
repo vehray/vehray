@@ -43,6 +43,13 @@ export default {
       language: '语言',
       themeDark: '深色',
       themeLight: '白色',
+      localeNames: {
+        zhCN: '简体中文',
+        zhTW: '繁體中文',
+        enUS: 'English',
+        jaJP: '日本語',
+        koKR: '한국어'
+      },
       about: '关于',
       toggleMenu: '切换菜单',
       placeholderEdit1: '空白示例：编辑项 1',
@@ -102,6 +109,17 @@ export default {
     openFile: '打开文件',
     recentFiles: '最近打开的文件',
     emptyRecentFiles: '暂无历史文件',
+    tabActions: {
+      save: '保存',
+      closeOthers: '关闭其他',
+      closeAll: '关闭全部',
+      unsavedFile: '该文件尚未保存',
+      confirmClose: '确认关闭'
+    },
+    bottomPanel: {
+      placeholder: '标签内容区域',
+      fileTab: '文件{index}'
+    },
     noTabsHint: '请点击左侧的主页按钮',
     tabContentPlaceholder: '标签内容区域 - {title}',
     linLdfEditorTitle: 'LIN LDF 编辑器',
@@ -142,6 +160,11 @@ export default {
         name: '帧名称',
         id: '帧 ID',
         publisher: '发布者',
+        relationRoles: {
+          commander: 'LIN_Commander',
+          responder: 'LIN_Responder',
+          lockedWarning: '至少需要一个映射信号来定义用户节点后，才能编辑发布者/订阅者。'
+        },
         length: '长度',
         apply: '应用到文本',
         updated: '帧已更新',
@@ -149,8 +172,10 @@ export default {
         columns: {
           signal: '信号',
           startBit: '起始位',
-          updateBit: '更新位',
+          updateBit: '初始值',
           length: '长度',
+          unit: '单位',
+          encoding: 'Encoding',
           publisher: '发布者',
           subscribers: '订阅者'
         },
@@ -168,6 +193,70 @@ export default {
         hints: {
           editSignalTodo: '编辑信号功能待实现',
           mapExistingSignalTodo: '映射已有信号功能待实现'
+        },
+        signalEditor: {
+          signalProperties: '信号属性',
+          encodingType: '编码类型',
+          name: '名称',
+          initialValue: '初始值',
+          signalType: '信号类型',
+          length: '长度',
+          profilePlaceholder: '请输入编码方式名称',
+          noneOption: '<无>',
+          minimumRaw: 'Minimum [raw]',
+          maximumRaw: 'Maximum [raw]',
+          unit: 'Unit',
+          factor: 'Factor',
+          offset: 'Offset',
+          newValueDescriptionPlaceholder: 'New Value Description',
+          ascii: 'ASCII',
+          bcd: 'BCD',
+          encodingTabs: {
+            physical: 'Physical',
+            logicalTextTable: 'Logical (Text Table)',
+            multiRange: 'Multi-Range',
+            asciiBcd: 'ASCII / BCD'
+          },
+          valueRaw: 'Value [raw]',
+          description: 'Description',
+          rightClickToCreateValueDescription: '右键此处新建 Value Description',
+          rightClickToCreateMultiRangeParam: '右键此处新建 Multi-Range 参数',
+          createAndMapSignal: '创建并映射信号',
+          startBit: '开始 bit',
+          endBit: '结束 bit',
+          enterNamePlaceholder: '请输入名称',
+          publisherSubscriberRelations: '发布者 / 订阅者关系',
+          ecus: 'ECUs',
+          subscribers: '订阅者',
+          noAvailableNodes: '无可选节点',
+          dragHereToSubscribe: '拖拽到此处订阅',
+          actions: {
+            rename: '重命名',
+            create: '创建',
+            delete: '删除'
+          },
+          hints: {
+            uncheckToSwitchEncoding: '提示：取消勾选复选框可选择其他编码方式。',
+            createOrSelectEncodingFirst: '请先在上方创建或选择编码方式；未选择时此区域不可编辑。'
+          },
+          messages: {
+            encodingDeleted: '已删除编码方式',
+            noEncodingToDelete: '当前无可删除项',
+            relationRoleLockedWarningFallback: '至少需要一个映射信号来定义用户节点后，才能编辑发布者/订阅者。',
+            ldfValidateFailed: 'LDF 校验失败',
+            signalOutOfFrameLength: '信号范围超出当前帧长度',
+            signalRangeOverlap: '信号范围与其它信号重叠',
+            ldfParseFailedApplyFrame: 'LDF 解析失败，无法应用帧编辑',
+            ldfParseFailedApplySchedule: 'LDF 解析失败，无法应用调度编辑',
+            scheduleEntryFormat: '调度项格式应为: FrameName delay 10 ms;',
+            frameCreatedUiOnly: '帧已创建（仅UI，暂未写入文本）'
+          },
+          contextMenu: {
+            newValueDescription: '新建 Value Description',
+            deleteValueDescription: '删除 Value Description',
+            newMultiRangeParam: '新建 Multi-Range 参数',
+            deleteMultiRangeParam: '删除 Multi-Range 参数'
+          }
         }
       },
       scheduleEditor: {

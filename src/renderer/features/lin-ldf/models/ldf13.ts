@@ -5,12 +5,24 @@ export interface Ldf13NodeConfig {
   slaves: string[];
 }
 
+export interface Ldf13NodeAttribute {
+  node: string;
+  configuredNad?: number;
+  supplierId?: number;
+  functionId?: number;
+  variant?: number;
+}
+
 export interface Ldf13Signal {
   name: string;
+  description?: string;
+  signalType?: 'Scalar' | 'ByteArray';
   size: number;
   initValue: number;
   publisher: string;
   subscribers: string[];
+  unit?: string;
+  encoding?: string;
 }
 
 export interface Ldf13FrameSignal {
@@ -26,13 +38,26 @@ export interface Ldf13Frame {
   signals: Ldf13FrameSignal[];
 }
 
+export interface Ldf13ScheduleEntry {
+  frame: string;
+  delayMs: number;
+}
+
+export interface Ldf13ScheduleTable {
+  name: string;
+  entries: Ldf13ScheduleEntry[];
+}
+
 export interface Ldf13Document {
   protocolVersion: '1.3';
   languageVersion: string;
   bitrate: number;
   nodes: Ldf13NodeConfig;
+  nodeAttributes: Ldf13NodeAttribute[];
   signals: Ldf13Signal[];
   frames: Ldf13Frame[];
+  scheduleTables: Ldf13ScheduleTable[];
+  unknownSectionsRaw?: string;
 }
 
 export const createDefaultLdf13Document = (): Ldf13Document => ({
@@ -45,13 +70,26 @@ export const createDefaultLdf13Document = (): Ldf13Document => ({
     jitterMs: 0.1,
     slaves: ['SlaveNode1']
   },
+  nodeAttributes: [
+    {
+      node: 'SlaveNode1',
+      configuredNad: 1,
+      supplierId: 0,
+      functionId: 0,
+      variant: 0
+    }
+  ],
   signals: [
     {
       name: 'DemoSignal',
+      description: '',
+      signalType: 'Scalar',
       size: 8,
       initValue: 0,
       publisher: 'MasterNode',
-      subscribers: ['SlaveNode1']
+      subscribers: ['SlaveNode1'],
+      unit: '',
+      encoding: ''
     }
   ],
   frames: [
@@ -62,5 +100,12 @@ export const createDefaultLdf13Document = (): Ldf13Document => ({
       length: 8,
       signals: [{ signal: 'DemoSignal', offset: 0 }]
     }
-  ]
+  ],
+  scheduleTables: [
+    {
+      name: 'DefaultSchedule',
+      entries: [{ frame: 'DemoFrame', delayMs: 10 }]
+    }
+  ],
+  unknownSectionsRaw: ''
 });

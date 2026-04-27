@@ -223,17 +223,15 @@
             <span>{{ t('layout.header.language') }}</span>
             <el-icon class="submenu-arrow"><ArrowRight /></el-icon>
             <div class="locale-submenu" v-if="localeSubmenuVisible">
-              <div class="custom-dropdown-item" :class="{ selected: state.locale === 'zh-CN' }" @click.stop="handleLocaleChange('zh-CN')">
-                <span class="locale-flag" aria-hidden="true">🇨🇳</span>
-                <span>简体中文</span>
-              </div>
-              <div class="custom-dropdown-item" :class="{ selected: state.locale === 'zh-TW' }" @click.stop="handleLocaleChange('zh-TW')">
-                <span class="locale-flag" aria-hidden="true">🇹🇼</span>
-                <span>繁體中文</span>
-              </div>
-              <div class="custom-dropdown-item" :class="{ selected: state.locale === 'en-US' }" @click.stop="handleLocaleChange('en-US')">
-                <span class="locale-flag" aria-hidden="true">🇺🇸</span>
-                <span>English</span>
+              <div
+                v-for="item in localeOptions"
+                :key="item.value"
+                class="custom-dropdown-item"
+                :class="{ selected: state.locale === item.value }"
+                @click.stop="handleLocaleChange(item.value)"
+              >
+                <span class="locale-flag" aria-hidden="true">{{ item.flag }}</span>
+                <span>{{ item.label }}</span>
               </div>
             </div>
           </div>
@@ -299,6 +297,15 @@ const openFolderShortcut = shortcutService.getBinding('openFolder');
 const saveFileShortcut = shortcutService.getBinding('saveFile');
 type LeftDropdownType = 'file' | 'edit' | 'tools' | 'window' | 'help';
 type RightDropdownType = 'settings' | 'account';
+type LocaleType = 'zh-CN' | 'zh-TW' | 'en-US' | 'ja-JP' | 'ko-KR';
+
+const localeOptions: Array<{ value: LocaleType; flag: string; label: string }> = [
+  { value: 'zh-CN', flag: '🇨🇳', label: '简体中文' },
+  { value: 'zh-TW', flag: '🇹🇼', label: '繁體中文' },
+  { value: 'en-US', flag: '🇺🇸', label: 'English' },
+  { value: 'ja-JP', flag: '🇯🇵', label: '日本語' },
+  { value: 'ko-KR', flag: '🇰🇷', label: '한국어' }
+];
 
 const hasAnyLeftDropdownOpen = computed(
   () => dropdownVisible.value || editDropdownVisible.value || toolsDropdownVisible.value || windowDropdownVisible.value || helpDropdownVisible.value
@@ -571,7 +578,7 @@ const openLocaleSubmenu = () => {
   scheduleAutoClose();
 };
 
-const handleLocaleChange = (locale: 'zh-CN' | 'zh-TW' | 'en-US') => {
+const handleLocaleChange = (locale: LocaleType) => {
   void uiActions.setLocale(locale);
   localeSubmenuVisible.value = false;
   themeSubmenuVisible.value = false;

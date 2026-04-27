@@ -1,11 +1,11 @@
 import { electronBridge } from './electronBridge';
 import { useUiState } from '../state/uiState';
 import { i18n } from '../shared/i18n';
-import { normalizeLdf13 } from '../features/lin-ldf/services/ldf13Codec';
+import { deserializeLdf13, normalizeLdf13, validateLdf13Document } from '../features/lin-ldf/services/ldf13Codec';
 
 type UiPreferences = {
   theme: 'dark' | 'light';
-  locale: 'zh-CN' | 'zh-TW' | 'en-US';
+  locale: 'zh-CN' | 'zh-TW' | 'en-US' | 'ja-JP' | 'ko-KR';
 };
 
 const SETTINGS_KEY = 'uiPreferences';
@@ -125,6 +125,12 @@ export const uiActions = {
     let serializedContent = rawContent;
     if (activeTab.id.startsWith('lin-ldf-editor')) {
       try {
+        const doc = deserializeLdf13(rawContent);
+        const issues = validateLdf13Document(doc);
+        const errors = issues.filter((item) => item.level === 'error');
+        if (errors.length > 0) {
+          return { success: false as const, reason: 'validation-failed' as const, details: errors.map((x) => x.message) };
+        }
         serializedContent = normalizeLdf13(rawContent);
       } catch {
         // 序列化失败时回退保存原始文本，避免用户内容无法落盘
@@ -170,7 +176,13 @@ export const uiActions = {
     const settings = await electronBridge.readSettings<Record<string, unknown>>();
     const saved = (settings?.[SETTINGS_KEY] as Partial<UiPreferences> | undefined) ?? {};
     const theme = saved.theme === 'dark' || saved.theme === 'light' ? saved.theme : state.theme;
-    const locale = saved.locale === 'en-US' || saved.locale === 'zh-CN' || saved.locale === 'zh-TW' ? saved.locale : state.locale;
+    const locale = saved.locale === 'en-US'
+      || saved.locale === 'zh-CN'
+      || saved.locale === 'zh-TW'
+      || saved.locale === 'ja-JP'
+      || saved.locale === 'ko-KR'
+      ? saved.locale
+      : state.locale;
     setTheme(theme);
     setLocale(locale);
     applyTheme(theme);

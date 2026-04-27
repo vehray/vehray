@@ -1,6 +1,6 @@
 <template>
-  <div class="main-tab-panel">
-    <div class="main-tab-bar">
+  <div class="main-tab-panel" ref="mainTabPanelRootRef" tabindex="0" @mousedown="focusMainTabPanelRoot">
+    <div ref="mainTabBarRef" class="main-tab-bar">
       <div
         class="main-tab-item"
         :class="{
@@ -9,7 +9,7 @@
           'drag-over-before': dragOverTabId === tab.id && dragInsertPosition === 'before',
           'drag-over-after': dragOverTabId === tab.id && dragInsertPosition === 'after'
         }"
-        v-for="tab in tabs"
+        v-for="tab in visibleTabs"
         :key="tab.id"
         @click="switchTab(tab.id)"
         draggable="true"
@@ -29,6 +29,34 @@
             <el-icon><Close /></el-icon>
           </button>
         </span>
+      </div>
+      <div v-if="collapsedTabs.length > 0" class="main-tab-overflow-wrap" :class="{ open: overflowMenuVisible }">
+        <button
+          class="main-tab-overflow-btn"
+          type="button"
+          :title="overflowButtonLabel"
+          @click.stop="toggleOverflowMenu"
+        >
+          <span class="main-tab-overflow-btn-text">{{ overflowButtonLabel }}</span>
+          <span class="main-tab-overflow-btn-caret">▼</span>
+        </button>
+        <div
+          v-if="overflowMenuVisible"
+          class="main-tab-overflow-menu"
+          @click.stop
+        >
+          <button
+            v-for="tab in tabs"
+            :key="`overflow-${tab.id}`"
+            class="main-tab-overflow-item"
+            :class="{ active: activeTabId === tab.id }"
+            type="button"
+            @click="switchToCollapsedTab(tab.id)"
+          >
+            <el-icon class="main-tab-overflow-item-icon"><Document /></el-icon>
+            <span class="main-tab-overflow-item-title">{{ tab.id === 'home' ? t('tabs.homeTab') : tab.title }}</span>
+          </button>
+        </div>
       </div>
     </div>
     <div class="main-tab-content">
@@ -59,11 +87,13 @@
           </div>
         </div>
       </div>
-      <LdfEditorView
-        v-else-if="isActiveLdfTab"
-        :model-value="activeLdfText"
-        @update:model-value="handleLdfTextChange"
-      />
+      <KeepAlive v-else-if="isActiveLdfTab">
+        <LdfEditorView
+          :key="activeTabId"
+          :model-value="activeLdfText"
+          @update:model-value="handleLdfTextChange"
+        />
+      </KeepAlive>
       <div v-else-if="tabs.length > 0" class="tab-content-placeholder">
         {{ t('tabs.tabContentPlaceholder', { title: getActiveTab()?.title ?? '' }) }}
       </div>
@@ -75,10 +105,10 @@
       :style="{ left: `${tabContextMenu.x}px`, top: `${tabContextMenu.y}px` }"
       @click.stop
     >
-      <button class="tab-context-item" @click="handleSaveFromContextMenu">保存</button>
+      <button class="tab-context-item" @click="handleSaveFromContextMenu">{{ t('tabs.tabActions.save') }}</button>
       <button class="tab-context-item" @click="handleCloseFromContextMenu">{{ t('common.close') }}</button>
-      <button class="tab-context-item" @click="handleCloseOthersFromContextMenu">关闭其他</button>
-      <button class="tab-context-item" @click="handleCloseAllFromContextMenu">关闭全部</button>
+      <button class="tab-context-item" @click="handleCloseOthersFromContextMenu">{{ t('tabs.tabActions.closeOthers') }}</button>
+      <button class="tab-context-item" @click="handleCloseAllFromContextMenu">{{ t('tabs.tabActions.closeAll') }}</button>
       <div v-if="contextMenuFilePath" class="tab-context-divider"></div>
       <button v-if="contextMenuFilePath" class="tab-context-item" @click="handleRevealTabInFolder">
         {{ t('layout.explorer.openContainingFolder') }}
@@ -90,17 +120,17 @@
       :style="{ left: `${closeConfirmPopup.x}px`, top: `${closeConfirmPopup.y}px` }"
       @click.stop
     >
-      <div class="tab-close-confirm-title">该文件尚未保存</div>
+      <div class="tab-close-confirm-title">{{ t('tabs.tabActions.unsavedFile') }}</div>
       <div class="tab-close-confirm-actions">
-        <button class="tab-close-confirm-btn danger" @click="confirmCloseDirtyTab">确认关闭</button>
-        <button class="tab-close-confirm-btn" @click="cancelCloseDirtyTab">取消</button>
+        <button class="tab-close-confirm-btn danger" @click="confirmCloseDirtyTab">{{ t('tabs.tabActions.confirmClose') }}</button>
+        <button class="tab-close-confirm-btn" @click="cancelCloseDirtyTab">{{ t('common.cancel') }}</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { Close, Document } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { uiActions } from '../../services/uiActions';
@@ -118,6 +148,8 @@ const isLdfTabId = (tabId: string) => tabId.startsWith('lin-ldf-editor') || tabI
 const isActiveLdfTab = computed(() => isLdfTabId(activeTabId.value));
 const activeLdfTab = computed(() => tabs.value.find((item) => item.id === activeTabId.value) ?? null);
 const activeLdfText = computed(() => (isActiveLdfTab.value ? activeLdfTab.value?.content || '' : ''));
+const mainTabPanelRootRef = ref<HTMLElement | null>(null);
+const mainTabBarRef = ref<HTMLElement | null>(null);
 const draggingTabId = ref<string | null>(null);
 const dragOverTabId = ref<string | null>(null);
 const dragInsertPosition = ref<'before' | 'after'>('before');
@@ -134,6 +166,69 @@ const closeConfirmPopup = reactive({
   x: 0,
   y: 0,
   tabId: ''
+});
+const overflowMenuVisible = ref(false);
+const tabBarWidth = ref(0);
+let tabBarResizeObserver: ResizeObserver | null = null;
+const OVERFLOW_BUTTON_WIDTH = 112;
+const TAB_BAR_SIDE_PADDING = 20;
+const TAB_ITEM_GAP = 2;
+
+const visibleTabs = computed(() => {
+  const source = tabs.value;
+  const barWidth = tabBarWidth.value;
+  if (source.length <= 0 || barWidth <= 0) return source;
+
+  const estimateTabWidth = (tab: (typeof source)[number]) => {
+    const title = tab.id === 'home' ? t('tabs.homeTab') : tab.title;
+    const textLen = Math.max(6, title.length);
+    // 图标/留白/关闭按钮等固定占用 + 文本估算
+    return Math.min(220, Math.max(96, 62 + textLen * 7));
+  };
+
+  const activeIndex = source.findIndex((tab) => tab.id === activeTabId.value);
+  const budgetBase = Math.max(120, barWidth - TAB_BAR_SIDE_PADDING);
+  const needOverflow = source.length > 1;
+  const budget = Math.max(96, budgetBase - (needOverflow ? OVERFLOW_BUTTON_WIDTH : 0));
+
+  let used = 0;
+  const picked: typeof source = [];
+  for (let i = 0; i < source.length; i += 1) {
+    const tab = source[i];
+    if (!tab) continue;
+    const w = estimateTabWidth(tab) + (picked.length > 0 ? TAB_ITEM_GAP : 0);
+    if (picked.length > 0 && used + w > budget) break;
+    picked.push(tab);
+    used += w;
+  }
+  if (picked.length >= source.length) return source;
+
+  if (activeIndex >= 0 && !picked.some((tab) => tab.id === source[activeIndex]?.id)) {
+    const forced = source[activeIndex];
+    if (forced) {
+      const next = [...picked];
+      while (next.length > 0 && used + estimateTabWidth(forced) > budget) {
+        const removed = next.pop();
+        if (!removed) break;
+        used -= estimateTabWidth(removed) + (next.length > 0 ? TAB_ITEM_GAP : 0);
+      }
+      if (next.length === 0) return [forced];
+      next.push(forced);
+      return next;
+    }
+  }
+  return picked;
+});
+
+const collapsedTabs = computed(() => {
+  const visibleIds = new Set(visibleTabs.value.map((tab) => tab.id));
+  return tabs.value.filter((tab) => !visibleIds.has(tab.id));
+});
+const overflowButtonLabel = computed(() => {
+  const total = tabs.value.length;
+  const current = tabs.value.find((tab) => tab.id === activeTabId.value);
+  const title = current ? (current.id === 'home' ? t('tabs.homeTab') : current.title) : t('tabs.homeTab');
+  return `(${total}) ${title}`;
 });
 
 const switchTab = (id: string) => switchToTab(id);
@@ -187,12 +282,64 @@ const contextMenuFilePath = computed(() => {
   }
 });
 
+const focusMainTabPanelRoot = () => {
+  mainTabPanelRootRef.value?.focus({ preventScroll: true });
+};
+
+const recalcVisibleTabCount = () => {
+  const bar = mainTabBarRef.value;
+  if (!bar) return;
+  tabBarWidth.value = Math.max(0, bar.clientWidth);
+};
+
+const isMainTabPanelFocused = (eventTarget: EventTarget | null) => {
+  const root = mainTabPanelRootRef.value;
+  if (!root) return false;
+  const active = document.activeElement;
+  if (active && root.contains(active)) return true;
+  return eventTarget instanceof Node ? root.contains(eventTarget) : false;
+};
+
+const handleCtrlTabSwitch = (event: KeyboardEvent) => {
+  if (event.defaultPrevented) return;
+  if (!event.ctrlKey || event.key !== 'Tab') return;
+  if (!isMainTabPanelFocused(event.target)) return;
+  if (tabs.value.length <= 0) return;
+  event.preventDefault();
+  const currentIndex = tabs.value.findIndex((tab) => tab.id === activeTabId.value);
+  const normalizedIndex = currentIndex >= 0 ? currentIndex : 0;
+  const delta = event.shiftKey ? -1 : 1;
+  const total = tabs.value.length;
+  const nextIndex = (normalizedIndex + delta + total) % total;
+  const nextTab = tabs.value[nextIndex];
+  if (!nextTab) return;
+  switchToTab(nextTab.id);
+};
+
+const toggleOverflowMenu = () => {
+  overflowMenuVisible.value = !overflowMenuVisible.value;
+};
+
+const switchToCollapsedTab = (tabId: string) => {
+  switchToTab(tabId);
+  overflowMenuVisible.value = false;
+};
+
 onMounted(() => loadHomeTab());
 onMounted(() => {
+  recalcVisibleTabCount();
+  if (mainTabBarRef.value) {
+    tabBarResizeObserver = new ResizeObserver(() => recalcVisibleTabCount());
+    tabBarResizeObserver.observe(mainTabBarRef.value);
+  }
   document.addEventListener('click', handleGlobalClick);
+  document.addEventListener('keydown', handleCtrlTabSwitch);
 });
 onUnmounted(() => {
+  tabBarResizeObserver?.disconnect();
+  tabBarResizeObserver = null;
   document.removeEventListener('click', handleGlobalClick);
+  document.removeEventListener('keydown', handleCtrlTabSwitch);
 });
 
 const handleOpenFolder = async () => {
@@ -240,6 +387,7 @@ const confirmCloseDirtyTab = () => {
 const handleGlobalClick = () => {
   closeTabContextMenu();
   cancelCloseDirtyTab();
+  overflowMenuVisible.value = false;
 };
 
 const requestCloseTab = (tabId: string, event?: MouseEvent) => {
@@ -310,6 +458,16 @@ const handleLdfTextChange = (value: string) => {
   });
 };
 
+watch(
+  () => tabs.value.length,
+  () => {
+    recalcVisibleTabCount();
+    if (collapsedTabs.value.length <= 0) {
+      overflowMenuVisible.value = false;
+    }
+  }
+);
+
 defineExpose({ loadHomeTab });
 </script>
 
@@ -332,6 +490,9 @@ defineExpose({ loadHomeTab });
   gap: 2px;
   padding: 0 8px;
   height: 34px;
+  position: relative;
+  overflow: visible;
+  z-index: 40;
 }
 .main-tab-item {
   display: inline-flex;
@@ -348,6 +509,7 @@ defineExpose({ loadHomeTab });
   font-size: 12px;
   font-weight: 500;
   position: relative;
+  flex: 0 0 auto;
 }
 .main-tab-item::before,
 .main-tab-item::after {
@@ -435,6 +597,115 @@ defineExpose({ loadHomeTab });
   overflow: hidden;
   position: relative;
   background-color: var(--app-bg);
+}
+.main-tab-overflow-wrap {
+  margin-left: auto;
+  margin-right: 8px;
+  position: relative;
+  flex: 0 0 auto;
+}
+.main-tab-overflow-btn {
+  height: 24px;
+  min-width: 160px;
+  max-width: 260px;
+  padding: 0 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--app-bg-elevated) 84%, #ffffff 16%);
+  color: var(--app-text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.main-tab-overflow-btn:hover {
+  background: color-mix(in srgb, var(--app-bg-hover) 86%, #ffffff 14%);
+  color: var(--app-text-primary);
+}
+.main-tab-overflow-btn-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.main-tab-overflow-btn-caret {
+  font-size: 10px;
+  opacity: 0.85;
+  transition: transform 0.16s ease;
+}
+.main-tab-overflow-wrap.open .main-tab-overflow-btn-caret {
+  transform: rotate(180deg);
+}
+.main-tab-overflow-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 9999;
+  min-width: 230px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background-color: var(--app-bg-elevated);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px color-mix(in srgb, var(--app-border) 55%, transparent);
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-scrollbar-thumb) var(--app-scrollbar-track);
+}
+.main-tab-overflow-menu::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.main-tab-overflow-menu::-webkit-scrollbar-track {
+  background-color: var(--app-scrollbar-track);
+}
+.main-tab-overflow-menu::-webkit-scrollbar-thumb {
+  background-color: var(--app-scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--app-scrollbar-track);
+}
+.main-tab-overflow-menu::-webkit-scrollbar-thumb:hover {
+  background-color: var(--app-scrollbar-thumb-hover);
+}
+.main-tab-overflow-menu::-webkit-scrollbar-thumb:active {
+  background-color: var(--app-scrollbar-thumb-active);
+}
+.main-tab-overflow-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--app-text-regular);
+  text-align: left;
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.main-tab-overflow-item-icon {
+  color: var(--app-text-muted);
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+.main-tab-overflow-item-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.main-tab-overflow-item:hover {
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
+}
+.main-tab-overflow-item.active {
+  background-color: color-mix(in srgb, var(--app-accent) 18%, transparent);
+  color: var(--app-text-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-accent) 35%, transparent);
 }
 .home-view { width: 100%; height: 100%; padding: 24px; overflow-y: auto; }
 .home-layout { display: flex; gap: 24px; margin-top: 20px; }

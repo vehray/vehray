@@ -1,34 +1,37 @@
 <template>
-  <div class="tab-panel">
+  <div class="tab-panel" ref="tabPanelRootRef" tabindex="0" @mousedown="focusTabPanelRoot">
     <div class="tab-bar">
       <div class="tab-item" :class="{ active: activeTabId === tab.id }" v-for="tab in tabs" :key="tab.id" @click="switchTab(tab.id)">
-        <span class="tab-title">{{ tab.title }}</span>
+        <span class="tab-title">{{ t(tab.titleKey, { index: tab.id }) }}</span>
         <button class="tab-close" @click.stop="closeTab(tab.id)">
           <el-icon><Close /></el-icon>
         </button>
       </div>
     </div>
     <div class="tab-content">
-      <div class="tab-content-placeholder">标签内容区域</div>
+      <div class="tab-content-placeholder">{{ t('tabs.bottomPanel.placeholder') }}</div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { Close } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
 
 interface Tab {
   id: string;
-  title: string;
+  titleKey: string;
   content: string;
 }
 
+const { t } = useI18n();
 const tabs = ref<Tab[]>([
-  { id: '1', title: '文件1', content: '内容1' },
-  { id: '2', title: '文件2', content: '内容2' }
+  { id: '1', titleKey: 'tabs.bottomPanel.fileTab', content: 'content1' },
+  { id: '2', titleKey: 'tabs.bottomPanel.fileTab', content: 'content2' }
 ]);
 const activeTabId = ref('1');
+const tabPanelRootRef = ref<HTMLElement | null>(null);
 
 const switchTab = (id: string) => {
   activeTabId.value = id;
@@ -46,6 +49,42 @@ const closeTab = (id: string) => {
     activeTabId.value = fallback.id;
   }
 };
+
+const focusTabPanelRoot = () => {
+  tabPanelRootRef.value?.focus({ preventScroll: true });
+};
+
+const isTabPanelFocused = (eventTarget: EventTarget | null) => {
+  const root = tabPanelRootRef.value;
+  if (!root) return false;
+  const active = document.activeElement;
+  if (active && root.contains(active)) return true;
+  return eventTarget instanceof Node ? root.contains(eventTarget) : false;
+};
+
+const handleCtrlTabSwitch = (event: KeyboardEvent) => {
+  if (event.defaultPrevented) return;
+  if (!event.ctrlKey || event.key !== 'Tab') return;
+  if (!isTabPanelFocused(event.target)) return;
+  if (tabs.value.length <= 0) return;
+  event.preventDefault();
+  const currentIndex = tabs.value.findIndex((tab) => tab.id === activeTabId.value);
+  const normalizedIndex = currentIndex >= 0 ? currentIndex : 0;
+  const delta = event.shiftKey ? -1 : 1;
+  const total = tabs.value.length;
+  const nextIndex = (normalizedIndex + delta + total) % total;
+  const nextTab = tabs.value[nextIndex];
+  if (!nextTab) return;
+  activeTabId.value = nextTab.id;
+};
+
+onMounted(() => {
+  document.addEventListener('keydown', handleCtrlTabSwitch);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleCtrlTabSwitch);
+});
 </script>
 
 <style scoped>
