@@ -1,5 +1,7 @@
 import { reactive, readonly } from 'vue';
 export type IconSizeLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+export type FloatingAutoCloseSeconds = 10 | 30 | 60;
+export type FloatingCloseAnimationSpeed = 'fast' | 'normal' | 'slow';
 
 export interface FileTreeNode {
   name: string;
@@ -63,6 +65,9 @@ interface UiState {
   accentColor: 'default' | 'blue' | 'green' | 'purple' | 'orange';
   iconSize: IconSizeLevel;
   windowMode: 'normal' | 'single-tab';
+  autoCloseFloatingOnIdle: boolean;
+  floatingAutoCloseSeconds: FloatingAutoCloseSeconds;
+  floatingCloseAnimationSpeed: FloatingCloseAnimationSpeed;
 }
 
 const state = reactive<UiState>({
@@ -80,7 +85,10 @@ const state = reactive<UiState>({
   showHomeOnLaunch: true,
   accentColor: 'default',
   iconSize: 4,
-  windowMode: 'normal'
+  windowMode: 'normal',
+  autoCloseFloatingOnIdle: false,
+  floatingAutoCloseSeconds: 30,
+  floatingCloseAnimationSpeed: 'normal'
 });
 
 const resetState = () => {
@@ -99,6 +107,9 @@ const resetState = () => {
   state.accentColor = 'default';
   state.iconSize = 4;
   state.windowMode = 'normal';
+  state.autoCloseFloatingOnIdle = false;
+  state.floatingAutoCloseSeconds = 30;
+  state.floatingCloseAnimationSpeed = 'normal';
 };
 
 export function useUiState() {
@@ -163,6 +174,18 @@ export function useUiState() {
 
   const setWindowMode = (mode: UiState['windowMode']) => {
     state.windowMode = mode;
+  };
+
+  const setAutoCloseFloatingOnIdle = (enabled: boolean) => {
+    state.autoCloseFloatingOnIdle = enabled;
+  };
+
+  const setFloatingAutoCloseSeconds = (seconds: UiState['floatingAutoCloseSeconds']) => {
+    state.floatingAutoCloseSeconds = seconds;
+  };
+
+  const setFloatingCloseAnimationSpeed = (speed: UiState['floatingCloseAnimationSpeed']) => {
+    state.floatingCloseAnimationSpeed = speed;
   };
 
   const ensureHomeTab = () => {
@@ -248,6 +271,9 @@ export function useUiState() {
     setAccentColor,
     setIconSize,
     setWindowMode,
+    setAutoCloseFloatingOnIdle,
+    setFloatingAutoCloseSeconds,
+    setFloatingCloseAnimationSpeed,
     ensureHomeTab,
     upsertTab,
     switchToTab,

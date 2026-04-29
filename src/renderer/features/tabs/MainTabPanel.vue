@@ -99,7 +99,7 @@
           v-if="isSingleTabWindow"
           class="single-explorer-title"
           @mousedown="handleSingleExplorerTitleMouseDown"
-          @contextmenu.prevent.stop
+          @contextmenu.prevent.stop="handleSingleExplorerTitleContextMenu"
         >
           {{ t('layout.explorer.title') }}
         </div>
@@ -374,6 +374,10 @@ const switchToCollapsedTab = (tabId: string) => {
 };
 
 onMounted(() => {
+  if (state.windowMode === 'single-tab') {
+    closeStateTab('home');
+    return;
+  }
   if (state.showHomeOnLaunch) {
     loadHomeTab();
     return;
@@ -546,6 +550,11 @@ const handleSingleExplorerTitleMouseUp = () => {
   singleExplorerDragState = null;
   document.removeEventListener('mousemove', handleSingleExplorerTitleMouseMove);
   document.removeEventListener('mouseup', handleSingleExplorerTitleMouseUp);
+};
+
+const handleSingleExplorerTitleContextMenu = async () => {
+  if (!isSingleTabWindow.value) return;
+  await window.electron?.ipcRenderer?.invoke?.('window:show-detached-explorer-context-menu');
 };
 
 watch(

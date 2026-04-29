@@ -42,7 +42,12 @@
       <div
         v-if="!isSingleTabWindow && showLeftActivity && leftActivityPinned"
         class="left-floating-panel"
-        :style="{ width: `${leftFloatWidth}px` }"
+        :class="{ closing: floatingClosing }"
+        :style="{ width: `${leftFloatWidth}px`, '--floating-close-ms': `${floatingCloseAnimationMs}ms` }"
+        @mousedown="refreshFloatingAutoClose"
+        @mousemove="refreshFloatingAutoClose"
+        @wheel.passive="refreshFloatingAutoClose"
+        @mouseenter="refreshFloatingAutoClose"
       >
         <div
           class="activity-header floating-header"
@@ -70,7 +75,7 @@
         @click.stop
       >
         <button class="activity-context-item" @click="handleToggleLeftFloatingFromMenu">
-          {{ leftActivityPinned ? '还原停靠' : '浮动覆盖主区域' }}
+          {{ leftActivityPinned ? '还原停靠' : '浮动' }}
         </button>
         <button class="activity-context-item" @click="handleOpenLeftPanelInNewWindow">在新窗口打开</button>
         <button class="activity-context-item" @click="handleCloseLeftPanelFromMenu">关闭活动栏</button>
@@ -147,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Operation, Close, Folder, Document } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import Sidebar from './Sidebar.vue';
@@ -170,6 +175,8 @@ const leftActivityPinned = ref(false);
 const leftFloatWidth = ref(320);
 let leftFloatResizeState: { startX: number; startWidth: number } | null = null;
 const explorerHeaderDragStartPoint = ref<{ x: number; y: number } | null>(null);
+let floatingAutoCloseTimer: ReturnType<typeof setTimeout> | null = null;
+const floatingClosing = ref(false);
 const leftActivityMenuVisible = ref(false);
 const leftActivityMenuX = ref(0);
 const leftActivityMenuY = ref(0);
@@ -209,6 +216,11 @@ const handleSidebarClick = (view: string) => {
       void handleFocusDetachedExplorer();
       return;
     }
+    if (!showLeftActivity.value) {
+      // 重新打开时保留上次的浮动/停靠状态
+      showLeftActivity.value = true;
+      return;
+    }
     toggleLeftActivity();
   }
 };
@@ -220,12 +232,49 @@ const toggleLeftPinned = () => {
     return;
   }
   leftActivityWidth.value = Math.max(220, Math.min(560, leftFloatWidth.value));
+  clearFloatingAutoCloseTimer();
 };
 
 const closeLeftActivityPanel = () => {
-  leftActivityPinned.value = false;
+  if (leftActivityPinned.value && showLeftActivity.value && !floatingClosing.value) {
+    floatingClosing.value = true;
+    const duration = floatingCloseAnimationMs.value;
+    setTimeout(() => {
+      floatingClosing.value = false;
+      leftActivityMenuVisible.value = false;
+      closeLeftActivity();
+    }, duration);
+    return;
+  }
   leftActivityMenuVisible.value = false;
   closeLeftActivity();
+};
+
+const floatingCloseAnimationMs = computed(() => {
+  if (state.floatingCloseAnimationSpeed === 'fast') return 140;
+  if (state.floatingCloseAnimationSpeed === 'slow') return 340;
+  return 220;
+});
+
+const clearFloatingAutoCloseTimer = () => {
+  if (!floatingAutoCloseTimer) return;
+  clearTimeout(floatingAutoCloseTimer);
+  floatingAutoCloseTimer = null;
+};
+
+const refreshFloatingAutoClose = () => {
+  clearFloatingAutoCloseTimer();
+};
+
+const handleDocumentPointerDownForFloatingAutoClose = (event: MouseEvent) => {
+  if (!state.autoCloseFloatingOnIdle) return;
+  if (!leftActivityPinned.value || !showLeftActivity.value || floatingClosing.value) return;
+  if (leftFloatResizeState) return;
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+  // 点击浮动面板内部不关闭；点击其他区域立即关闭
+  if (target.closest('.left-floating-panel')) return;
+  closeLeftActivityPanel();
 };
 
 const stopLeftFloatResize = () => {
@@ -326,8 +375,13 @@ const closeLeftActivityContextMenu = () => {
 const handleRightActivityToggleFloat = () => {};
 
 const handleToggleExplorerShortcut = () => {
+  if (explorerDetachedVisible.value) {
+    void handleFocusDetachedExplorer();
+    return;
+  }
   if (!showLeftActivity.value) {
-    leftActivityPinned.value = false;
+    showLeftActivity.value = true;
+    return;
   }
   toggleLeftActivity();
 };
@@ -386,10 +440,13 @@ onMounted(() => {
   explorerDetachedStateListener = window.electron?.ipcRenderer?.on?.('layout:explorer-detached-state', (_event, visible: boolean) => {
     explorerDetachedVisible.value = Boolean(visible);
   }) ?? null;
+  clearFloatingAutoCloseTimer();
   document.addEventListener('click', closeLeftActivityContextMenu);
+  document.addEventListener('mousedown', handleDocumentPointerDownForFloatingAutoClose);
 });
 
 onUnmounted(() => {
+  clearFloatingAutoCloseTimer();
   stopLeftFloatResize();
   disposeToggleExplorerShortcut?.();
   disposeTogglePropertiesShortcut?.();
@@ -416,7 +473,17 @@ onUnmounted(() => {
     explorerDetachedStateListener = null;
   }
   document.removeEventListener('click', closeLeftActivityContextMenu);
+  document.removeEventListener('mousedown', handleDocumentPointerDownForFloatingAutoClose);
 });
+
+watch(
+  () => [state.autoCloseFloatingOnIdle, state.floatingCloseAnimationSpeed, leftActivityPinned.value, showLeftActivity.value] as const,
+  () => {
+    if (!state.autoCloseFloatingOnIdle || !leftActivityPinned.value || !showLeftActivity.value) {
+      clearFloatingAutoCloseTimer();
+    }
+  }
+);
 </script>
 
 <style scoped>
@@ -435,6 +502,12 @@ onUnmounted(() => {
   background-color: var(--app-bg);
   overflow: hidden;
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+  transition: opacity var(--floating-close-ms, 220ms) ease, transform var(--floating-close-ms, 220ms) ease;
+}
+.left-floating-panel.closing {
+  opacity: 0;
+  transform: translateX(-12px) scale(0.985);
+  pointer-events: none;
 }
 .activity-header {
   display: flex;

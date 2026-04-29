@@ -3035,6 +3035,33 @@ ipcMain.handle("window:focus-detached-explorer", (event) => {
   }
   return { success: false };
 });
+ipcMain.handle("window:show-detached-explorer-context-menu", (event) => {
+  const childWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!childWindow || childWindow.isDestroyed()) return { success: false };
+  const track = detachedExplorerWindows.get(childWindow.id);
+  if (!track) return { success: false };
+  const parent = BrowserWindow.fromId(track.sourceWindowId);
+  if (!parent || parent.isDestroyed()) return { success: false };
+  const menu = Menu.buildFromTemplate([
+    {
+      label: "回到主窗口",
+      click: () => {
+        parent.webContents.send("layout:explorer-dock-preview", false);
+        parent.webContents.send("layout:restore-explorer");
+        parent.webContents.send("layout:explorer-detached-state", false);
+        if (track.dockCommitTimer) {
+          clearTimeout(track.dockCommitTimer);
+        }
+        detachedExplorerWindows.delete(childWindow.id);
+        if (!childWindow.isDestroyed()) {
+          childWindow.close();
+        }
+      }
+    }
+  ]);
+  menu.popup({ window: childWindow });
+  return { success: true };
+});
 ipcMain.handle("window:get-init-tab", (event) => {
   const senderId = event.sender.id;
   const initContext = pendingWindowInitContexts.get(senderId) ?? null;
@@ -3103,6 +3130,17 @@ app.on("ready", async () => {
       if (settingsWindow && !settingsWindow.isDestroyed()) {
         settingsWindow.close();
         settingsWindow = null;
+      }
+      for (const [childId, track] of detachedExplorerWindows.entries()) {
+        if (track.sourceWindowId !== mainWindow?.id) continue;
+        if (track.dockCommitTimer) {
+          clearTimeout(track.dockCommitTimer);
+        }
+        const childWindow = BrowserWindow.fromId(childId);
+        if (childWindow && !childWindow.isDestroyed()) {
+          childWindow.close();
+        }
+        detachedExplorerWindows.delete(childId);
       }
     });
   }

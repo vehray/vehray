@@ -124,10 +124,22 @@
 
       <template v-else-if="activeNode === 'interaction'">
         <h2>交互</h2>
-        <p class="settings-desc">编辑交互行为（当前先做 UI）。</p>
+        <p class="settings-desc">编辑交互行为。</p>
         <div class="settings-group">
           <label class="setting-row switch-row"><span>关闭标签前确认</span><input type="checkbox" checked disabled /></label>
           <label class="setting-row"><span>拖拽行为（标签/面板）</span><select disabled><option>允许</option></select></label>
+          <label class="setting-row switch-row">
+            <span>主页面“浮动覆盖主区域”自动关闭（立即）</span>
+            <el-switch :model-value="state.autoCloseFloatingOnIdle" @change="handleAutoCloseFloatingOnIdleChange" />
+          </label>
+          <label class="setting-row">
+            <span>关闭动画速度</span>
+            <select :value="state.floatingCloseAnimationSpeed" @change="handleFloatingCloseAnimationSpeedChange">
+              <option value="fast">快</option>
+              <option value="normal">标准</option>
+              <option value="slow">慢</option>
+            </select>
+          </label>
           <label class="setting-row"><span>双击打开/单击预览（如果后续有）</span><select disabled><option>双击打开</option></select></label>
           <label class="setting-row switch-row"><span>快捷键提示显示</span><input type="checkbox" checked disabled /></label>
         </div>
@@ -176,6 +188,15 @@ const handleThemeChange = (event: Event) => {
 const handleLocaleChange = (event: Event) => {
   const locale = (event.target as HTMLSelectElement).value as LocaleType;
   void uiActions.setLocale(locale);
+};
+const handleAutoCloseFloatingOnIdleChange = (checked: boolean | string | number) => {
+  void uiActions.setAutoCloseFloatingOnIdle(Boolean(checked));
+};
+const handleFloatingCloseAnimationSpeedChange = (event: Event) => {
+  const value = (event.target as HTMLSelectElement).value;
+  if (value === 'fast' || value === 'normal' || value === 'slow') {
+    void uiActions.setFloatingCloseAnimationSpeed(value);
+  }
 };
 const normalizeScaleValue = (value: number) => Math.min(10, Math.max(1, Math.round(value))) as IconLevel;
 

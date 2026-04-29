@@ -38,17 +38,7 @@ const applyInitTab = (payload: any) => {
   switchToTab(payload.id);
 };
 
-onMounted(() => {
-  void shortcutService.initialize();
-  disposeOpenFileShortcut = shortcutService.onAction('openFile', () => {
-    void uiActions.openFileToHistory();
-  });
-  disposeOpenFolderShortcut = shortcutService.onAction('openFolder', () => {
-    void uiActions.openFolder();
-  });
-  disposeSaveFileShortcut = shortcutService.onAction('saveFile', () => {
-    void uiActions.saveActiveTab();
-  });
+const bootstrapWindowContext = async () => {
   void window.electron?.ipcRenderer?.invoke?.('window:get-init-context').then((context: any) => {
     const isSingleTab = context?.windowMode === 'single-tab';
     if (isSingleTab) {
@@ -65,6 +55,23 @@ onMounted(() => {
       return;
     }
     applyInitTab(initialTab);
+  });
+};
+
+if (typeof window !== 'undefined') {
+  void bootstrapWindowContext();
+}
+
+onMounted(() => {
+  void shortcutService.initialize();
+  disposeOpenFileShortcut = shortcutService.onAction('openFile', () => {
+    void uiActions.openFileToHistory();
+  });
+  disposeOpenFolderShortcut = shortcutService.onAction('openFolder', () => {
+    void uiActions.openFolder();
+  });
+  disposeSaveFileShortcut = shortcutService.onAction('saveFile', () => {
+    void uiActions.saveActiveTab();
   });
 });
 

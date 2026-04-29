@@ -1,6 +1,6 @@
 import { electronBridge } from './electronBridge';
 import { useUiState } from '../state/uiState';
-import type { IconSizeLevel } from '../state/uiState';
+import type { FloatingAutoCloseSeconds, FloatingCloseAnimationSpeed, IconSizeLevel } from '../state/uiState';
 import { i18n } from '../shared/i18n';
 import { createDefaultLdf13Text, deserializeLdf13, normalizeLdf13, validateLdf13Document } from '../features/lin-ldf/services/ldf13Codec';
 
@@ -10,6 +10,9 @@ type UiPreferences = {
   showHomeOnLaunch: boolean;
   accentColor: 'default' | 'blue' | 'green' | 'purple' | 'orange';
   iconSize: IconSizeLevel;
+  autoCloseFloatingOnIdle: boolean;
+  floatingAutoCloseSeconds: FloatingAutoCloseSeconds;
+  floatingCloseAnimationSpeed: FloatingCloseAnimationSpeed;
 };
 
 const SETTINGS_KEY = 'uiPreferences';
@@ -247,7 +250,17 @@ export const uiActions = {
   },
 
   async initPreferences() {
-    const { state, setTheme, setLocale, setShowHomeOnLaunch, setAccentColor, setIconSize } = useUiState();
+    const {
+      state,
+      setTheme,
+      setLocale,
+      setShowHomeOnLaunch,
+      setAccentColor,
+      setIconSize,
+      setAutoCloseFloatingOnIdle,
+      setFloatingAutoCloseSeconds,
+      setFloatingCloseAnimationSpeed
+    } = useUiState();
     const settings = await electronBridge.readSettings<Record<string, unknown>>();
     const saved = (settings?.[SETTINGS_KEY] as Partial<UiPreferences> | undefined) ?? {};
     const theme = saved.theme === 'dark' || saved.theme === 'light' ? saved.theme : state.theme;
@@ -267,11 +280,26 @@ export const uiActions = {
       ? saved.accentColor
       : state.accentColor;
     const iconSize = normalizeIconSize(saved.iconSize, state.iconSize);
+    const autoCloseFloatingOnIdle =
+      typeof saved.autoCloseFloatingOnIdle === 'boolean' ? saved.autoCloseFloatingOnIdle : state.autoCloseFloatingOnIdle;
+    const floatingAutoCloseSeconds: FloatingAutoCloseSeconds =
+      saved.floatingAutoCloseSeconds === 10 || saved.floatingAutoCloseSeconds === 30 || saved.floatingAutoCloseSeconds === 60
+        ? saved.floatingAutoCloseSeconds
+        : state.floatingAutoCloseSeconds;
+    const floatingCloseAnimationSpeed: FloatingCloseAnimationSpeed =
+      saved.floatingCloseAnimationSpeed === 'fast'
+      || saved.floatingCloseAnimationSpeed === 'normal'
+      || saved.floatingCloseAnimationSpeed === 'slow'
+        ? saved.floatingCloseAnimationSpeed
+        : state.floatingCloseAnimationSpeed;
     setTheme(theme);
     setLocale(locale);
     setShowHomeOnLaunch(showHomeOnLaunch);
     setAccentColor(accentColor);
     setIconSize(iconSize);
+    setAutoCloseFloatingOnIdle(autoCloseFloatingOnIdle);
+    setFloatingAutoCloseSeconds(floatingAutoCloseSeconds);
+    setFloatingCloseAnimationSpeed(floatingCloseAnimationSpeed);
     applyTheme(theme);
     applyLocale(locale);
     applyAccentColor(accentColor);
@@ -287,7 +315,10 @@ export const uiActions = {
       locale: state.locale,
       showHomeOnLaunch: state.showHomeOnLaunch,
       accentColor: state.accentColor,
-      iconSize: state.iconSize
+      iconSize: state.iconSize,
+      autoCloseFloatingOnIdle: state.autoCloseFloatingOnIdle,
+      floatingAutoCloseSeconds: state.floatingAutoCloseSeconds,
+      floatingCloseAnimationSpeed: state.floatingCloseAnimationSpeed
     });
   },
 
@@ -300,7 +331,10 @@ export const uiActions = {
       locale: state.locale,
       showHomeOnLaunch: state.showHomeOnLaunch,
       accentColor: state.accentColor,
-      iconSize: state.iconSize
+      iconSize: state.iconSize,
+      autoCloseFloatingOnIdle: state.autoCloseFloatingOnIdle,
+      floatingAutoCloseSeconds: state.floatingAutoCloseSeconds,
+      floatingCloseAnimationSpeed: state.floatingCloseAnimationSpeed
     });
   },
 
@@ -319,7 +353,10 @@ export const uiActions = {
       locale: state.locale,
       showHomeOnLaunch: state.showHomeOnLaunch,
       accentColor: state.accentColor,
-      iconSize: state.iconSize
+      iconSize: state.iconSize,
+      autoCloseFloatingOnIdle: state.autoCloseFloatingOnIdle,
+      floatingAutoCloseSeconds: state.floatingAutoCloseSeconds,
+      floatingCloseAnimationSpeed: state.floatingCloseAnimationSpeed
     });
   },
 
@@ -332,7 +369,10 @@ export const uiActions = {
       locale: state.locale,
       showHomeOnLaunch: state.showHomeOnLaunch,
       accentColor: state.accentColor,
-      iconSize: state.iconSize
+      iconSize: state.iconSize,
+      autoCloseFloatingOnIdle: state.autoCloseFloatingOnIdle,
+      floatingAutoCloseSeconds: state.floatingAutoCloseSeconds,
+      floatingCloseAnimationSpeed: state.floatingCloseAnimationSpeed
     });
   },
 
@@ -346,7 +386,55 @@ export const uiActions = {
       locale: state.locale,
       showHomeOnLaunch: state.showHomeOnLaunch,
       accentColor: state.accentColor,
-      iconSize: state.iconSize
+      iconSize: state.iconSize,
+      autoCloseFloatingOnIdle: state.autoCloseFloatingOnIdle,
+      floatingAutoCloseSeconds: state.floatingAutoCloseSeconds,
+      floatingCloseAnimationSpeed: state.floatingCloseAnimationSpeed
+    });
+  },
+
+  async setAutoCloseFloatingOnIdle(enabled: boolean) {
+    const { state, setAutoCloseFloatingOnIdle } = useUiState();
+    setAutoCloseFloatingOnIdle(enabled);
+    await persistPreferences({
+      theme: state.theme,
+      locale: state.locale,
+      showHomeOnLaunch: state.showHomeOnLaunch,
+      accentColor: state.accentColor,
+      iconSize: state.iconSize,
+      autoCloseFloatingOnIdle: state.autoCloseFloatingOnIdle,
+      floatingAutoCloseSeconds: state.floatingAutoCloseSeconds,
+      floatingCloseAnimationSpeed: state.floatingCloseAnimationSpeed
+    });
+  },
+
+  async setFloatingAutoCloseSeconds(seconds: FloatingAutoCloseSeconds) {
+    const { state, setFloatingAutoCloseSeconds } = useUiState();
+    setFloatingAutoCloseSeconds(seconds);
+    await persistPreferences({
+      theme: state.theme,
+      locale: state.locale,
+      showHomeOnLaunch: state.showHomeOnLaunch,
+      accentColor: state.accentColor,
+      iconSize: state.iconSize,
+      autoCloseFloatingOnIdle: state.autoCloseFloatingOnIdle,
+      floatingAutoCloseSeconds: state.floatingAutoCloseSeconds,
+      floatingCloseAnimationSpeed: state.floatingCloseAnimationSpeed
+    });
+  },
+
+  async setFloatingCloseAnimationSpeed(speed: FloatingCloseAnimationSpeed) {
+    const { state, setFloatingCloseAnimationSpeed } = useUiState();
+    setFloatingCloseAnimationSpeed(speed);
+    await persistPreferences({
+      theme: state.theme,
+      locale: state.locale,
+      showHomeOnLaunch: state.showHomeOnLaunch,
+      accentColor: state.accentColor,
+      iconSize: state.iconSize,
+      autoCloseFloatingOnIdle: state.autoCloseFloatingOnIdle,
+      floatingAutoCloseSeconds: state.floatingAutoCloseSeconds,
+      floatingCloseAnimationSpeed: state.floatingCloseAnimationSpeed
     });
   }
 };
