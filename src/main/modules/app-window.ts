@@ -3,13 +3,25 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from './logger.ts';
 import { TITLEBAR_OVERLAY_HEIGHT } from './window-ui-constants.ts';
+import { SettingsManager } from './settings-manager.ts';
 
 // 获取当前文件的目录
 const __filename = fileURLToPath(import.meta.url);
 export const __dirname = path.dirname(__filename);
 
+const resolveInitialTheme = (): 'dark' | 'light' => {
+  const settingsResult = SettingsManager.readSettings();
+  const theme = settingsResult?.data?.theme;
+  return theme === 'light' ? 'light' : 'dark';
+};
+
 // 窗口创建函数
 export function createWindow(): BrowserWindow {
+  const initialTheme = resolveInitialTheme();
+  const initialBackgroundColor = initialTheme === 'light' ? '#f7f8fa' : '#1e1e1e';
+  const initialTitlebarColor = initialTheme === 'light' ? '#ffffff' : '#252526';
+  const initialTitlebarSymbolColor = initialTheme === 'light' ? '#2f353d' : '#cccccc';
+
   logger.info('app-window.ts: createWindow function called');
   logger.debug('app-window.ts: __dirname:', __dirname);
   logger.debug('app-window.ts: process.cwd():', process.cwd());
@@ -63,12 +75,12 @@ export function createWindow(): BrowserWindow {
     ...(process.platform !== 'darwin' ? { 
       titleBarOverlay: {
         height: TITLEBAR_OVERLAY_HEIGHT, // 与应用顶部按钮栏高度一致
-        color: '#252526', // 与应用顶部按钮栏背景颜色一致
-        symbolColor: '#cccccc', // 与应用顶部按钮栏文字颜色一致
+        color: initialTitlebarColor, // 与当前主题匹配，避免亮色主题下过黑
+        symbolColor: initialTitlebarSymbolColor, // 与当前主题匹配
         buttons: ['minimize', 'maximize', 'close'] // 显示最小化、最大化和关闭按钮
       } 
     } : {}),
-    backgroundColor: '#1e1e1e', // 与渲染层深色背景保持一致，避免缩放时白底闪烁
+    backgroundColor: initialBackgroundColor, // 与当前主题保持一致
     webPreferences: {
       // 预加载脚本配置
       preload: preloadPath,
@@ -162,6 +174,10 @@ export function createWindow(): BrowserWindow {
 // 创建子窗口函数
 export function createChildWindow(parentWindow: BrowserWindow, options?: { width?: number, height?: number, title?: string }): BrowserWindow {
   const { width = 600, height = 400, title = '设置' } = options || {};
+  const initialTheme = resolveInitialTheme();
+  const initialBackgroundColor = initialTheme === 'light' ? '#f7f8fa' : '#1e1e1e';
+  const initialTitlebarColor = initialTheme === 'light' ? '#ffffff' : '#252526';
+  const initialTitlebarSymbolColor = initialTheme === 'light' ? '#2f353d' : '#cccccc';
   
   // 正确计算预加载脚本路径
   const preloadPath = path.resolve(process.cwd(), 'dist/preload/index.mjs');
@@ -179,12 +195,12 @@ export function createChildWindow(parentWindow: BrowserWindow, options?: { width
     ...(process.platform !== 'darwin' ? { 
       titleBarOverlay: {
         height: TITLEBAR_OVERLAY_HEIGHT, // 与应用顶部按钮栏高度一致
-        color: '#252526', // 与应用顶部按钮栏背景颜色一致
-        symbolColor: '#cccccc', // 与应用顶部按钮栏文字颜色一致
+        color: initialTitlebarColor, // 与当前主题匹配，避免亮色主题下过黑
+        symbolColor: initialTitlebarSymbolColor, // 与当前主题匹配
         buttons: ['minimize', 'maximize', 'close'] // 显示最小化、最大化和关闭按钮
       } 
     } : {}),
-    backgroundColor: '#1e1e1e', // 与渲染层深色背景保持一致，避免缩放时白底闪烁
+    backgroundColor: initialBackgroundColor, // 与当前主题保持一致
     minWidth: 1000, // 最小宽度
     minHeight: 600, // 最小高度
     webPreferences: {

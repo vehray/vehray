@@ -1,6 +1,6 @@
 <template>
   <div class="main-tab-panel" ref="mainTabPanelRootRef" tabindex="0" @mousedown="focusMainTabPanelRoot">
-    <div ref="mainTabBarRef" class="main-tab-bar">
+    <div v-if="!isSingleTabWindow" ref="mainTabBarRef" class="main-tab-bar">
       <div
         class="main-tab-item"
         :class="{
@@ -16,7 +16,7 @@
         @dragstart="handleTabDragStart(tab.id)"
         @dragover.prevent="handleTabDragOver(tab.id, $event)"
         @drop.prevent="handleTabDrop(tab.id)"
-        @dragend="handleTabDragEnd"
+        @dragend="handleTabDragEnd($event)"
         @contextmenu.prevent.stop="openTabContextMenu(tab.id, $event)"
         @mouseenter="hoveringTabId = tab.id"
         @mouseleave="hoveringTabId = null"
@@ -94,6 +94,17 @@
           @update:model-value="handleLdfTextChange"
         />
       </KeepAlive>
+      <div v-else-if="activeTabId === 'explorer'" class="single-explorer-view">
+        <div
+          v-if="isSingleTabWindow"
+          class="single-explorer-title"
+          @mousedown="handleSingleExplorerTitleMouseDown"
+          @contextmenu.prevent.stop
+        >
+          {{ t('layout.explorer.title') }}
+        </div>
+        <ProjectExplorer />
+      </div>
       <AppSettingsView v-else-if="activeTabId === 'app-settings'" />
       <div v-else-if="tabs.length > 0" class="tab-content-placeholder">
         {{ t('tabs.tabContentPlaceholder', { title: getActiveTab()?.title ?? '' }) }}
@@ -140,9 +151,11 @@ import type { HistoryFileItem } from '../../state/uiState';
 import { electronBridge } from '../../services/electronBridge';
 import LdfEditorView from '../lin-ldf/components/LdfEditorView.vue';
 import AppSettingsView from '../settings/components/AppSettingsView.vue';
+import ProjectExplorer from '../explorer/ProjectExplorer.vue';
 
 const { state, ensureHomeTab, switchToTab, closeTab: closeStateTab, upsertTab, reorderTabs } = useUiState();
 const { t } = useI18n();
+const isSingleTabWindow = computed(() => state.windowMode === 'single-tab');
 const tabs = computed(() => state.tabs);
 const activeTabId = computed(() => state.activeTab);
 const historyFiles = computed(() => state.historyFiles);
@@ -172,6 +185,12 @@ const closeConfirmPopup = reactive({
 const overflowMenuVisible = ref(false);
 const tabBarWidth = ref(0);
 let tabBarResizeObserver: ResizeObserver | null = null;
+let singleExplorerDragState: {
+  startMouseX: number;
+  startMouseY: number;
+  startWindowX: number;
+  startWindowY: number;
+} | null = null;
 const OVERFLOW_BUTTON_WIDTH = 112;
 const TAB_BAR_SIDE_PADDING = 20;
 const TAB_ITEM_GAP = 2;
@@ -259,11 +278,38 @@ const handleTabDrop = (tabId: string) => {
   dragInsertPosition.value = 'before';
   previewAnchor.value = null;
 };
-const handleTabDragEnd = () => {
+const isDropOutsideWindow = (event: DragEvent) => {
+  const { screenX, screenY } = event;
+  const winLeft = window.screenX;
+  const winTop = window.screenY;
+  const winRight = winLeft + window.outerWidth;
+  const winBottom = winTop + window.outerHeight;
+  return screenX < winLeft || screenX > winRight || screenY < winTop || screenY > winBottom;
+};
+
+const handleTabDragEnd = async (event: DragEvent) => {
+  const draggedTabId = draggingTabId.value;
   draggingTabId.value = null;
   dragOverTabId.value = null;
   dragInsertPosition.value = 'before';
   previewAnchor.value = null;
+  if (!draggedTabId || draggedTabId === 'home') return;
+  if (!isDropOutsideWindow(event)) return;
+  const tab = tabs.value.find((item) => item.id === draggedTabId);
+  if (!tab) return;
+  const result = await window.electron?.ipcRenderer?.invoke?.('window:open-new', {
+    windowMode: 'single-tab',
+    theme: state.theme,
+    initialTab: {
+      id: tab.id,
+      title: tab.title,
+      content: tab.content,
+      dirty: Boolean(tab.dirty)
+    }
+  });
+  if (result?.success) {
+    closeStateTab(draggedTabId);
+  }
 };
 const loadHomeTab = () => {
   ensureHomeTab();
@@ -344,6 +390,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleCtrlTabSwitch);
 });
 onUnmounted(() => {
+  handleSingleExplorerTitleMouseUp();
   tabBarResizeObserver?.disconnect();
   tabBarResizeObserver = null;
   document.removeEventListener('click', handleGlobalClick);
@@ -464,6 +511,41 @@ const handleLdfTextChange = (value: string) => {
     content: value,
     dirty: true
   });
+};
+
+const handleSingleExplorerTitleMouseDown = (event: MouseEvent) => {
+  if (!isSingleTabWindow.value) return;
+  if (event.button !== 0) return;
+  event.preventDefault();
+  void window.electron?.ipcRenderer?.invoke?.('window:get-current-bounds').then((bounds: any) => {
+    if (!bounds) return;
+    singleExplorerDragState = {
+      startMouseX: event.screenX,
+      startMouseY: event.screenY,
+      startWindowX: bounds.x,
+      startWindowY: bounds.y
+    };
+    document.addEventListener('mousemove', handleSingleExplorerTitleMouseMove);
+    document.addEventListener('mouseup', handleSingleExplorerTitleMouseUp);
+  });
+};
+
+const handleSingleExplorerTitleMouseMove = (event: MouseEvent) => {
+  if (!singleExplorerDragState) return;
+  const deltaX = event.screenX - singleExplorerDragState.startMouseX;
+  const deltaY = event.screenY - singleExplorerDragState.startMouseY;
+  const nextX = singleExplorerDragState.startWindowX + deltaX;
+  const nextY = singleExplorerDragState.startWindowY + deltaY;
+  void window.electron?.ipcRenderer?.invoke?.('window:set-current-position', nextX, nextY);
+};
+
+const handleSingleExplorerTitleMouseUp = () => {
+  if (isSingleTabWindow.value) {
+    void window.electron?.ipcRenderer?.invoke?.('window:dock-explorer-on-release');
+  }
+  singleExplorerDragState = null;
+  document.removeEventListener('mousemove', handleSingleExplorerTitleMouseMove);
+  document.removeEventListener('mouseup', handleSingleExplorerTitleMouseUp);
 };
 
 watch(
@@ -727,6 +809,26 @@ defineExpose({ loadHomeTab });
 .history-item-name { color: var(--app-text-primary); font-size: 14px; }
 .history-item-path { color: var(--app-text-muted); font-size: 12px; }
 .tab-content-placeholder, .no-tabs-content { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--app-text-faint); }
+.single-explorer-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.single-explorer-title {
+  height: var(--app-tabbar-height);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--app-border);
+  background-color: var(--app-bg-elevated);
+  color: var(--app-text-primary);
+  font-size: var(--app-ui-font-size);
+  font-weight: 600;
+  flex: 0 0 auto;
+  user-select: none;
+  cursor: move;
+}
 .tab-context-menu {
   position: fixed;
   z-index: 2600;

@@ -296,7 +296,9 @@ const TOOLTIP_OFFSET_X = 14;
 const TOOLTIP_OFFSET_Y = 18;
 const openEditorsExpanded = ref(false);
 const openFoldersExpanded = ref(true);
-const openedEditorTabs = computed(() => state.tabs.filter((tab) => tab.id !== 'home'));
+const openedEditorTabs = computed(() =>
+  state.tabs.filter((tab) => tab.id !== 'home' && tab.id !== 'explorer' && tab.id !== 'app-settings')
+);
 const renamingEditorTabId = ref<string | null>(null);
 const renamingEditorName = ref('');
 const contextEditorFilePath = computed(() => {

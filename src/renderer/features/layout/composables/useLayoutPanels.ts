@@ -22,6 +22,10 @@ export function useLayoutPanels() {
     showLeftActivity.value = false;
   };
 
+  const openLeftActivity = () => {
+    showLeftActivity.value = true;
+  };
+
   const closeRightActivity = () => {
     setRightPanelVisible(false);
   };
@@ -31,6 +35,7 @@ export function useLayoutPanels() {
     showRightActivity,
     currentView,
     toggleLeftActivity,
+    openLeftActivity,
     toggleRightActivity,
     closeLeftActivity,
     closeRightActivity

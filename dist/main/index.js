@@ -1,10 +1,10 @@
-import { BrowserWindow, app, ipcMain, dialog, Menu, shell } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, dialog, shell } from "electron";
 import * as path from "path";
 import path__default from "path";
 import { fileURLToPath } from "url";
-import { SerialPort } from "serialport";
 import * as fs from "fs";
 import fs__default from "fs";
+import { SerialPort } from "serialport";
 import fs$1 from "fs/promises";
 import iconv from "iconv-lite";
 import __cjs_mod__ from "node:module";
@@ -69,9 +69,68 @@ class Logger {
 }
 const logger = new Logger();
 const TITLEBAR_OVERLAY_HEIGHT = 34;
+const settingsPath = path.join(app.getPath("userData"), "settings.json");
+class SettingsManager {
+  /**
+   * 保存设置到文件
+   * @param settings 设置对象
+   * @returns 保存结果
+   */
+  static saveSettings(settings) {
+    try {
+      const dir = path.dirname(settingsPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
+      logger.info(`Settings saved successfully: ${settingsPath}`);
+      return { success: true, message: "Settings saved successfully" };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to save settings: ${errorMessage}`);
+      return { success: false, message: `Failed to save settings: ${errorMessage}` };
+    }
+  }
+  /**
+   * 从文件读取设置
+   * @returns 读取结果
+   */
+  static readSettings() {
+    try {
+      if (!fs.existsSync(settingsPath)) {
+        logger.info(`Settings file does not exist, returning default settings: ${settingsPath}`);
+        return { success: true, data: null, message: "Settings file does not exist, returning default settings" };
+      }
+      const data = fs.readFileSync(settingsPath, "utf8");
+      const settings = JSON.parse(data);
+      logger.info(`Settings read successfully: ${settingsPath}`);
+      return { success: true, data: settings, message: "Settings read successfully" };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Failed to read settings: ${errorMessage}`);
+      return { success: false, data: null, message: `Failed to read settings: ${errorMessage}` };
+    }
+  }
+  /**
+   * 获取设置文件路径
+   * @returns 设置文件路径
+   */
+  static getSettingsPath() {
+    return settingsPath;
+  }
+}
 const __filename$1 = fileURLToPath(import.meta.url);
 const __dirname$1 = path__default.dirname(__filename$1);
+const resolveInitialTheme = () => {
+  const settingsResult = SettingsManager.readSettings();
+  const theme = settingsResult?.data?.theme;
+  return theme === "light" ? "light" : "dark";
+};
 function createWindow() {
+  const initialTheme = resolveInitialTheme();
+  const initialBackgroundColor = initialTheme === "light" ? "#f7f8fa" : "#1e1e1e";
+  const initialTitlebarColor = initialTheme === "light" ? "#ffffff" : "#252526";
+  const initialTitlebarSymbolColor = initialTheme === "light" ? "#2f353d" : "#cccccc";
   logger.info("app-window.ts: createWindow function called");
   logger.debug("app-window.ts: __dirname:", __dirname$1);
   logger.debug("app-window.ts: process.cwd():", process.cwd());
@@ -117,16 +176,16 @@ function createWindow() {
       titleBarOverlay: {
         height: TITLEBAR_OVERLAY_HEIGHT,
         // 与应用顶部按钮栏高度一致
-        color: "#252526",
-        // 与应用顶部按钮栏背景颜色一致
-        symbolColor: "#cccccc",
-        // 与应用顶部按钮栏文字颜色一致
+        color: initialTitlebarColor,
+        // 与当前主题匹配，避免亮色主题下过黑
+        symbolColor: initialTitlebarSymbolColor,
+        // 与当前主题匹配
         buttons: ["minimize", "maximize", "close"]
         // 显示最小化、最大化和关闭按钮
       }
     } : {},
-    backgroundColor: "#1e1e1e",
-    // 与渲染层深色背景保持一致，避免缩放时白底闪烁
+    backgroundColor: initialBackgroundColor,
+    // 与当前主题保持一致
     webPreferences: {
       // 预加载脚本配置
       preload: preloadPath,
@@ -195,6 +254,10 @@ function createWindow() {
 }
 function createChildWindow(parentWindow, options) {
   const { width = 600, height = 400, title = "设置" } = options || {};
+  const initialTheme = resolveInitialTheme();
+  const initialBackgroundColor = initialTheme === "light" ? "#f7f8fa" : "#1e1e1e";
+  const initialTitlebarColor = initialTheme === "light" ? "#ffffff" : "#252526";
+  const initialTitlebarSymbolColor = initialTheme === "light" ? "#2f353d" : "#cccccc";
   const preloadPath = path__default.resolve(process.cwd(), "dist/preload/index.mjs");
   const childWindow = new BrowserWindow({
     width,
@@ -212,16 +275,16 @@ function createChildWindow(parentWindow, options) {
       titleBarOverlay: {
         height: TITLEBAR_OVERLAY_HEIGHT,
         // 与应用顶部按钮栏高度一致
-        color: "#252526",
-        // 与应用顶部按钮栏背景颜色一致
-        symbolColor: "#cccccc",
-        // 与应用顶部按钮栏文字颜色一致
+        color: initialTitlebarColor,
+        // 与当前主题匹配，避免亮色主题下过黑
+        symbolColor: initialTitlebarSymbolColor,
+        // 与当前主题匹配
         buttons: ["minimize", "maximize", "close"]
         // 显示最小化、最大化和关闭按钮
       }
     } : {},
-    backgroundColor: "#1e1e1e",
-    // 与渲染层深色背景保持一致，避免缩放时白底闪烁
+    backgroundColor: initialBackgroundColor,
+    // 与当前主题保持一致
     minWidth: 1e3,
     // 最小宽度
     minHeight: 600,
@@ -2592,56 +2655,6 @@ class LinControllerManager {
     };
   }
 }
-const settingsPath = path.join(app.getPath("userData"), "settings.json");
-class SettingsManager {
-  /**
-   * 保存设置到文件
-   * @param settings 设置对象
-   * @returns 保存结果
-   */
-  static saveSettings(settings) {
-    try {
-      const dir = path.dirname(settingsPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-      logger.info(`Settings saved successfully: ${settingsPath}`);
-      return { success: true, message: "Settings saved successfully" };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to save settings: ${errorMessage}`);
-      return { success: false, message: `Failed to save settings: ${errorMessage}` };
-    }
-  }
-  /**
-   * 从文件读取设置
-   * @returns 读取结果
-   */
-  static readSettings() {
-    try {
-      if (!fs.existsSync(settingsPath)) {
-        logger.info(`Settings file does not exist, returning default settings: ${settingsPath}`);
-        return { success: true, data: null, message: "Settings file does not exist, returning default settings" };
-      }
-      const data = fs.readFileSync(settingsPath, "utf8");
-      const settings = JSON.parse(data);
-      logger.info(`Settings read successfully: ${settingsPath}`);
-      return { success: true, data: settings, message: "Settings read successfully" };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`Failed to read settings: ${errorMessage}`);
-      return { success: false, data: null, message: `Failed to read settings: ${errorMessage}` };
-    }
-  }
-  /**
-   * 获取设置文件路径
-   * @returns 设置文件路径
-   */
-  static getSettingsPath() {
-    return settingsPath;
-  }
-}
 const toEntryType = (isDirectory) => isDirectory ? "directory" : "file";
 const isLdfFile$1 = (filePath) => path__default.extname(filePath).toLowerCase() === ".ldf";
 class FileExplorerService {
@@ -2698,6 +2711,8 @@ logger.setEnabled(false);
 let mainWindow = null;
 let settingsWindow = null;
 let explorerFolderWatcher = null;
+const pendingWindowInitContexts = /* @__PURE__ */ new Map();
+const detachedExplorerWindows = /* @__PURE__ */ new Map();
 const EXPLORER_FOLDER_CHANGED_CHANNEL = "explorer:folder-changed";
 const CONTEXT_MENU_ACTION_CHANNEL = "context-menu:action";
 const isLdfFile = (filePath) => path__default.extname(filePath).toLowerCase() === ".ldf";
@@ -2772,6 +2787,17 @@ ipcMain.handle("window:start-drag", (event, mousePos) => {
     window.startDragging();
   }
 });
+ipcMain.handle("window:get-current-bounds", (event) => {
+  const currentWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!currentWindow || currentWindow.isDestroyed()) return null;
+  return currentWindow.getBounds();
+});
+ipcMain.handle("window:set-current-position", (event, x, y) => {
+  const currentWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!currentWindow || currentWindow.isDestroyed()) return { success: false };
+  currentWindow.setPosition(Math.round(x), Math.round(y));
+  return { success: true };
+});
 ipcMain.handle("window:resize", (event, width, height) => {
   if (mainWindow) {
     const minWidth = 800;
@@ -2800,6 +2826,220 @@ ipcMain.handle("window:get-state", () => {
 ipcMain.handle("window:set-theme", (_event, theme) => {
   applyWindowTheme(theme);
   return { success: true };
+});
+ipcMain.handle("window:open-new", (_event, payload) => {
+  const nextWindow = createWindow();
+  const sourceWindow = BrowserWindow.fromWebContents(_event.sender);
+  let context = null;
+  if (payload && typeof payload === "object" && "initialTab" in payload) {
+    const initialTab = payload.initialTab && typeof payload.initialTab.id === "string" ? payload.initialTab : null;
+    const windowMode = payload.windowMode === "single-tab" ? "single-tab" : "normal";
+    const theme = payload.theme === "light" ? "light" : payload.theme === "dark" ? "dark" : void 0;
+    context = { initialTab, windowMode, theme };
+  } else if (payload && typeof payload === "object" && "id" in payload && typeof payload.id === "string") {
+    context = { initialTab: payload, windowMode: "normal" };
+  }
+  if (context) {
+    if (context.theme) {
+      const backgroundColor = context.theme === "light" ? "#f7f8fa" : "#1e1e1e";
+      const overlayColor = context.theme === "light" ? "#ffffff" : "#252526";
+      const symbolColor = context.theme === "light" ? "#2f353d" : "#cccccc";
+      nextWindow.setBackgroundColor(backgroundColor);
+      if (process.platform !== "darwin") {
+        nextWindow.setTitleBarOverlay({
+          color: overlayColor,
+          symbolColor,
+          height: TITLEBAR_OVERLAY_HEIGHT
+        });
+      }
+    }
+    if (context.initialTab?.title) {
+      nextWindow.setTitle(context.initialTab.title);
+    }
+    if (context.windowMode === "single-tab" && context.initialTab?.id === "explorer") {
+      nextWindow.setMinimumSize(360, 480);
+      nextWindow.setSize(420, 760);
+      if (sourceWindow && !sourceWindow.isDestroyed()) {
+        sourceWindow.webContents.send("layout:close-explorer");
+      }
+      if (sourceWindow && !sourceWindow.isDestroyed()) {
+        const childId = nextWindow.id;
+        detachedExplorerWindows.set(childId, {
+          sourceWindowId: sourceWindow.id,
+          autoDockEnabled: false,
+          initialBounds: nextWindow.getBounds(),
+          lastBounds: nextWindow.getBounds(),
+          previewVisible: false,
+          dockCommitTimer: null
+        });
+        setTimeout(() => {
+          const current = detachedExplorerWindows.get(childId);
+          if (!current) return;
+          detachedExplorerWindows.set(childId, { ...current, autoDockEnabled: true });
+        }, 800);
+        sourceWindow.webContents.send("layout:explorer-detached-state", true);
+        nextWindow.on("move", () => {
+          const track = detachedExplorerWindows.get(childId);
+          if (!track || !track.autoDockEnabled) return;
+          const parent = BrowserWindow.fromId(track.sourceWindowId);
+          if (!parent || parent.isDestroyed() || nextWindow.isDestroyed()) return;
+          const childBounds = nextWindow.getBounds();
+          track.lastBounds = childBounds;
+          const parentBounds = parent.getBounds();
+          const movedDistance = Math.hypot(
+            childBounds.x - track.initialBounds.x,
+            childBounds.y - track.initialBounds.y
+          );
+          const enteredDockZone = childBounds.x <= parentBounds.x + 96 && childBounds.x + childBounds.width >= parentBounds.x && childBounds.y < parentBounds.y + parentBounds.height - 40 && childBounds.y + childBounds.height > parentBounds.y + 40;
+          const eligibleForDock = movedDistance >= 80 && enteredDockZone;
+          if (eligibleForDock) {
+            if (!track.previewVisible) {
+              track.previewVisible = true;
+              parent.webContents.send("layout:explorer-dock-preview", true);
+            }
+          } else {
+            if (track.dockCommitTimer) {
+              clearTimeout(track.dockCommitTimer);
+              track.dockCommitTimer = null;
+            }
+            if (track.previewVisible) {
+              track.previewVisible = false;
+              parent.webContents.send("layout:explorer-dock-preview", false);
+            }
+          }
+        });
+        nextWindow.webContents.on("context-menu", () => {
+          const track = detachedExplorerWindows.get(childId);
+          if (!track) return;
+          const menu = Menu.buildFromTemplate([
+            {
+              label: "返回主窗口",
+              click: () => {
+                const parent = BrowserWindow.fromId(track.sourceWindowId);
+                if (parent && !parent.isDestroyed()) {
+                  parent.webContents.send("layout:explorer-dock-preview", false);
+                  parent.webContents.send("layout:restore-explorer");
+                  parent.webContents.send("layout:explorer-detached-state", false);
+                }
+                if (track.dockCommitTimer) {
+                  clearTimeout(track.dockCommitTimer);
+                }
+                detachedExplorerWindows.delete(childId);
+                if (!nextWindow.isDestroyed()) nextWindow.close();
+              }
+            }
+          ]);
+          menu.popup({ window: nextWindow });
+        });
+      }
+    }
+    const webContentsId = nextWindow.webContents.id;
+    pendingWindowInitContexts.set(webContentsId, context);
+    nextWindow.on("closed", () => {
+      const track = detachedExplorerWindows.get(nextWindow.id);
+      if (track) {
+        if (track.dockCommitTimer) {
+          clearTimeout(track.dockCommitTimer);
+        }
+        const parent = BrowserWindow.fromId(track.sourceWindowId);
+        if (parent && !parent.isDestroyed()) {
+          parent.webContents.send("layout:explorer-dock-preview", false);
+          parent.webContents.send("layout:explorer-detached-state", false);
+          parent.webContents.send("layout:restore-explorer");
+        }
+      }
+      pendingWindowInitContexts.delete(webContentsId);
+      detachedExplorerWindows.delete(nextWindow.id);
+    });
+  }
+  return { success: true };
+});
+ipcMain.handle("window:get-init-context", (event) => {
+  const senderId = event.sender.id;
+  const initContext = pendingWindowInitContexts.get(senderId) ?? null;
+  pendingWindowInitContexts.delete(senderId);
+  return initContext;
+});
+ipcMain.handle("window:dock-explorer-commit", (event) => {
+  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!sourceWindow || sourceWindow.isDestroyed()) {
+    return { success: false };
+  }
+  for (const [childId, track] of detachedExplorerWindows.entries()) {
+    if (track.sourceWindowId !== sourceWindow.id || !track.previewVisible) continue;
+    const childWindow = BrowserWindow.fromId(childId);
+    if (!childWindow || childWindow.isDestroyed()) continue;
+    sourceWindow.webContents.send("layout:explorer-dock-preview", false);
+    sourceWindow.webContents.send("layout:restore-explorer");
+    sourceWindow.webContents.send("layout:explorer-detached-state", false);
+    if (track.dockCommitTimer) {
+      clearTimeout(track.dockCommitTimer);
+    }
+    detachedExplorerWindows.delete(childId);
+    childWindow.close();
+    return { success: true };
+  }
+  return { success: false };
+});
+ipcMain.handle("window:dock-explorer-on-release", (event) => {
+  const childWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!childWindow || childWindow.isDestroyed()) return { success: false };
+  const track = detachedExplorerWindows.get(childWindow.id);
+  if (!track) return { success: false };
+  const parent = BrowserWindow.fromId(track.sourceWindowId);
+  if (!parent || parent.isDestroyed()) return { success: false };
+  const childBounds = childWindow.getBounds();
+  const parentBounds = parent.getBounds();
+  const movedDistance = Math.hypot(
+    childBounds.x - track.initialBounds.x,
+    childBounds.y - track.initialBounds.y
+  );
+  const inDockZone = childBounds.x <= parentBounds.x + 96 && childBounds.x + childBounds.width >= parentBounds.x && childBounds.y < parentBounds.y + parentBounds.height - 40 && childBounds.y + childBounds.height > parentBounds.y + 40;
+  if (movedDistance >= 80 && inDockZone) {
+    parent.webContents.send("layout:explorer-dock-preview", false);
+    parent.webContents.send("layout:restore-explorer");
+    parent.webContents.send("layout:explorer-detached-state", false);
+    detachedExplorerWindows.delete(childWindow.id);
+    childWindow.close();
+    return { success: true };
+  }
+  return { success: false };
+});
+ipcMain.handle("window:restore-detached-explorer", (event) => {
+  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!sourceWindow || sourceWindow.isDestroyed()) return { success: false };
+  for (const [childId, track] of detachedExplorerWindows.entries()) {
+    if (track.sourceWindowId !== sourceWindow.id) continue;
+    const childWindow = BrowserWindow.fromId(childId);
+    if (!childWindow || childWindow.isDestroyed()) continue;
+    sourceWindow.webContents.send("layout:explorer-dock-preview", false);
+    sourceWindow.webContents.send("layout:restore-explorer");
+    sourceWindow.webContents.send("layout:explorer-detached-state", false);
+    if (track.dockCommitTimer) clearTimeout(track.dockCommitTimer);
+    detachedExplorerWindows.delete(childId);
+    childWindow.close();
+    return { success: true };
+  }
+  return { success: false };
+});
+ipcMain.handle("window:focus-detached-explorer", (event) => {
+  const sourceWindow = BrowserWindow.fromWebContents(event.sender);
+  if (!sourceWindow || sourceWindow.isDestroyed()) return { success: false };
+  for (const [childId, track] of detachedExplorerWindows.entries()) {
+    if (track.sourceWindowId !== sourceWindow.id) continue;
+    const childWindow = BrowserWindow.fromId(childId);
+    if (!childWindow || childWindow.isDestroyed()) continue;
+    if (childWindow.isMinimized()) childWindow.restore();
+    childWindow.focus();
+    return { success: true };
+  }
+  return { success: false };
+});
+ipcMain.handle("window:get-init-tab", (event) => {
+  const senderId = event.sender.id;
+  const initContext = pendingWindowInitContexts.get(senderId) ?? null;
+  pendingWindowInitContexts.delete(senderId);
+  return initContext?.initialTab ?? null;
 });
 ipcMain.handle("app:get-info", () => {
   return {

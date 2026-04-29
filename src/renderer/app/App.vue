@@ -1,22 +1,42 @@
 <template>
   <div class="app-root">
-    <AppHeader />
+    <AppHeader v-if="!isSingleTabWindow" />
     <MainLayout />
-    <AppStatusBar />
+    <AppStatusBar v-if="!isSingleTabWindow" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import AppHeader from '../features/layout/AppHeader.vue';
 import MainLayout from '../features/layout/MainLayout.vue';
 import AppStatusBar from '../features/layout/AppStatusBar.vue';
 import { shortcutService } from '../services/shortcutService';
 import { uiActions } from '../services/uiActions';
+import { useUiState } from '../state/uiState';
 
 let disposeOpenFileShortcut: (() => void) | null = null;
 let disposeOpenFolderShortcut: (() => void) | null = null;
 let disposeSaveFileShortcut: (() => void) | null = null;
+const { state, upsertTab, switchToTab, ensureHomeTab, closeTab, setWindowMode } = useUiState();
+const isSingleTabWindow = computed(() => state.windowMode === 'single-tab');
+
+const applyInitTab = (payload: any) => {
+  if (!payload || typeof payload.id !== 'string') return;
+  if (payload.id === 'home') {
+    ensureHomeTab();
+    switchToTab('home');
+    return;
+  }
+  closeTab('home');
+  upsertTab({
+    id: payload.id,
+    title: typeof payload.title === 'string' ? payload.title : payload.id,
+    content: typeof payload.content === 'string' ? payload.content : '',
+    dirty: Boolean(payload.dirty)
+  });
+  switchToTab(payload.id);
+};
 
 onMounted(() => {
   void shortcutService.initialize();
@@ -28,6 +48,23 @@ onMounted(() => {
   });
   disposeSaveFileShortcut = shortcutService.onAction('saveFile', () => {
     void uiActions.saveActiveTab();
+  });
+  void window.electron?.ipcRenderer?.invoke?.('window:get-init-context').then((context: any) => {
+    const isSingleTab = context?.windowMode === 'single-tab';
+    if (isSingleTab) {
+      setWindowMode('single-tab');
+    }
+    const initialTab = context?.initialTab ?? null;
+    if (isSingleTab && !initialTab) {
+      applyInitTab({
+        id: 'explorer',
+        title: '资源管理器',
+        content: 'explorer-view',
+        dirty: false
+      });
+      return;
+    }
+    applyInitTab(initialTab);
   });
 });
 

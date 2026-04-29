@@ -62,6 +62,7 @@ interface UiState {
   showHomeOnLaunch: boolean;
   accentColor: 'default' | 'blue' | 'green' | 'purple' | 'orange';
   iconSize: IconSizeLevel;
+  windowMode: 'normal' | 'single-tab';
 }
 
 const state = reactive<UiState>({
@@ -78,7 +79,8 @@ const state = reactive<UiState>({
   locale: 'zh-CN',
   showHomeOnLaunch: true,
   accentColor: 'default',
-  iconSize: 4
+  iconSize: 4,
+  windowMode: 'normal'
 });
 
 const resetState = () => {
@@ -96,6 +98,7 @@ const resetState = () => {
   state.showHomeOnLaunch = true;
   state.accentColor = 'default';
   state.iconSize = 4;
+  state.windowMode = 'normal';
 };
 
 export function useUiState() {
@@ -156,6 +159,10 @@ export function useUiState() {
 
   const setIconSize = (iconSize: UiState['iconSize']) => {
     state.iconSize = iconSize;
+  };
+
+  const setWindowMode = (mode: UiState['windowMode']) => {
+    state.windowMode = mode;
   };
 
   const ensureHomeTab = () => {
@@ -240,6 +247,7 @@ export function useUiState() {
     setShowHomeOnLaunch,
     setAccentColor,
     setIconSize,
+    setWindowMode,
     ensureHomeTab,
     upsertTab,
     switchToTab,

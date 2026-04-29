@@ -1,26 +1,82 @@
 <template>
   <div class="layout-wrapper">
-    <Sidebar @button-click="handleSidebarClick" />
+    <Sidebar v-if="!isSingleTabWindow" @button-click="handleSidebarClick" />
     <div class="content-wrapper" ref="contentWrapper">
       <div
-        v-if="showLeftActivity"
+        v-if="!isSingleTabWindow && showLeftActivity && !leftActivityPinned"
         class="left-activity"
         :class="{ 'close-armed-panel': isLeftCloseArmed || isLeftMaxArmed, 'close-armed-side': isLeftCloseArmed }"
         :style="{ width: leftActivityWidth + 'px' }"
       >
-        <div class="activity-header">
+        <div
+          class="activity-header"
+          draggable="true"
+          @dragstart="handleExplorerHeaderDragStart"
+          @dragend="handleExplorerHeaderDragEnd"
+          @contextmenu.prevent.stop="openLeftActivityContextMenu"
+        >
           <div class="activity-title">{{ t('layout.explorer.title') }}</div>
-          <el-tooltip :content="t('common.close')" placement="bottom" :show-after="250" popper-class="app-unified-tooltip">
-            <button class="activity-close-btn" @click="closeLeftActivity">
-              <el-icon :size="14"><Close /></el-icon>
-            </button>
-          </el-tooltip>
+          <div class="activity-header-actions">
+            <el-tooltip :content="t('common.close')" placement="bottom" :show-after="250" popper-class="app-unified-tooltip">
+              <button class="activity-close-btn" @click="closeLeftActivityPanel">
+                <el-icon :size="14"><Close /></el-icon>
+              </button>
+            </el-tooltip>
+          </div>
         </div>
         <ProjectExplorer />
         <div class="activity-right-border"></div>
       </div>
       <div
-        v-if="showLeftActivity"
+        v-if="!isSingleTabWindow && !showLeftActivity && explorerDockPreviewVisible"
+        class="left-activity dock-preview-panel"
+        :style="{ width: leftActivityWidth + 'px' }"
+        @mouseup.left="handleExplorerDockPreviewCommit"
+      >
+        <div class="activity-header">
+          <div class="activity-title">{{ t('layout.explorer.title') }}</div>
+        </div>
+        <div class="dock-preview-body">在此区域松开左键后还原资源管理器</div>
+        <div class="activity-right-border"></div>
+      </div>
+      <div
+        v-if="!isSingleTabWindow && showLeftActivity && leftActivityPinned"
+        class="left-floating-panel"
+        :style="{ width: `${leftFloatWidth}px` }"
+      >
+        <div
+          class="activity-header floating-header"
+          draggable="true"
+          @dragstart="handleExplorerHeaderDragStart"
+          @dragend="handleExplorerHeaderDragEnd"
+          @contextmenu.prevent.stop="openLeftActivityContextMenu"
+        >
+          <div class="activity-title">{{ t('layout.explorer.title') }}</div>
+          <div class="activity-header-actions">
+            <el-tooltip :content="t('common.close')" placement="bottom" :show-after="250" popper-class="app-unified-tooltip">
+              <button class="activity-close-btn" @click="closeLeftActivityPanel">
+                <el-icon :size="14"><Close /></el-icon>
+              </button>
+            </el-tooltip>
+          </div>
+        </div>
+        <ProjectExplorer />
+        <div class="floating-resize-handle" @mousedown.stop.prevent="startLeftFloatResize"></div>
+      </div>
+      <div
+        v-if="!isSingleTabWindow && leftActivityMenuVisible"
+        class="activity-context-menu"
+        :style="{ left: `${leftActivityMenuX}px`, top: `${leftActivityMenuY}px` }"
+        @click.stop
+      >
+        <button class="activity-context-item" @click="handleToggleLeftFloatingFromMenu">
+          {{ leftActivityPinned ? '还原停靠' : '浮动覆盖主区域' }}
+        </button>
+        <button class="activity-context-item" @click="handleOpenLeftPanelInNewWindow">在新窗口打开</button>
+        <button class="activity-context-item" @click="handleCloseLeftPanelFromMenu">关闭活动栏</button>
+      </div>
+      <div
+        v-if="!isSingleTabWindow && showLeftActivity && !leftActivityPinned"
         class="splitter left-splitter"
         :class="{
           active: isLeftSplitterActive,
@@ -32,10 +88,11 @@
         @mouseleave="isLeftSplitterActive = false"
       />
       <div class="main-area" ref="mainArea">
-        <div class="main-content" :style="{ height: mainContentHeight + 'px' }">
+        <div class="main-content" :style="isSingleTabWindow ? { height: '100%' } : { height: mainContentHeight + 'px' }">
           <MainTabPanel ref="mainTabPanelRef" />
         </div>
         <div
+          v-if="!isSingleTabWindow"
           class="splitter vertical-splitter"
           :class="{
             active: isVerticalSplitterActive,
@@ -46,6 +103,7 @@
           @mouseleave="isVerticalSplitterActive = false"
         />
         <div
+          v-if="!isSingleTabWindow"
           class="tab-panel-container"
           :class="{ 'close-armed-panel': isVerticalLimitArmed, 'close-armed-bottom': isVerticalCloseArmed }"
           :style="{ height: tabPanelHeight + 'px' }"
@@ -54,7 +112,7 @@
         </div>
       </div>
       <div
-        v-if="showRightActivity"
+        v-if="!isSingleTabWindow && showRightActivity"
         class="splitter right-splitter"
         :class="{
           active: isRightSplitterActive,
@@ -66,7 +124,7 @@
         @mouseleave="isRightSplitterActive = false"
       />
       <div
-        v-if="showRightActivity"
+        v-if="!isSingleTabWindow && showRightActivity"
         class="right-activity"
         :class="{ 'close-armed-panel': isRightCloseArmed || isRightMaxArmed, 'close-armed-side': isRightCloseArmed }"
       >
@@ -84,7 +142,7 @@
         </ActivityBar>
       </div>
     </div>
-    <RightSidebar @toggle-activity="uiActions.toggleRightPanel" />
+    <RightSidebar v-if="!isSingleTabWindow" @toggle-activity="uiActions.toggleRightPanel" />
   </div>
 </template>
 
@@ -108,10 +166,18 @@ import { shortcutService } from '../../services/shortcutService';
 const mainTabPanelRef = ref<any>(null);
 const contentWrapper = ref<HTMLElement | null>(null);
 const mainArea = ref<HTMLElement | null>(null);
+const leftActivityPinned = ref(false);
+const leftFloatWidth = ref(320);
+let leftFloatResizeState: { startX: number; startWidth: number } | null = null;
+const explorerHeaderDragStartPoint = ref<{ x: number; y: number } | null>(null);
+const leftActivityMenuVisible = ref(false);
+const leftActivityMenuX = ref(0);
+const leftActivityMenuY = ref(0);
 const { t } = useI18n();
 const { state } = useUiState();
+const isSingleTabWindow = computed(() => state.windowMode === 'single-tab');
 
-const { currentView, showLeftActivity, showRightActivity, toggleLeftActivity, closeLeftActivity, closeRightActivity } =
+const { currentView, showLeftActivity, showRightActivity, toggleLeftActivity, openLeftActivity, closeLeftActivity, closeRightActivity } =
   useLayoutPanels();
 
 const {
@@ -138,12 +204,131 @@ const {
 const handleSidebarClick = (view: string) => {
   currentView.value = view;
   if (view === 'home' && mainTabPanelRef.value) mainTabPanelRef.value.loadHomeTab();
-  if (view === 'file') toggleLeftActivity();
+  if (view === 'file') {
+    if (explorerDetachedVisible.value) {
+      void handleFocusDetachedExplorer();
+      return;
+    }
+    toggleLeftActivity();
+  }
+};
+
+const toggleLeftPinned = () => {
+  leftActivityPinned.value = !leftActivityPinned.value;
+  if (leftActivityPinned.value) {
+    leftFloatWidth.value = Math.max(260, leftActivityWidth.value);
+    return;
+  }
+  leftActivityWidth.value = Math.max(220, Math.min(560, leftFloatWidth.value));
+};
+
+const closeLeftActivityPanel = () => {
+  leftActivityPinned.value = false;
+  leftActivityMenuVisible.value = false;
+  closeLeftActivity();
+};
+
+const stopLeftFloatResize = () => {
+  leftFloatResizeState = null;
+  document.removeEventListener('mousemove', onLeftFloatResize);
+  document.removeEventListener('mouseup', stopLeftFloatResize);
+};
+
+const onLeftFloatResize = (event: MouseEvent) => {
+  if (!leftFloatResizeState || !contentWrapper.value) return;
+  const wrapperRect = contentWrapper.value.getBoundingClientRect();
+  const delta = event.clientX - leftFloatResizeState.startX;
+  const minWidth = 260;
+  const maxWidth = Math.max(minWidth, wrapperRect.width - 8);
+  leftFloatWidth.value = Math.min(maxWidth, Math.max(minWidth, leftFloatResizeState.startWidth + delta));
+};
+
+const startLeftFloatResize = (event: MouseEvent) => {
+  if (!leftActivityPinned.value) return;
+  leftFloatResizeState = {
+    startX: event.clientX,
+    startWidth: leftFloatWidth.value
+  };
+  document.addEventListener('mousemove', onLeftFloatResize);
+  document.addEventListener('mouseup', stopLeftFloatResize);
+};
+
+const openLeftActivityContextMenu = (event: MouseEvent) => {
+  leftActivityMenuVisible.value = true;
+  leftActivityMenuX.value = event.clientX;
+  leftActivityMenuY.value = event.clientY;
+};
+
+const handleToggleLeftFloatingFromMenu = () => {
+  toggleLeftPinned();
+  leftActivityMenuVisible.value = false;
+};
+
+const handleCloseLeftPanelFromMenu = () => {
+  closeLeftActivityPanel();
+  leftActivityMenuVisible.value = false;
+};
+
+const handleOpenLeftPanelInNewWindow = async () => {
+  leftActivityMenuVisible.value = false;
+  await window.electron?.ipcRenderer?.invoke?.('window:open-new', {
+    windowMode: 'single-tab',
+    theme: state.theme,
+    initialTab: {
+      id: 'explorer',
+      title: t('layout.explorer.title'),
+      content: 'explorer-view',
+      dirty: false
+    }
+  });
+};
+
+const handleExplorerDockPreviewCommit = async () => {
+  if (!explorerDockPreviewVisible.value) return;
+  await window.electron?.ipcRenderer?.invoke?.('window:dock-explorer-commit');
+};
+
+const handleFocusDetachedExplorer = async () => {
+  await window.electron?.ipcRenderer?.invoke?.('window:focus-detached-explorer');
+};
+
+const isDropOutsideWindow = (event: DragEvent) => {
+  const { screenX, screenY } = event;
+  const winLeft = window.screenX;
+  const winTop = window.screenY;
+  const winRight = winLeft + window.outerWidth;
+  const winBottom = winTop + window.outerHeight;
+  return screenX < winLeft || screenX > winRight || screenY < winTop || screenY > winBottom;
+};
+
+const handleExplorerHeaderDragStart = (event: DragEvent) => {
+  explorerHeaderDragStartPoint.value = { x: event.screenX, y: event.screenY };
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', 'explorer-header');
+  }
+};
+
+const handleExplorerHeaderDragEnd = async (event: DragEvent) => {
+  const start = explorerHeaderDragStartPoint.value;
+  explorerHeaderDragStartPoint.value = null;
+  if (!start) return;
+  const movedDistance = Math.hypot(event.screenX - start.x, event.screenY - start.y);
+  if (movedDistance < 24) return;
+  if (!isDropOutsideWindow(event)) return;
+  await handleOpenLeftPanelInNewWindow();
+};
+
+const closeLeftActivityContextMenu = () => {
+  leftActivityMenuVisible.value = false;
 };
 
 const handleRightActivityToggleFloat = () => {};
 
 const handleToggleExplorerShortcut = () => {
+  if (!showLeftActivity.value) {
+    leftActivityPinned.value = false;
+  }
   toggleLeftActivity();
 };
 
@@ -175,15 +360,37 @@ let disposeToggleExplorerShortcut: (() => void) | null = null;
 let disposeTogglePropertiesShortcut: (() => void) | null = null;
 let disposeToggleBottomPanelShortcut: (() => void) | null = null;
 let disposeGoHomeShortcut: (() => void) | null = null;
+let restoreExplorerListener: ((event: any, ...args: any[]) => void) | null = null;
+let closeExplorerListener: ((event: any, ...args: any[]) => void) | null = null;
+let explorerDockPreviewListener: ((event: any, ...args: any[]) => void) | null = null;
+const explorerDockPreviewVisible = ref(false);
+let explorerDetachedStateListener: ((event: any, ...args: any[]) => void) | null = null;
+const explorerDetachedVisible = ref(false);
 
 onMounted(() => {
   disposeToggleExplorerShortcut = shortcutService.onAction('toggleExplorer', handleToggleExplorerShortcut);
   disposeTogglePropertiesShortcut = shortcutService.onAction('toggleProperties', handleTogglePropertiesShortcut);
   disposeToggleBottomPanelShortcut = shortcutService.onAction('toggleBottomPanel', handleToggleBottomPanelShortcut);
   disposeGoHomeShortcut = shortcutService.onAction('goHome', handleGoHomeShortcut);
+  restoreExplorerListener = window.electron?.ipcRenderer?.on?.('layout:restore-explorer', () => {
+    leftActivityPinned.value = false;
+    openLeftActivity();
+  }) ?? null;
+  closeExplorerListener = window.electron?.ipcRenderer?.on?.('layout:close-explorer', () => {
+    closeLeftActivityPanel();
+    explorerDockPreviewVisible.value = false;
+  }) ?? null;
+  explorerDockPreviewListener = window.electron?.ipcRenderer?.on?.('layout:explorer-dock-preview', (_event, visible: boolean) => {
+    explorerDockPreviewVisible.value = Boolean(visible);
+  }) ?? null;
+  explorerDetachedStateListener = window.electron?.ipcRenderer?.on?.('layout:explorer-detached-state', (_event, visible: boolean) => {
+    explorerDetachedVisible.value = Boolean(visible);
+  }) ?? null;
+  document.addEventListener('click', closeLeftActivityContextMenu);
 });
 
 onUnmounted(() => {
+  stopLeftFloatResize();
   disposeToggleExplorerShortcut?.();
   disposeTogglePropertiesShortcut?.();
   disposeToggleBottomPanelShortcut?.();
@@ -192,13 +399,43 @@ onUnmounted(() => {
   disposeTogglePropertiesShortcut = null;
   disposeToggleBottomPanelShortcut = null;
   disposeGoHomeShortcut = null;
+  if (restoreExplorerListener) {
+    window.electron?.ipcRenderer?.off?.('layout:restore-explorer', restoreExplorerListener);
+    restoreExplorerListener = null;
+  }
+  if (closeExplorerListener) {
+    window.electron?.ipcRenderer?.off?.('layout:close-explorer', closeExplorerListener);
+    closeExplorerListener = null;
+  }
+  if (explorerDockPreviewListener) {
+    window.electron?.ipcRenderer?.off?.('layout:explorer-dock-preview', explorerDockPreviewListener);
+    explorerDockPreviewListener = null;
+  }
+  if (explorerDetachedStateListener) {
+    window.electron?.ipcRenderer?.off?.('layout:explorer-detached-state', explorerDetachedStateListener);
+    explorerDetachedStateListener = null;
+  }
+  document.removeEventListener('click', closeLeftActivityContextMenu);
 });
 </script>
 
 <style scoped>
 .layout-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: row; background-color: var(--app-bg); overflow: hidden; }
-.content-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: row; overflow: hidden; }
+.content-wrapper { flex: 1; min-height: 0; display: flex; flex-direction: row; overflow: hidden; position: relative; }
 .left-activity { flex-shrink: 0; flex-grow: 0; display: flex; flex-direction: column; height: 100%; position: relative; }
+.left-floating-panel {
+  position: absolute;
+  z-index: 120;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  min-height: 260px;
+  border: 1px solid var(--app-border);
+  border-radius: 0 6px 6px 0;
+  background-color: var(--app-bg);
+  overflow: hidden;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+}
 .activity-header {
   display: flex;
   align-items: center;
@@ -207,6 +444,46 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--app-border);
   background-color: var(--app-bg-elevated);
   height: var(--app-tabbar-height);
+}
+.floating-header { user-select: none; }
+.activity-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.floating-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+}
+.activity-context-menu {
+  position: fixed;
+  z-index: 2600;
+  min-width: 180px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  background: var(--app-bg-elevated);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
+  padding: 4px;
+}
+.activity-context-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--app-text-regular);
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: var(--app-ui-font-size);
+}
+.activity-context-item:hover {
+  background-color: var(--app-bg-hover);
+  color: var(--app-text-primary);
 }
 .activity-title {
   display: inline-flex;
@@ -236,6 +513,19 @@ onUnmounted(() => {
   background-color: var(--app-border);
   opacity: 0.8;
   z-index: 2;
+}
+.dock-preview-panel {
+  border: 1px dashed color-mix(in srgb, #8b93a1 55%, var(--app-border));
+  background: color-mix(in srgb, #9aa3b2 10%, var(--app-bg));
+}
+.dock-preview-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-muted);
+  font-size: var(--app-ui-font-size);
 }
 .right-activity { flex-shrink: 0; flex-grow: 0; position: relative; }
 .main-area { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background-color: var(--app-bg); }
