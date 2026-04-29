@@ -1216,17 +1216,17 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 26px;
+  min-height: var(--app-ui-row-height);
   padding: 0 12px;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   color: var(--app-text-regular);
   cursor: pointer;
 }
 .tree-item-header:hover { background-color: var(--app-bg-soft-hover); }
 .tree-item-header.selected { background-color: var(--app-bg-hover); color: var(--app-text-primary); }
-.expand-icon { width: 12px; height: 12px; margin-right: 4px; color: var(--app-text-subtle); }
+.expand-icon { width: var(--app-icon-size); height: var(--app-icon-size); margin-right: 4px; color: var(--app-text-subtle); }
 .placeholder-icon { opacity: 0; }
-.file-icon { width: 14px; height: 14px; margin-right: 6px; color: var(--app-text-subtle); }
+.file-icon { width: var(--app-icon-size); height: var(--app-icon-size); margin-right: 6px; color: var(--app-text-subtle); }
 .file-name {
   flex: 1;
   min-width: 0;

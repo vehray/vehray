@@ -26,19 +26,8 @@
           {{ viewMode === 'hex' ? 'HEX' : 'DEC' }}
         </button>
       </el-tooltip>
-      <button class="ldf-toolbar-btn ldf-toolbar-btn-mode" type="button" @click="isTextMode = !isTextMode">
-        {{ isTextMode ? 'UI' : 'TXT' }}
-      </button>
     </div>
     <div ref="editorBodyRef" class="ldf-editor-body">
-      <section v-if="isTextMode" class="ldf-text-mode-panel">
-        <textarea
-          v-model="textEditorValue"
-          class="ldf-text-mode-editor"
-          spellcheck="false"
-        />
-      </section>
-      <template v-else>
       <aside class="ldf-outline-pane">
         <div class="ldf-outline-tabs">
           <button
@@ -106,64 +95,8 @@
       ></div>
       <div class="ldf-editor-main">
         <section
-          v-if="outlineViewMode === 'nodes' && (activeNodeFrameDetail || activeNodeSignalDetail)"
-          class="ldf-frame-editor-panel ldf-frame-editor-panel-fill ldf-frame-editor-readonly"
-        >
-          <div class="ldf-frame-editor-title">{{ t('tabs.ldfEditor.frameEditor.title') }}</div>
-          <div class="ldf-frame-group">
-            <div class="ldf-frame-group-title">
-              {{ activeNodeFrameDetail ? t('tabs.ldfEditor.tree.frames') : t('tabs.ldfEditor.tree.pulishedSignaals') }}
-            </div>
-            <template v-if="activeNodeFrameDetail">
-              <div class="ldf-frame-editor-grid ldf-frame-properties-grid">
-                <label class="ldf-frame-editor-field ldf-frame-name-field">
-                  <span>{{ t('tabs.ldfEditor.frameEditor.name') }}</span>
-                  <input :value="activeNodeFrameDetail.name" type="text" disabled />
-                </label>
-                <label class="ldf-frame-editor-field ldf-frame-id-field">
-                  <span>{{ t('tabs.ldfEditor.frameEditor.id') }}</span>
-                  <input :value="`0x${activeNodeFrameDetail.id.toString(16).toUpperCase()}`" type="text" disabled />
-                </label>
-                <label class="ldf-frame-editor-field ldf-frame-length-field">
-                  <span>{{ t('tabs.ldfEditor.frameEditor.length') }}</span>
-                  <input :value="activeNodeFrameDetail.length" type="number" disabled />
-                </label>
-              </div>
-              <div class="ldf-diag-readonly-hint">当前节点视图下仅展示，不可编辑。</div>
-            </template>
-            <template v-else-if="activeNodeSignalDetail">
-              <div class="ldf-frame-editor-grid ldf-frame-properties-grid">
-                <label class="ldf-frame-editor-field ldf-frame-name-field">
-                  <span>{{ t('tabs.ldfEditor.frameEditor.columns.signal') }}</span>
-                  <input :value="activeNodeSignalDetail.name" type="text" disabled />
-                </label>
-                <label class="ldf-frame-editor-field ldf-frame-length-field">
-                  <span>{{ t('tabs.ldfEditor.frameEditor.columns.length') }}</span>
-                  <input :value="activeNodeSignalDetail.size" type="number" disabled />
-                </label>
-                <label class="ldf-frame-editor-field ldf-frame-id-field">
-                  <span>{{ t('tabs.ldfEditor.frameEditor.signalEditor.initialValue') }}</span>
-                  <input :value="activeNodeSignalDetail.initValue" type="number" disabled />
-                </label>
-              </div>
-              <div class="ldf-frame-editor-grid ldf-frame-properties-grid">
-                <label class="ldf-frame-editor-field ldf-frame-name-field">
-                  <span>{{ t('tabs.ldfEditor.frameEditor.publisher') }}</span>
-                  <input :value="activeNodeSignalDetail.publisher" type="text" disabled />
-                </label>
-                <label class="ldf-frame-editor-field ldf-frame-name-field">
-                  <span>{{ t('tabs.ldfEditor.frameEditor.subscriber') }}</span>
-                  <input :value="activeNodeSignalDetail.subscribers.join(', ') || '-'" type="text" disabled />
-                </label>
-              </div>
-              <div class="ldf-diag-readonly-hint">当前节点视图下仅展示，不可编辑。</div>
-            </template>
-          </div>
-        </section>
-        <section
           v-if="outlineViewMode === 'frames' && activeFrameName"
           class="ldf-frame-editor-panel ldf-frame-editor-panel-fill"
-          :class="{ 'ldf-frame-editor-readonly': isFrameReadOnly }"
         >
           <div class="ldf-frame-editor-title">{{ t('tabs.ldfEditor.frameEditor.title') }}</div>
           <div class="ldf-frame-group">
@@ -171,15 +104,15 @@
             <div class="ldf-frame-editor-grid ldf-frame-properties-grid">
               <label class="ldf-frame-editor-field ldf-frame-name-field">
                 <span>{{ t('tabs.ldfEditor.frameEditor.name') }}</span>
-                <input v-model="frameEditor.name" type="text" :disabled="isFrameReadOnly" />
+                <input v-model="frameEditor.name" type="text" />
               </label>
               <label class="ldf-frame-editor-field ldf-frame-length-field">
                 <span>{{ t('tabs.ldfEditor.frameEditor.length') }}</span>
-                <input v-model.number="frameEditor.length" type="number" min="1" max="8" :disabled="isFrameReadOnly" />
+                <input v-model.number="frameEditor.length" type="number" min="1" max="8" />
               </label>
               <label class="ldf-frame-editor-field ldf-frame-id-field">
                 <span>{{ t('tabs.ldfEditor.frameEditor.id') }}</span>
-                <input v-model="frameEditor.idHex" type="text" :disabled="isFrameReadOnly" />
+                <input v-model="frameEditor.idHex" type="text" />
               </label>
             </div>
           </div>
@@ -192,7 +125,6 @@
                   v-model="frameEditor.publisher"
                   class="ldf-rel-select"
                   popper-class="ldf-rel-select-popper"
-                  :disabled="isFrameReadOnly"
                 >
                   <el-option
                     v-for="item in frameRelationRoleOptions"
@@ -208,7 +140,7 @@
                   v-model="frameEditor.subscriber"
                   class="ldf-rel-select"
                   popper-class="ldf-rel-select-popper"
-                  :disabled="isFrameRelationRoleLocked || isFrameReadOnly"
+                  :disabled="isFrameRelationRoleLocked"
                 >
                   <el-option
                     v-for="item in frameRelationRoleOptions"
@@ -222,7 +154,6 @@
                 </span>
               </label>
             </div>
-            <div v-if="isFrameReadOnly" class="ldf-diag-readonly-hint">诊断保留帧复用同一视图，仅展示不可编辑。</div>
           </div>
           <div class="ldf-frame-group ldf-frame-group-mapping">
             <div class="ldf-frame-group-title-row">
@@ -253,7 +184,7 @@
               ref="signalTableWrapRef"
               class="ldf-frame-mapping-table-wrap"
               :class="{ 'is-inline-editing': signalEditDialog.visible }"
-              @contextmenu.prevent="!isFrameReadOnly && openSignalBlankContextMenu($event)"
+              @contextmenu.prevent="openSignalBlankContextMenu($event)"
             >
               <table class="ldf-frame-mapping-table">
                 <thead>
@@ -275,8 +206,8 @@
                     :class="{ selected: selectedSignalRowIndex === index }"
                     :style="getSignalRowStyle(row, index)"
                     @click="selectSignalRow(index)"
-                    @dblclick="!isFrameReadOnly && handleSignalRowEdit(index)"
-                    @contextmenu.prevent.stop="!isFrameReadOnly && openSignalContextMenu($event, index)"
+                    @dblclick="handleSignalRowEdit(index)"
+                    @contextmenu.prevent.stop="openSignalContextMenu($event, index)"
                   >
                     <td>{{ row.signal }}</td>
                     <td>{{ row.startBit }}</td>
@@ -398,7 +329,6 @@
                           type="button"
                           class="ldf-encoding-type-tab"
                           :class="{ active: signalEditDialog.encodingType === 'Physical' }"
-                          :disabled="isEncodingTabsLockedByAsciiBcd || !hasActiveAsciiBcdProfile"
                           @click="signalEditDialog.encodingType = 'Physical'"
                         >
                           {{ t('tabs.ldfEditor.frameEditor.signalEditor.encodingTabs.physical') }}
@@ -407,7 +337,6 @@
                           type="button"
                           class="ldf-encoding-type-tab"
                           :class="{ active: signalEditDialog.encodingType === 'Logical (Text Table)' }"
-                          :disabled="isEncodingTabsLockedByAsciiBcd || !hasActiveAsciiBcdProfile"
                           @click="signalEditDialog.encodingType = 'Logical (Text Table)'"
                         >
                           {{ t('tabs.ldfEditor.frameEditor.signalEditor.encodingTabs.logicalTextTable') }}
@@ -416,7 +345,6 @@
                           type="button"
                           class="ldf-encoding-type-tab"
                           :class="{ active: signalEditDialog.encodingType === 'Multi-Range' }"
-                          :disabled="isEncodingTabsLockedByAsciiBcd || !hasActiveAsciiBcdProfile"
                           @click="signalEditDialog.encodingType = 'Multi-Range'"
                         >
                           {{ t('tabs.ldfEditor.frameEditor.signalEditor.encodingTabs.multiRange') }}
@@ -550,8 +478,11 @@
                           @change="onBcdOptionChange"
                         />
                       </label>
-                      <div v-if="isEncodingTabsLockedByAsciiBcd" class="ldf-ascii-bcd-hint">
+                      <div v-if="hasActiveAsciiBcdProfile" class="ldf-ascii-bcd-hint">
                         {{ t('tabs.ldfEditor.frameEditor.signalEditor.hints.uncheckToSwitchEncoding') }}
+                      </div>
+                      <div v-else class="ldf-ascii-bcd-hint">
+                        {{ t('tabs.ldfEditor.frameEditor.signalEditor.hints.createOrSelectEncodingFirst') }}
                       </div>
                       </div>
                     </div>
@@ -689,11 +620,11 @@
                     'byte-end': shouldShowByteBoundary(bit)
                   }"
                   :style="getBitCellStyle(bit)"
-                  @mousedown.left.prevent="!isFrameReadOnly && !isBitDisabled(bit) && startBitDrag(bit, $event)"
+                  @mousedown.left.prevent="!isBitDisabled(bit) && startBitDrag(bit, $event)"
                   @mouseenter="updateBitDrag(bit, $event)"
                   @mousemove="handleBitCellMouseMove($event, bit)"
                   @mouseup.left.prevent="endBitDrag(bit, $event)"
-                  @contextmenu.prevent="!isFrameReadOnly && openMatrixSignalContextMenu($event, bit)"
+                  @contextmenu.prevent="openMatrixSignalContextMenu($event, bit)"
                 />
                 <div class="ldf-signal-matrix-label-layer" aria-hidden="true">
                   <div
@@ -701,11 +632,10 @@
                     :key="`label-${range.id}`"
                     class="ldf-signal-matrix-range-label"
                     :class="{
-                      selected: isCreatedRangeSelected(range.id),
+                      selected: selectedCreatedRangeId === range.id,
                       moving:
                         (isRepositioningCreated && repositionRangeId === range.id) ||
-                        (isResizingCreated && resizeRangeId === range.id) ||
-                        (isRepositioningCreatedGroup && isCreatedRangeSelected(range.id)),
+                        (isResizingCreated && resizeRangeId === range.id),
                       'multi-bit': range.end > range.start,
                       'single-bit': range.end <= range.start,
                     }"
@@ -734,7 +664,7 @@
                 </div>
               </div>
               <div
-                v-if="draftRange && !isDraggingBits && !isFrameReadOnly"
+                v-if="draftRange && !isDraggingBits"
                 ref="draftPopupRef"
                 class="ldf-signal-matrix-actions floating"
                 :style="{ left: `${draftPopupPosition.x}px`, top: `${draftPopupPosition.y}px` }"
@@ -799,7 +729,6 @@
           </div>
         </section>
       </div>
-      </template>
     </div>
     <div
       v-if="nodeContextMenu.visible"
@@ -911,7 +840,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void;
 }>();
-const isTextMode = ref(false);
 const { t } = useI18n();
 const { setSelectedInspectorEntry } = useUiState();
 const editorBodyRef = ref<HTMLDivElement | null>(null);
@@ -923,8 +851,6 @@ const leftPaneWidth = ref(240);
 const outlineViewMode = ref<'nodes' | 'frames' | 'schedules'>('nodes');
 const currentOutlineNodeId = ref('nodes-root');
 const activeFrameName = ref<string | null>(null);
-const activeNodeFrameName = ref<string | null>(null);
-const activeNodeSignalName = ref<string | null>(null);
 const frameEditor = reactive({
   name: 'New_Frame',
   idHex: '0x10',
@@ -968,17 +894,12 @@ const shiftResizeHoverEdge = ref<'start' | 'end' | ''>('');
 let createdLongPressTimer: ReturnType<typeof setTimeout> | null = null;
 let createdLongPressContext: { rangeId: string; grabBit: number } | null = null;
 let repositionSnapshot: { rangeId: string; rowId: string; start: number; end: number } | null = null;
-let repositionGroupSnapshot: Array<{ rangeId: string; rowId: string; start: number; end: number }> | null = null;
 let resizeSnapshot: { rangeId: string; rowId: string; start: number; end: number } | null = null;
 /** 长按等待进入平移时，高亮当前帧区段 */
 const longPressArmRangeId = ref('');
-const isRepositioningCreatedGroup = ref(false);
-const repositionGroupAnchorRangeId = ref('');
-const repositionGroupGrabOffset = ref(0);
 
 const createdSignalRanges = ref<Array<{ id: string; rowId: string; start: number; end: number; label: string }>>([]);
 const selectedCreatedRangeId = ref('');
-const selectedCreatedRangeIds = ref<string[]>([]);
 const draftSignalName = ref('');
 const draftPopupPosition = reactive({ x: 12, y: 12 });
 const dragIndicatorPosition = reactive({ x: 12, y: 12 });
@@ -1041,21 +962,6 @@ const signalEditDialog = reactive({
   subscribers: '',
 });
 const ldfDoc = ref<Ldf13Document | null>(null);
-const isActiveDiagnosticFrame = computed(() => {
-  if (!activeFrameName.value) return false;
-  const frame = ldfDoc.value?.frames.find((item) => item.name === activeFrameName.value);
-  if (!frame) return false;
-  return frame.id === 0x3c || frame.id === 0x3d;
-});
-const isFrameReadOnly = computed(() => outlineViewMode.value === 'frames' && isActiveDiagnosticFrame.value);
-const activeNodeFrameDetail = computed(() => {
-  if (!activeNodeFrameName.value) return null;
-  return ldfDoc.value?.frames.find((item) => item.name === activeNodeFrameName.value) ?? null;
-});
-const activeNodeSignalDetail = computed(() => {
-  if (!activeNodeSignalName.value) return null;
-  return ldfDoc.value?.signals.find((item) => item.name === activeNodeSignalName.value) ?? null;
-});
 const pendingInternalModelUpdates = ref(0);
 const lastInternalModelValue = ref('');
 const asciiBcdProfileInputRef = ref<HTMLInputElement | null>(null);
@@ -1069,11 +975,6 @@ const activeAsciiBcdConfig = computed(() => {
   return asciiBcdProfileConfigs.value[key] ?? null;
 });
 const hasActiveAsciiBcdProfile = computed(() => activeAsciiBcdConfig.value !== null);
-const isEncodingTabsLockedByAsciiBcd = computed(() => {
-  const active = activeAsciiBcdConfig.value;
-  if (!active) return false;
-  return active.asciiEnabled || active.bcdEnabled;
-});
 const relationSubscriberNodes = ref<string[]>([]);
 const relationDragNode = ref('');
 const relationDragFrom = ref<'available' | 'subscribers' | ''>('');
@@ -1165,125 +1066,12 @@ const emitModelValueUpdate = (value: string) => {
   emit('update:modelValue', value);
 };
 
-const textEditorValue = computed({
-  get: () => props.modelValue ?? '',
-  set: (value: string) => {
-    emitModelValueUpdate(value);
-  }
-});
-
 const currentOutlineTreeData = computed(() => {
   const linBusName = resolveLinBusName(props.modelValue);
   if (outlineViewMode.value === 'nodes') {
     const source = props.modelValue ?? '';
     const masterMeta = parseMasterNodeMeta(source);
     const slaveNodes = parseSlaveNodesMeta(source);
-    const doc = ldfDoc.value;
-    const masterName = masterMeta.name || t('tabs.ldfEditor.tree.masterNode');
-    const allSignals = doc?.signals ?? [];
-    const allFrames = doc?.frames ?? [];
-    const signalByName = new Map(allSignals.map((signal) => [signal.name, signal]));
-    const frameSubscriberMap = new Map<string, Set<string>>();
-    for (const frame of allFrames) {
-      const subscribers = new Set<string>();
-      for (const item of frame.signals) {
-        const signal = signalByName.get(item.signal);
-        for (const sub of signal?.subscribers ?? []) {
-          subscribers.add(sub);
-        }
-      }
-      frameSubscriberMap.set(frame.name, subscribers);
-    }
-
-    const toSignalLeaf = (signalName: string, prefix: string, index: number) => ({
-      id: `${prefix}-signal-${index}`,
-      label: signalName,
-      icon: 'frame',
-      signalName,
-    });
-    const toFrameLeaf = (frame: { name: string; id: number }, prefix: string, index: number) => ({
-      id: `${prefix}-frame-${index}`,
-      label: `${frame.name} (0x${frame.id.toString(16).toUpperCase()})`,
-      icon: frame.id === 0x3c || frame.id === 0x3d ? 'diag-frame' : 'frame',
-      entryType: 'frame-entry',
-      frameName: frame.name,
-    });
-
-    const getNodeSections = (nodeName: string, prefix: string) => {
-      const publishedSignals = allSignals
-        .filter((signal) => signal.publisher === nodeName)
-        .map((signal) => signal.name);
-      const subscribedSignals = allSignals
-        .filter((signal) => signal.subscribers.includes(nodeName))
-        .map((signal) => signal.name);
-      const publishedFrames = allFrames.filter((frame) => frame.publisher === nodeName);
-      const subscribedFrames = allFrames.filter((frame) => frameSubscriberMap.get(frame.name)?.has(nodeName));
-      const isMasterNode = nodeName === masterName;
-      const buildReservedSignalNames = (base: 'MasterReqB' | 'SlaveRespB') =>
-        Array.from({ length: 8 }, (_, i) => `${base}${i}`);
-      const mergeSignalNames = (source: string[], required: string[]) => {
-        const set = new Set<string>(source);
-        for (const name of required) set.add(name);
-        return Array.from(set);
-      };
-      const fallbackPublishedSignals = mergeSignalNames(
-        publishedSignals,
-        isMasterNode ? buildReservedSignalNames('MasterReqB') : buildReservedSignalNames('SlaveRespB')
-      );
-      const fallbackSubscribedSignals = mergeSignalNames(
-        subscribedSignals,
-        isMasterNode ? buildReservedSignalNames('SlaveRespB') : buildReservedSignalNames('MasterReqB')
-      );
-      const mergeReservedFrames = (
-        source: Array<{ name: string; id: number }>,
-        required: Array<{ name: string; id: number }>
-      ) => {
-        const map = new Map<string, { name: string; id: number }>();
-        for (const frame of source) {
-          map.set(`${frame.name}|${frame.id}`, frame);
-        }
-        for (const frame of required) {
-          map.set(`${frame.name}|${frame.id}`, frame);
-        }
-        return Array.from(map.values());
-      };
-      const fallbackPublishedFrames =
-        publishedFrames.length > 0
-          ? mergeReservedFrames(publishedFrames, [{ name: isMasterNode ? 'MasterReq' : 'SlaveResp', id: isMasterNode ? 0x3c : 0x3d }])
-          : [{ name: isMasterNode ? 'MasterReq' : 'SlaveResp', id: isMasterNode ? 0x3c : 0x3d }];
-      const fallbackSubscribedFrames =
-        subscribedFrames.length > 0
-          ? mergeReservedFrames(subscribedFrames, [{ name: 'MasterReq', id: 0x3c }])
-          : [{ name: 'MasterReq', id: 0x3c }];
-
-      return [
-        {
-          id: `${prefix}-pulished-signaals`,
-          label: t('tabs.ldfEditor.tree.pulishedSignaals'),
-          icon: 'frame',
-          children: fallbackPublishedSignals.map((name, index) => toSignalLeaf(name, `${prefix}-pub`, index)),
-        },
-        {
-          id: `${prefix}-subscribed-signals`,
-          label: t('tabs.ldfEditor.tree.subscribedSignals'),
-          icon: 'frame',
-          children: fallbackSubscribedSignals.map((name, index) => toSignalLeaf(name, `${prefix}-sub`, index)),
-        },
-        {
-          id: `${prefix}-pulished-frames`,
-          label: t('tabs.ldfEditor.tree.pulishedFrames'),
-          icon: 'frame',
-          children: fallbackPublishedFrames.map((frame, index) => toFrameLeaf(frame, `${prefix}-pubf`, index)),
-        },
-        {
-          id: `${prefix}-subscribed-frames`,
-          label: t('tabs.ldfEditor.tree.subscribedFrames'),
-          icon: 'frame',
-          children: fallbackSubscribedFrames.map((frame, index) => toFrameLeaf(frame, `${prefix}-subf`, index)),
-        },
-      ];
-    };
-
     return [
       {
         id: 'nodes-root',
@@ -1292,16 +1080,58 @@ const currentOutlineTreeData = computed(() => {
         children: [
           {
             id: 'master-node',
-            label: masterName,
+            label: masterMeta.name || t('tabs.ldfEditor.tree.masterNode'),
             icon: 'master',
-            children: getNodeSections(masterName, 'master'),
+            children: [
+              {
+                id: 'master-pulished-signaals',
+                label: t('tabs.ldfEditor.tree.pulishedSignaals'),
+                icon: 'frame',
+              },
+              {
+                id: 'master-subscribed-signals',
+                label: t('tabs.ldfEditor.tree.subscribedSignals'),
+                icon: 'frame',
+              },
+              {
+                id: 'master-pulished-frames',
+                label: t('tabs.ldfEditor.tree.pulishedFrames'),
+                icon: 'frame',
+              },
+              {
+                id: 'master-subscribed-signals-2',
+                label: t('tabs.ldfEditor.tree.subscribedSignals'),
+                icon: 'frame',
+              },
+            ],
           },
           ...slaveNodes.map((slaveName, index) => ({
             id: index === 0 ? 'slave-node' : `slave-node-${index}`,
             label: slaveName,
             icon: 'slave',
             entryType: 'slave-entry',
-            children: getNodeSections(slaveName, `slave-${index}`),
+            children: [
+              {
+                id: `slave-pulished-signaals-${index}`,
+                label: t('tabs.ldfEditor.tree.pulishedSignaals'),
+                icon: 'frame',
+              },
+              {
+                id: `slave-subscribed-signals-${index}`,
+                label: t('tabs.ldfEditor.tree.subscribedSignals'),
+                icon: 'frame',
+              },
+              {
+                id: `slave-pulished-frames-${index}`,
+                label: t('tabs.ldfEditor.tree.pulishedFrames'),
+                icon: 'frame',
+              },
+              {
+                id: `slave-subscribed-signals-2-${index}`,
+                label: t('tabs.ldfEditor.tree.subscribedSignals'),
+                icon: 'frame',
+              },
+            ],
           })),
         ],
       },
@@ -1341,44 +1171,13 @@ const currentOutlineTreeData = computed(() => {
     ];
   }
 
-  const allFrames = ldfDoc.value?.frames ?? [];
-  const unconditionalFrameChildren = allFrames
-    .map((frame, index) => ({ frame, index }))
-    .filter((item) => item.frame.id !== 0x3c && item.frame.id !== 0x3d)
-    .map((item) => ({
-      id: `frame-${item.index}`,
-      label: item.frame.name,
-      icon: 'frame',
-      entryType: 'frame-entry',
-      frameName: item.frame.name,
-    }));
-  const diagnosticFrameChildren = allFrames
-    .filter((frame) => frame.id === 0x3c || frame.id === 0x3d)
-    .map((frame, index) => ({
-      id: `diag-frame-${index}`,
-      label: `${frame.name} (${frame.id})`,
-      icon: 'diag-frame',
-      entryType: 'frame-entry',
-      frameName: frame.name,
-    }));
-  if (diagnosticFrameChildren.length === 0) {
-    diagnosticFrameChildren.push(
-      {
-        id: 'diag-masterreq',
-        label: t('tabs.ldfEditor.tree.masterReq60'),
-        icon: 'diag-frame',
-        entryType: 'frame-entry',
-        frameName: 'MasterReq',
-      },
-      {
-        id: 'diag-slaveresp',
-        label: t('tabs.ldfEditor.tree.slaveResp61'),
-        icon: 'diag-frame',
-        entryType: 'frame-entry',
-        frameName: 'SlaveResp',
-      }
-    );
-  }
+  const frameChildren = (ldfDoc.value?.frames ?? []).map((frame, index) => ({
+    id: `frame-${index}`,
+    label: frame.name,
+    icon: frame.id === 0x3c || frame.id === 0x3d ? 'diag-frame' : 'frame',
+    entryType: 'frame-entry',
+    frameName: frame.name,
+  }));
   return [
     {
       id: 'frames-root',
@@ -1390,13 +1189,13 @@ const currentOutlineTreeData = computed(() => {
           label: t('tabs.ldfEditor.tree.unconditionalFrames'),
           icon: 'frame-folder',
           entryType: 'unconditional-frames-folder',
-          children: unconditionalFrameChildren,
+          children: frameChildren,
         },
         {
           id: 'diagnostic-frames',
           label: t('tabs.ldfEditor.tree.diagnosticFrames'),
           icon: 'frame-folder',
-          children: diagnosticFrameChildren,
+          children: [],
         },
         {
           id: 'event-triggered-frames',
@@ -1724,13 +1523,13 @@ const syncFrameSignalRowsFromDoc = (frameName: string) => {
   }));
   if (frameSignalRows.value.length <= 0) {
     selectedSignalRowIndex.value = -1;
-    setSelectedCreatedRanges([]);
+    selectedCreatedRangeId.value = '';
   } else {
     selectedSignalRowIndex.value = Math.min(selectedSignalRowIndex.value, frameSignalRows.value.length - 1);
     if (selectedSignalRowIndex.value < 0) selectedSignalRowIndex.value = 0;
     const current = frameSignalRows.value[selectedSignalRowIndex.value];
     const linked = createdSignalRanges.value.find((x) => x.rowId === current?.id);
-    setSelectedCreatedRanges(linked?.id ? [linked.id] : []);
+    selectedCreatedRangeId.value = linked?.id ?? '';
   }
 };
 
@@ -1801,7 +1600,6 @@ const loadFrameEditor = (frameName: string) => {
 };
 
 const editSignalRow = () => {
-  if (isFrameReadOnly.value) return;
   if (selectedSignalRowIndex.value < 0) return;
   const row = frameSignalRows.value[selectedSignalRowIndex.value];
   if (!row) return;
@@ -1947,7 +1745,7 @@ const confirmSignalEdit = () => {
     });
   }
   const updatedRange = createdSignalRanges.value.find((range) => range.rowId === row.id);
-  setSelectedCreatedRanges(updatedRange?.id ? [updatedRange.id] : []);
+  selectedCreatedRangeId.value = updatedRange?.id ?? '';
   selectedSignalRowIndex.value = signalEditDialog.index;
   syncDocSignalsFromRows();
   commitDocToText();
@@ -1955,15 +1753,15 @@ const confirmSignalEdit = () => {
 };
 
 const removeSignalRow = () => {
-  if (isFrameReadOnly.value) return;
   if (selectedSignalRowIndex.value < 0) return;
   const removed = frameSignalRows.value[selectedSignalRowIndex.value];
   frameSignalRows.value.splice(selectedSignalRowIndex.value, 1);
   if (removed?.id) {
     const removedRangeIds = createdSignalRanges.value.filter((range) => range.rowId === removed.id).map((range) => range.id);
     createdSignalRanges.value = createdSignalRanges.value.filter((range) => range.rowId !== removed.id);
-    const nextSelectedIds = selectedCreatedRangeIds.value.filter((id) => !removedRangeIds.includes(id));
-    setSelectedCreatedRanges(nextSelectedIds);
+    if (removedRangeIds.includes(selectedCreatedRangeId.value)) {
+      selectedCreatedRangeId.value = '';
+    }
   }
   selectedSignalRowIndex.value = -1;
   syncDocSignalsFromRows();
@@ -1975,50 +1773,10 @@ const selectSignalRow = (index: number) => {
   const row = frameSignalRows.value[index];
   if (!row?.id) {
     selectedCreatedRangeId.value = '';
-    selectedCreatedRangeIds.value = [];
     return;
   }
   const linkedRange = createdSignalRanges.value.find((range) => range.rowId === row.id);
   selectedCreatedRangeId.value = linkedRange?.id ?? '';
-  selectedCreatedRangeIds.value = linkedRange?.id ? [linkedRange.id] : [];
-};
-
-const setSelectedCreatedRanges = (ids: string[], primaryId?: string) => {
-  const unique = Array.from(new Set(ids.filter(Boolean)));
-  selectedCreatedRangeIds.value = unique;
-  if (typeof primaryId === 'string' && unique.includes(primaryId)) {
-    selectedCreatedRangeId.value = primaryId;
-    return;
-  }
-  selectedCreatedRangeId.value = unique[0] ?? '';
-};
-
-const isCreatedRangeSelected = (rangeId: string) => selectedCreatedRangeIds.value.includes(rangeId);
-
-const syncSignalRowIndexFromRangeId = (rangeId: string) => {
-  const range = createdSignalRanges.value.find((x) => x.id === rangeId);
-  if (!range) return;
-  const idx = frameSignalRows.value.findIndex((row) => row.id === range.rowId);
-  if (idx >= 0) {
-    selectedSignalRowIndex.value = idx;
-  }
-};
-
-const toggleCreatedRangeSelection = (rangeId: string) => {
-  if (!rangeId) return;
-  if (isCreatedRangeSelected(rangeId)) {
-    const next = selectedCreatedRangeIds.value.filter((id) => id !== rangeId);
-    setSelectedCreatedRanges(next, next[next.length - 1] ?? '');
-    if (next.length > 0) {
-      syncSignalRowIndexFromRangeId(next[next.length - 1]!);
-    } else {
-      selectedSignalRowIndex.value = -1;
-    }
-    return;
-  }
-  const next = [...selectedCreatedRangeIds.value, rangeId];
-  setSelectedCreatedRanges(next, rangeId);
-  syncSignalRowIndexFromRangeId(rangeId);
 };
 
 /** 位图点击只更新了 selectedCreatedRangeId 时，用其补全列表行索引，便于空格打开编辑等逻辑 */
@@ -2097,7 +1855,6 @@ const handleSignalRowEdit = (index: number) => {
 };
 
 const createAndMapSignal = () => {
-  if (isFrameReadOnly.value) return;
   const nextIndex = frameSignalRows.value.length + 1;
   frameSignalRows.value.push({
     id: `sig-${Date.now()}-${nextIndex}`,
@@ -2127,7 +1884,6 @@ const buildDefaultSignalName = (index: number) => {
 };
 
 const openSignalContextMenu = (event: MouseEvent, index: number) => {
-  if (isFrameReadOnly.value) return;
   selectSignalRow(index);
   closeNodeContextMenu();
   closeLogicalContextMenu();
@@ -2153,7 +1909,6 @@ const closeMultiRangeContextMenu = () => {
 };
 
 const openSignalBlankContextMenu = (event: MouseEvent) => {
-  if (isFrameReadOnly.value) return;
   // 展开信号编辑区时，禁用“新建信号”空白区右键菜单，
   // 避免与 Logical(Text Table) 的 Value Description 右键交互冲突。
   if (signalEditDialog.visible) return;
@@ -2241,11 +1996,6 @@ const openMatrixSignalContextMenu = (event: MouseEvent, bit: number) => {
     closeSignalContextMenu();
     return;
   }
-  if (isRepositioningCreatedGroup.value) {
-    cancelGroupRepositionFromSnapshot();
-    closeSignalContextMenu();
-    return;
-  }
   if (isRepositioningCreated.value) {
     cancelRepositionFromSnapshot();
     closeSignalContextMenu();
@@ -2314,14 +2064,6 @@ const dragIndicatorRange = computed(() => {
   if (isDraggingBits.value && draftRange.value) {
     return { start: draftRange.value.start, end: draftRange.value.end };
   }
-  if (isRepositioningCreatedGroup.value && selectedCreatedRangeIds.value.length > 0) {
-    const selected = createdSignalRanges.value.filter((x) => isCreatedRangeSelected(x.id));
-    if (selected.length > 0) {
-      const start = Math.min(...selected.map((x) => x.start));
-      const end = Math.max(...selected.map((x) => x.end));
-      return { start, end };
-    }
-  }
   if (isResizingCreated.value && resizeRangeId.value) {
     const r = createdSignalRanges.value.find((x) => x.id === resizeRangeId.value);
     if (r) return { start: r.start, end: r.end };
@@ -2365,7 +2107,7 @@ const shouldShowByteBoundary = (bit: number) => {
 
 const isSelectedCreatedBitCovered = (bit: number) =>
   !isBitDisabled(bit) &&
-  createdSignalRanges.value.some((range) => isCreatedRangeSelected(range.id) && bit >= range.start && bit <= range.end);
+  createdSignalRanges.value.some((range) => range.id === selectedCreatedRangeId.value && bit >= range.start && bit <= range.end);
 
 const isSelectedCreatedRangeStart = (bit: number) =>
   createdSignalRanges.value.some((range) => range.id === selectedCreatedRangeId.value && range.start === bit);
@@ -2375,6 +2117,17 @@ const isSelectedCreatedRangeEnd = (bit: number) =>
 
 const getCreatedRangeAtBit = (bit: number) =>
   createdSignalRanges.value.find((range) => bit >= range.start && bit <= range.end) ?? null;
+
+const getCtrlRepositionTarget = (bit: number) => {
+  const direct = getCreatedRangeAtBit(bit);
+  if (direct) return { range: direct, grabBit: bit };
+  // 短区段更易命中：允许在区段左右各 1 bit 热区触发 Ctrl 平移。
+  for (const range of createdSignalRanges.value) {
+    if (bit === range.start - 1) return { range, grabBit: range.start };
+    if (bit === range.end + 1) return { range, grabBit: range.end };
+  }
+  return null;
+};
 
 type MatrixRange = { id: string; rowId: string; start: number; end: number; label: string };
 type ShiftResizeTarget = { range: MatrixRange; edge: 'start' | 'end'; grabBit: number };
@@ -2468,8 +2221,7 @@ const isCtrlDragHoverBit = (bit: number) =>
   !isDraggingBits.value &&
   !isRepositioningCreated.value &&
   !isResizingCreated.value &&
-  !isRepositioningCreatedGroup.value &&
-  Boolean(getCreatedRangeAtBit(bit));
+  Boolean(getCtrlRepositionTarget(bit));
 
 const isLongPressArmingBit = (bit: number) => {
   if (!longPressArmRangeId.value || isRepositioningCreated.value || isResizingCreated.value) return false;
@@ -2481,10 +2233,6 @@ const isLongPressArmingBit = (bit: number) => {
 
 const isBitInRepositioningRange = (bit: number) => {
   if (isBitDisabled(bit)) return false;
-  if (isRepositioningCreatedGroup.value) {
-    const selected = createdSignalRanges.value.filter((x) => isCreatedRangeSelected(x.id));
-    if (selected.some((r) => bit >= r.start && bit <= r.end)) return true;
-  }
   if (isRepositioningCreated.value && repositionRangeId.value) {
     const r = createdSignalRanges.value.find((x) => x.id === repositionRangeId.value);
     if (r && bit >= r.start && bit <= r.end) return true;
@@ -2800,94 +2548,6 @@ const updateRepositionPreview = (hoverBit: number) => {
   }
 };
 
-const cancelGroupRepositionFromSnapshot = () => {
-  if (repositionGroupSnapshot && isRepositioningCreatedGroup.value) {
-    for (const snap of repositionGroupSnapshot) {
-      const r = createdSignalRanges.value.find((x) => x.id === snap.rangeId);
-      if (r) {
-        r.start = snap.start;
-        r.end = snap.end;
-      }
-      const row = frameSignalRows.value.find((x) => x.id === snap.rowId);
-      if (row) {
-        row.startBit = snap.start;
-        row.length = snap.end - snap.start + 1;
-      }
-    }
-  }
-  repositionGroupSnapshot = null;
-  isRepositioningCreatedGroup.value = false;
-  repositionGroupAnchorRangeId.value = '';
-  repositionGroupGrabOffset.value = 0;
-};
-
-const finishGroupReposition = () => {
-  repositionGroupSnapshot = null;
-  isRepositioningCreatedGroup.value = false;
-  repositionGroupAnchorRangeId.value = '';
-  repositionGroupGrabOffset.value = 0;
-};
-
-const beginGroupRepositionCreatedRange = (rangeId: string, grabBit: number) => {
-  const selected = createdSignalRanges.value
-    .filter((x) => isCreatedRangeSelected(x.id))
-    .sort((a, b) => a.start - b.start);
-  if (selected.length <= 1) return;
-  const anchor = selected.find((x) => x.id === rangeId);
-  if (!anchor || grabBit < anchor.start || grabBit > anchor.end) return;
-  const minStart = Math.min(...selected.map((x) => x.start));
-  const maxEnd = Math.max(...selected.map((x) => x.end));
-  if (minStart < 0 || maxEnd > maxEditableBit.value) return;
-  repositionGroupSnapshot = selected.map((x) => ({ rangeId: x.id, rowId: x.rowId, start: x.start, end: x.end }));
-  repositionGroupAnchorRangeId.value = rangeId;
-  repositionGroupGrabOffset.value = grabBit - anchor.start;
-  isRepositioningCreatedGroup.value = true;
-  clearCreatedLongPressTimer();
-};
-
-const updateGroupRepositionPreview = (hoverBit: number) => {
-  if (!isRepositioningCreatedGroup.value || !repositionGroupSnapshot || repositionGroupSnapshot.length <= 1) return;
-  const anchorSnap = repositionGroupSnapshot.find((x) => x.rangeId === repositionGroupAnchorRangeId.value);
-  if (!anchorSnap) return;
-  const targetAnchorStart = hoverBit - repositionGroupGrabOffset.value;
-  const delta = targetAnchorStart - anchorSnap.start;
-  const maxB = maxEditableBit.value;
-  const selectedIds = new Set(repositionGroupSnapshot.map((x) => x.rangeId));
-  let nextBlocks = repositionGroupSnapshot.map((x) => ({
-    ...x,
-    start: x.start + delta,
-    end: x.end + delta,
-  }));
-  let minStart = Math.min(...nextBlocks.map((x) => x.start));
-  let maxEnd = Math.max(...nextBlocks.map((x) => x.end));
-  if (minStart < 0) {
-    nextBlocks = nextBlocks.map((x) => ({ ...x, start: x.start - minStart, end: x.end - minStart }));
-  }
-  maxEnd = Math.max(...nextBlocks.map((x) => x.end));
-  if (maxEnd > maxB) {
-    const shiftLeft = maxEnd - maxB;
-    nextBlocks = nextBlocks.map((x) => ({ ...x, start: x.start - shiftLeft, end: x.end - shiftLeft }));
-  }
-  const blocked = nextBlocks.some((blk) =>
-    createdSignalRanges.value.some(
-      (other) => !selectedIds.has(other.id) && !(blk.end < other.start || blk.start > other.end)
-    )
-  );
-  if (blocked) return;
-  for (const blk of nextBlocks) {
-    const r = createdSignalRanges.value.find((x) => x.id === blk.rangeId);
-    if (r) {
-      r.start = blk.start;
-      r.end = blk.end;
-    }
-    const row = frameSignalRows.value.find((x) => x.id === blk.rowId);
-    if (row) {
-      row.startBit = blk.start;
-      row.length = blk.end - blk.start + 1;
-    }
-  }
-};
-
 const beginRepositionCreatedRange = (rangeId: string, grabBit: number) => {
   const r = createdSignalRanges.value.find((x) => x.id === rangeId);
   if (!r || grabBit < r.start || grabBit > r.end) return;
@@ -2898,7 +2558,7 @@ const beginRepositionCreatedRange = (rangeId: string, grabBit: number) => {
   repositionGrabOffset.value = grabBit - r.start;
   repositionRangeId.value = rangeId;
   isRepositioningCreated.value = true;
-  setSelectedCreatedRanges([rangeId], rangeId);
+  selectedCreatedRangeId.value = rangeId;
   updateRepositionPreview(grabBit);
 };
 
@@ -2932,7 +2592,7 @@ const beginResizeCreatedRange = (rangeId: string, bit: number, forcedEdge?: 'sta
   }
   resizeRangeId.value = rangeId;
   isResizingCreated.value = true;
-  setSelectedCreatedRanges([rangeId], rangeId);
+  selectedCreatedRangeId.value = rangeId;
   updateResizePreview(resizeMovingEdge.value === 'start' ? r.start : r.end);
 };
 
@@ -3011,12 +2671,7 @@ const cancelResizeFromSnapshot = () => {
 };
 
 const startBitDrag = (bit: number, event?: MouseEvent) => {
-  if (isFrameReadOnly.value) return;
   if (isBitDisabled(bit)) return;
-  if (isRepositioningCreatedGroup.value) {
-    finishGroupReposition();
-    clearCreatedLongPressTimer();
-  }
   if (isResizingCreated.value) {
     finishResizeCreatedRange();
     clearCreatedLongPressTimer();
@@ -3028,7 +2683,7 @@ const startBitDrag = (bit: number, event?: MouseEvent) => {
   if (event?.shiftKey) {
     const shiftTarget = getShiftResizeTarget(bit, event);
     if (shiftTarget) {
-      setSelectedCreatedRanges([shiftTarget.range.id], shiftTarget.range.id);
+      selectedCreatedRangeId.value = shiftTarget.range.id;
       clearDraftRange();
       clearCreatedLongPressTimer();
       beginResizeCreatedRange(shiftTarget.range.id, shiftTarget.grabBit, shiftTarget.edge);
@@ -3036,30 +2691,26 @@ const startBitDrag = (bit: number, event?: MouseEvent) => {
       return;
     }
   }
-  const createdRange = getCreatedRangeAtBit(bit);
-  if (createdRange) {
-    if (event?.ctrlKey) {
-      toggleCreatedRangeSelection(createdRange.id);
+  if (event?.ctrlKey) {
+    const target = getCtrlRepositionTarget(bit);
+    if (target) {
+      selectedCreatedRangeId.value = target.range.id;
       clearDraftRange();
       clearCreatedLongPressTimer();
+      beginRepositionCreatedRange(target.range.id, target.grabBit);
       updateDragIndicatorPosition(event);
       return;
     }
-    if (!isCreatedRangeSelected(createdRange.id)) {
-      setSelectedCreatedRanges([createdRange.id], createdRange.id);
-      syncSignalRowIndexFromRangeId(createdRange.id);
-    }
+  }
+  const createdRange = getCreatedRangeAtBit(bit);
+  if (createdRange) {
+    selectedCreatedRangeId.value = createdRange.id;
     clearDraftRange();
-    if (selectedCreatedRangeIds.value.length > 1) {
-      beginGroupRepositionCreatedRange(createdRange.id, bit);
-      updateDragIndicatorPosition(event);
-      return;
-    }
     scheduleCreatedLongPress(bit, createdRange.id);
     return;
   }
   clearCreatedLongPressTimer();
-  setSelectedCreatedRanges([]);
+  selectedCreatedRangeId.value = '';
   closeSignalContextMenu();
   isDraggingBits.value = true;
   dragAnchorBit.value = bit;
@@ -3071,15 +2722,6 @@ const startBitDrag = (bit: number, event?: MouseEvent) => {
 
 const updateBitDrag = (bit: number, event?: MouseEvent) => {
   updateShiftResizeHover(bit, event);
-  if (isRepositioningCreatedGroup.value) {
-    if (!isBitDisabled(bit)) {
-      updateGroupRepositionPreview(bit);
-    }
-    if (event) {
-      updateDragIndicatorPosition(event);
-    }
-    return;
-  }
   if (isResizingCreated.value) {
     if (!isBitDisabled(bit)) {
       updateResizePreview(bit);
@@ -3113,11 +2755,6 @@ const updateBitDrag = (bit: number, event?: MouseEvent) => {
 
 const handleBitCellMouseMove = (event: MouseEvent, bit: number) => {
   updateShiftResizeHover(bit, event);
-  if (isRepositioningCreatedGroup.value) {
-    lastPointerBit.value = bit;
-    updateDragIndicatorPosition(event);
-    return;
-  }
   if (isResizingCreated.value) {
     lastPointerBit.value = bit;
     updateDragIndicatorPosition(event);
@@ -3139,17 +2776,6 @@ const handleBitCellMouseMove = (event: MouseEvent, bit: number) => {
 };
 
 const endBitDrag = (bit?: number, event?: MouseEvent) => {
-  if (isRepositioningCreatedGroup.value) {
-    if (typeof bit === 'number' && !isBitDisabled(bit)) {
-      updateGroupRepositionPreview(bit);
-    }
-    finishGroupReposition();
-    clearCreatedLongPressTimer();
-    updateDraftPopupPosition(event);
-    syncDocSignalsFromRows();
-    commitDocToText();
-    return;
-  }
   if (isResizingCreated.value) {
     if (typeof bit === 'number' && !isBitDisabled(bit)) {
       updateResizePreview(bit);
@@ -3166,8 +2792,6 @@ const endBitDrag = (bit?: number, event?: MouseEvent) => {
     finishRepositionCreatedRange();
     clearCreatedLongPressTimer();
     updateDraftPopupPosition(event);
-    syncDocSignalsFromRows();
-    commitDocToText();
     return;
   }
   clearCreatedLongPressTimer();
@@ -3198,7 +2822,6 @@ const clearDraftRange = () => {
 };
 
 const commitDraftRangeToFrame = () => {
-  if (isFrameReadOnly.value) return;
   if (!draftRange.value) return;
   const nextIndex = createdSignalRanges.value.length + 1;
   const nextLabel = draftSignalName.value || buildDefaultSignalName(nextIndex);
@@ -3225,7 +2848,7 @@ const commitDraftRangeToFrame = () => {
     end: draftRange.value.end,
     label: nextLabel,
   });
-  setSelectedCreatedRanges([createdSignalRanges.value[createdSignalRanges.value.length - 1]?.id ?? '']);
+  selectedCreatedRangeId.value = createdSignalRanges.value[createdSignalRanges.value.length - 1]?.id ?? '';
   syncDocSignalsFromRows();
   commitDocToText();
   clearDraftRange();
@@ -3329,11 +2952,6 @@ const handleGlobalKeyDown = (event: KeyboardEvent) => {
     return;
   }
   if (event.key === 'Escape') {
-    if (isRepositioningCreatedGroup.value) {
-      cancelGroupRepositionFromSnapshot();
-      event.preventDefault();
-      return;
-    }
     if (isResizingCreated.value) {
       cancelResizeFromSnapshot();
       event.preventDefault();
@@ -3388,14 +3006,7 @@ const loadScheduleEditor = (scheduleName: string) => {
 const parseLinBusMeta = (source: string) => {
   const protocolVersion = source.match(/LIN_protocol_version\s*=\s*"([^"]+)";/i)?.[1] ?? '1.3';
   const languageVersion = source.match(/LIN_language_version\s*=\s*"([^"]+)";/i)?.[1] ?? '2.1';
-  const baudrate =
-    source.match(/Bitrate\s*=\s*(\d+)\s*;/i)?.[1] ??
-    (() => {
-      const linSpeed = source.match(/LIN_speed\s*=\s*([\d.]+)\s*kbps\s*;/i)?.[1];
-      if (!linSpeed) return '19200';
-      const kbps = Number.parseFloat(linSpeed);
-      return Number.isFinite(kbps) ? `${Math.round(kbps * 1000)}` : '19200';
-    })();
+  const baudrate = source.match(/Bitrate\s*=\s*(\d+)\s*;/i)?.[1] ?? '19200';
   const comment = source.match(/\/\*\s*([\s\S]*?)\s*\*\//)?.[1]?.trim() ?? '';
   const name = resolveLinBusName(source);
   return { protocolVersion, languageVersion, baudrate, comment, name };
@@ -3567,14 +3178,10 @@ const syncInspectorSelection = (data: { id?: string; frameName?: string; schedul
   setSelectedInspectorEntry(null);
 };
 
-const handleOutlineNodeClick = (data: { id?: string; label?: string; frameName?: string; signalName?: string; scheduleName?: string }) => {
+const handleOutlineNodeClick = (data: { id?: string; label?: string; frameName?: string; scheduleName?: string }) => {
   closeNodeContextMenu();
   if (data.id) {
     currentOutlineNodeId.value = data.id;
-  }
-  if (outlineViewMode.value === 'nodes') {
-    activeNodeFrameName.value = data.frameName ?? null;
-    activeNodeSignalName.value = data.signalName ?? null;
   }
   if (outlineViewMode.value === 'schedules' && data.scheduleName) {
     loadScheduleEditor(data.scheduleName);
@@ -3759,8 +3366,6 @@ const applyScheduleEditor = () => {
 watch(
   outlineViewMode,
   (mode) => {
-    activeNodeFrameName.value = null;
-    activeNodeSignalName.value = null;
     if (mode === 'frames') {
       activeFrameName.value = null;
       currentOutlineNodeId.value = 'unconditional-frames';
@@ -3821,7 +3426,7 @@ watch(
     if (!isInternal) {
       activeFrameName.value = null;
       selectedSignalRowIndex.value = -1;
-      setSelectedCreatedRanges([]);
+      selectedCreatedRangeId.value = '';
       frameSignalRows.value = [];
       createdSignalRanges.value = [];
       if (outlineViewMode.value === 'frames') {
@@ -3867,13 +3472,6 @@ watch(
     clearCreatedLongPressTimer();
   }
 );
-
-watch(isEncodingTabsLockedByAsciiBcd, (locked) => {
-  if (!locked) return;
-  if (signalEditDialog.encodingType !== 'ASCII / BCD') {
-    signalEditDialog.encodingType = 'ASCII / BCD';
-  }
-});
 
 const resolveNodeIcon = (iconType: string): Component => {
   if (iconType === 'schedule-group') {
@@ -4385,25 +3983,6 @@ const runQuickCheck = () => {
   opacity: 0.95;
 }
 
-.ldf-readonly-value {
-  min-height: 24px;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  border: 1px solid var(--app-border);
-  border-radius: 4px;
-  background: var(--app-bg-elevated);
-  color: var(--app-text-regular);
-  font-size: 12px;
-}
-
-.ldf-diag-readonly-hint {
-  margin-top: 8px;
-  margin-bottom: 8px;
-  font-size: 11px;
-  color: var(--app-text-subtle);
-}
-
 .ldf-rel-select {
   width: 100%;
 }
@@ -4692,18 +4271,6 @@ const runQuickCheck = () => {
   background: color-mix(in srgb, var(--app-accent) 14%, var(--app-bg));
   color: var(--app-text-primary);
   border-color: color-mix(in srgb, var(--app-accent) 55%, var(--app-border));
-}
-
-.ldf-encoding-type-tab:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-  background: color-mix(in srgb, var(--app-bg) 85%, var(--app-bg-elevated));
-  color: var(--app-text-muted);
-}
-
-.ldf-encoding-type-tab:disabled:hover {
-  background: color-mix(in srgb, var(--app-bg) 85%, var(--app-bg-elevated));
-  color: var(--app-text-muted);
 }
 
 .ldf-physical-fields {
@@ -5754,35 +5321,6 @@ const runQuickCheck = () => {
   display: flex;
 }
 
-.ldf-text-mode-panel {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  padding: 8px;
-  background: var(--app-bg);
-}
-
-.ldf-text-mode-editor {
-  width: 100%;
-  height: 100%;
-  resize: none;
-  box-sizing: border-box;
-  border: 1px solid var(--app-border);
-  border-radius: 6px;
-  background: var(--app-bg-elevated);
-  color: var(--app-text-regular);
-  font-family: Consolas, 'Courier New', monospace;
-  font-size: 12px;
-  line-height: 1.45;
-  padding: 10px 12px;
-  outline: none;
-}
-
-.ldf-text-mode-editor:focus {
-  border-color: var(--app-accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-accent) 40%, transparent);
-}
-
 .ldf-outline-pane {
   width: v-bind('`${leftPaneWidth}px`');
   min-width: 140px;
@@ -5795,7 +5333,6 @@ const runQuickCheck = () => {
 .ldf-outline-tabs {
   display: flex;
   justify-content: stretch;
-  align-items: stretch;
   gap: 4px;
   padding: 4px;
   border-bottom: 1px solid var(--app-border);
@@ -5805,19 +5342,18 @@ const runQuickCheck = () => {
 .ldf-outline-tab {
   flex: 1 1 0;
   min-width: 0;
-  min-height: 24px;
-  padding: 3px 6px;
+  height: 24px;
+  padding: 0 6px;
   border: 1px solid var(--app-border);
   border-radius: 4px;
   background: var(--app-bg);
   color: var(--app-text-secondary);
-  font-size: 11px;
-  line-height: 1.2;
+  font-size: 12px;
   cursor: pointer;
   text-align: center;
-  white-space: normal;
-  word-break: break-word;
-  overflow: visible;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ldf-outline-tab:hover {

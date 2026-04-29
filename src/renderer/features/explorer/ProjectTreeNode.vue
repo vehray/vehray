@@ -168,9 +168,9 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 26px;
+  min-height: var(--app-ui-row-height);
   padding: 0 12px;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   color: var(--app-text-regular);
   cursor: pointer;
 }
@@ -185,8 +185,8 @@ const emit = defineEmits<{
 }
 
 .expand-icon {
-  width: 12px;
-  height: 12px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
   margin-right: 4px;
   color: var(--app-text-subtle);
 }
@@ -196,8 +196,8 @@ const emit = defineEmits<{
 }
 
 .file-icon {
-  width: 14px;
-  height: 14px;
+  width: var(--app-icon-size);
+  height: var(--app-icon-size);
   margin-right: 6px;
   color: var(--app-text-subtle);
 }

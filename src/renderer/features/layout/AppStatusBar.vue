@@ -12,14 +12,14 @@ const { t } = useI18n();
 
 <style scoped>
 .app-status-bar {
-  height: 24px;
+  height: var(--app-statusbar-height);
   flex-shrink: 0;
   background-color: var(--app-bg-elevated);
   border-top: 1px solid var(--app-border);
   display: flex;
   align-items: center;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   color: var(--app-text-regular);
 }
 

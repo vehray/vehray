@@ -94,6 +94,7 @@
           @update:model-value="handleLdfTextChange"
         />
       </KeepAlive>
+      <AppSettingsView v-else-if="activeTabId === 'app-settings'" />
       <div v-else-if="tabs.length > 0" class="tab-content-placeholder">
         {{ t('tabs.tabContentPlaceholder', { title: getActiveTab()?.title ?? '' }) }}
       </div>
@@ -138,6 +139,7 @@ import { useUiState } from '../../state/uiState';
 import type { HistoryFileItem } from '../../state/uiState';
 import { electronBridge } from '../../services/electronBridge';
 import LdfEditorView from '../lin-ldf/components/LdfEditorView.vue';
+import AppSettingsView from '../settings/components/AppSettingsView.vue';
 
 const { state, ensureHomeTab, switchToTab, closeTab: closeStateTab, upsertTab, reorderTabs } = useUiState();
 const { t } = useI18n();
@@ -325,7 +327,13 @@ const switchToCollapsedTab = (tabId: string) => {
   overflowMenuVisible.value = false;
 };
 
-onMounted(() => loadHomeTab());
+onMounted(() => {
+  if (state.showHomeOnLaunch) {
+    loadHomeTab();
+    return;
+  }
+  closeStateTab('home');
+});
 onMounted(() => {
   recalcVisibleTabCount();
   if (mainTabBarRef.value) {
@@ -489,7 +497,7 @@ defineExpose({ loadHomeTab });
   align-items: center;
   gap: 2px;
   padding: 0 8px;
-  height: 34px;
+  height: var(--app-tabbar-height);
   position: relative;
   overflow: visible;
   z-index: 40;
@@ -499,14 +507,14 @@ defineExpose({ loadHomeTab });
   align-items: center;
   gap: 6px;
   padding: 0 10px;
-  height: 24px;
+  height: var(--app-ui-control-height);
   border: none;
   border-radius: 3px;
   background-color: transparent;
   color: var(--app-text-regular);
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   font-weight: 500;
   position: relative;
   flex: 0 0 auto;
@@ -555,11 +563,11 @@ defineExpose({ loadHomeTab });
   background-color: color-mix(in srgb, var(--app-accent) 12%, transparent);
 }
 .main-tab-title {
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   line-height: 1;
 }
 .main-tab-file-icon {
-  font-size: 13px;
+  font-size: var(--app-icon-size);
   color: var(--app-text-muted);
 }
 .main-tab-status-slot {
@@ -605,7 +613,7 @@ defineExpose({ loadHomeTab });
   flex: 0 0 auto;
 }
 .main-tab-overflow-btn {
-  height: 24px;
+  height: var(--app-ui-control-height);
   min-width: 160px;
   max-width: 260px;
   padding: 0 8px;
@@ -613,7 +621,7 @@ defineExpose({ loadHomeTab });
   border-radius: 6px;
   background: color-mix(in srgb, var(--app-bg-elevated) 84%, #ffffff 16%);
   color: var(--app-text-primary);
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -679,7 +687,7 @@ defineExpose({ loadHomeTab });
   background: transparent;
   color: var(--app-text-regular);
   text-align: left;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   padding: 7px 10px;
   border-radius: 6px;
   cursor: pointer;
@@ -689,7 +697,7 @@ defineExpose({ loadHomeTab });
 }
 .main-tab-overflow-item-icon {
   color: var(--app-text-muted);
-  font-size: 13px;
+  font-size: var(--app-icon-size);
   flex: 0 0 auto;
 }
 .main-tab-overflow-item-title {

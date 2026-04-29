@@ -199,10 +199,6 @@
             <el-icon><Setting /></el-icon>
             <span>{{ t('layout.header.settings') }}</span>
           </div>
-          <div class="custom-dropdown-item" @click="handlePreferences">
-            <el-icon><Tools /></el-icon>
-            <span>{{ t('layout.header.preferences') }}</span>
-          </div>
           <div class="custom-dropdown-item theme-menu-trigger" @click.stop="toggleThemeMenu" @mouseenter="openThemeSubmenu">
             <el-icon><Moon /></el-icon>
             <span>{{ t('layout.header.theme') }}</span>
@@ -514,15 +510,8 @@ const handleOpenLinLdfEditor = () => {
 };
 
 const handleSettings = () => {
-  settingDropdownVisible.value = false;
-  themeSubmenuVisible.value = false;
-  localeSubmenuVisible.value = false;
-};
-
-const handlePreferences = () => {
-  settingDropdownVisible.value = false;
-  themeSubmenuVisible.value = false;
-  localeSubmenuVisible.value = false;
+  uiActions.openSettings();
+  closeAllDropdowns();
 };
 
 const handleAbout = async () => {
@@ -654,7 +643,7 @@ onUnmounted(() => {
 <style scoped>
 .app-header {
   /* 规则：header 高度 = main overlay 高度(34px) + 1px，避免右上角控件遮挡底边线 */
-  height: 35px;
+  height: var(--app-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -672,8 +661,8 @@ onUnmounted(() => {
 }
 
 .app-logo {
-  width: 16px;
-  height: 16px;
+  width: var(--app-logo-size);
+  height: var(--app-logo-size);
   margin-right: 10px;
   -webkit-app-region: no-drag;
 }
@@ -688,7 +677,7 @@ onUnmounted(() => {
 .window-controls-placeholder {
   width: 130px;
   /* 与 .app-header 保持一致，保证右上角底边线连续 */
-  height: 35px;
+  height: var(--app-header-height);
   -webkit-app-region: no-drag;
   border-bottom: 1px solid var(--app-border);
 }
@@ -703,12 +692,12 @@ onUnmounted(() => {
   background-color: var(--app-bg-elevated);
   border-radius: 3px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   font-weight: 500;
   line-height: 1;
   color: var(--app-text-regular);
   transition: background-color 0.2s ease, color 0.2s ease;
-  height: 24px;
+  height: var(--app-ui-control-height);
   -webkit-app-region: no-drag;
 }
 
@@ -716,7 +705,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--app-icon-size);
   line-height: 1;
 }
 
@@ -749,8 +738,8 @@ onUnmounted(() => {
 }
 
 .avatar-btn {
-  width: 20px;
-  height: 20px;
+  width: calc(var(--app-icon-hit-size) - 4px);
+  height: calc(var(--app-icon-hit-size) - 4px);
   border: 1px solid var(--app-border);
   background-color: var(--app-bg-hover);
   border-radius: 999px;
@@ -832,12 +821,12 @@ onUnmounted(() => {
 }
 
 .account-detail-label {
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   opacity: 0.72;
 }
 
 .account-detail-value {
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   color: var(--app-text-primary);
   max-width: 130px;
   overflow: hidden;
@@ -879,7 +868,7 @@ onUnmounted(() => {
   cursor: pointer;
   color: var(--app-text-regular);
   transition: all 0.3s;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   white-space: nowrap;
 }
 
@@ -913,7 +902,7 @@ onUnmounted(() => {
 
 .submenu-arrow {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   opacity: 0.8;
 }
 
@@ -1009,7 +998,7 @@ onUnmounted(() => {
 }
 
 .custom-dropdown-item :deep(.el-icon) {
-  font-size: 14px;
+  font-size: var(--app-icon-size);
   line-height: 1;
 }
 

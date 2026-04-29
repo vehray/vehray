@@ -1,15 +1,26 @@
 import { electronBridge } from './electronBridge';
 import { useUiState } from '../state/uiState';
+import type { IconSizeLevel } from '../state/uiState';
 import { i18n } from '../shared/i18n';
 import { createDefaultLdf13Text, deserializeLdf13, normalizeLdf13, validateLdf13Document } from '../features/lin-ldf/services/ldf13Codec';
 
 type UiPreferences = {
   theme: 'dark' | 'light';
   locale: 'zh-CN' | 'zh-TW' | 'en-US' | 'ja-JP' | 'ko-KR';
+  showHomeOnLaunch: boolean;
+  accentColor: 'default' | 'blue' | 'green' | 'purple' | 'orange';
+  iconSize: IconSizeLevel;
 };
 
 const SETTINGS_KEY = 'uiPreferences';
 let ldfDraftCounter = 0;
+const ACCENT_COLOR_MAP: Record<UiPreferences['accentColor'], string> = {
+  default: '',
+  blue: 'rgba(0, 120, 212, 0.15)',
+  green: 'rgba(34, 197, 94, 0.18)',
+  purple: 'rgba(168, 85, 247, 0.18)',
+  orange: 'rgba(249, 115, 22, 0.18)'
+};
 
 const getNextLdfDocName = (titles: string[]) => {
   const used = new Set<number>();
@@ -51,6 +62,53 @@ const applyTheme = (theme: UiPreferences['theme']) => {
 
 const applyLocale = (locale: UiPreferences['locale']) => {
   i18n.global.locale.value = locale;
+};
+
+const applyAccentColor = (accentColor: UiPreferences['accentColor']) => {
+  const value = ACCENT_COLOR_MAP[accentColor];
+  if (!value) {
+    document.documentElement.style.removeProperty('--app-accent');
+    return;
+  }
+  document.documentElement.style.setProperty('--app-accent', value);
+};
+
+const iconLevelToPixels = (level: IconSizeLevel) => {
+  const table: Record<IconSizeLevel, number> = { 1: 11, 2: 12, 3: 13, 4: 14, 5: 15, 6: 17, 7: 19, 8: 21, 9: 23, 10: 26 };
+  return table[level];
+};
+
+const applyIconSize = (iconSize: UiPreferences['iconSize']) => {
+  const iconPx = iconLevelToPixels(iconSize);
+  const hitPx = iconPx + 10;
+  const sidebarPx = hitPx + 9;
+  const uiFontPx = Math.max(11, Math.min(15, Math.round(iconPx * 0.88)));
+  const rowPx = iconPx + 13;
+  const headerPx = Math.max(35, rowPx + 9);
+  const logoPx = Math.max(16, Math.round(iconPx * 1.15));
+  const tabbarPx = Math.max(34, rowPx + 8);
+  const statusPx = Math.max(24, rowPx - 2);
+  document.documentElement.style.setProperty('--app-icon-size', `${iconPx}px`);
+  document.documentElement.style.setProperty('--app-icon-hit-size', `${hitPx}px`);
+  document.documentElement.style.setProperty('--app-sidebar-width', `${sidebarPx}px`);
+  document.documentElement.style.setProperty('--app-ui-font-size', `${uiFontPx}px`);
+  document.documentElement.style.setProperty('--app-ui-row-height', `${rowPx}px`);
+  document.documentElement.style.setProperty('--app-ui-control-height', `${hitPx}px`);
+  document.documentElement.style.setProperty('--app-header-height', `${headerPx}px`);
+  document.documentElement.style.setProperty('--app-logo-size', `${logoPx}px`);
+  document.documentElement.style.setProperty('--app-tabbar-height', `${tabbarPx}px`);
+  document.documentElement.style.setProperty('--app-statusbar-height', `${statusPx}px`);
+};
+
+const normalizeIconSize = (value: unknown, fallback: IconSizeLevel): IconSizeLevel => {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 10) return value as IconSizeLevel;
+  if (typeof value === 'string') {
+    if (/^level[1-6]$/.test(value)) return Number(value.slice('level'.length)) as IconSizeLevel;
+    if (value === 'small') return 2;
+    if (value === 'medium') return 4;
+    if (value === 'large') return 6;
+  }
+  return fallback;
 };
 
 const persistPreferences = async (preferences: UiPreferences) => {
@@ -106,6 +164,17 @@ export const uiActions = {
       dirty: true
     });
     switchToTab(tabId);
+  },
+
+  openSettings() {
+    const { upsertTab, switchToTab } = useUiState();
+    upsertTab({
+      id: 'app-settings',
+      title: '设置',
+      content: 'settings-content',
+      dirty: false
+    });
+    switchToTab('app-settings');
   },
 
   async createLdfFile(standard?: string) {
@@ -178,7 +247,7 @@ export const uiActions = {
   },
 
   async initPreferences() {
-    const { state, setTheme, setLocale } = useUiState();
+    const { state, setTheme, setLocale, setShowHomeOnLaunch, setAccentColor, setIconSize } = useUiState();
     const settings = await electronBridge.readSettings<Record<string, unknown>>();
     const saved = (settings?.[SETTINGS_KEY] as Partial<UiPreferences> | undefined) ?? {};
     const theme = saved.theme === 'dark' || saved.theme === 'light' ? saved.theme : state.theme;
@@ -189,23 +258,95 @@ export const uiActions = {
       || saved.locale === 'ko-KR'
       ? saved.locale
       : state.locale;
+    const showHomeOnLaunch = typeof saved.showHomeOnLaunch === 'boolean' ? saved.showHomeOnLaunch : state.showHomeOnLaunch;
+    const accentColor = saved.accentColor === 'blue'
+      || saved.accentColor === 'green'
+      || saved.accentColor === 'purple'
+      || saved.accentColor === 'orange'
+      || saved.accentColor === 'default'
+      ? saved.accentColor
+      : state.accentColor;
+    const iconSize = normalizeIconSize(saved.iconSize, state.iconSize);
     setTheme(theme);
     setLocale(locale);
+    setShowHomeOnLaunch(showHomeOnLaunch);
+    setAccentColor(accentColor);
+    setIconSize(iconSize);
     applyTheme(theme);
     applyLocale(locale);
+    applyAccentColor(accentColor);
+    applyIconSize(iconSize);
   },
 
   async setTheme(theme: UiPreferences['theme']) {
     const { state, setTheme } = useUiState();
     setTheme(theme);
     applyTheme(theme);
-    await persistPreferences({ theme: state.theme, locale: state.locale });
+    await persistPreferences({
+      theme: state.theme,
+      locale: state.locale,
+      showHomeOnLaunch: state.showHomeOnLaunch,
+      accentColor: state.accentColor,
+      iconSize: state.iconSize
+    });
   },
 
   async setLocale(locale: UiPreferences['locale']) {
     const { state, setLocale } = useUiState();
     setLocale(locale);
     applyLocale(locale);
-    await persistPreferences({ theme: state.theme, locale: state.locale });
+    await persistPreferences({
+      theme: state.theme,
+      locale: state.locale,
+      showHomeOnLaunch: state.showHomeOnLaunch,
+      accentColor: state.accentColor,
+      iconSize: state.iconSize
+    });
+  },
+
+  async setShowHomeOnLaunch(enabled: boolean) {
+    const { state, setShowHomeOnLaunch, ensureHomeTab, closeTab, switchToTab } = useUiState();
+    setShowHomeOnLaunch(enabled);
+    if (enabled) {
+      ensureHomeTab();
+    } else if (state.tabs.some((tab) => tab.id === 'home')) {
+      const fallback = state.tabs.find((tab) => tab.id !== 'home')?.id;
+      closeTab('home');
+      if (fallback) switchToTab(fallback);
+    }
+    await persistPreferences({
+      theme: state.theme,
+      locale: state.locale,
+      showHomeOnLaunch: state.showHomeOnLaunch,
+      accentColor: state.accentColor,
+      iconSize: state.iconSize
+    });
+  },
+
+  async setAccentColor(accentColor: UiPreferences['accentColor']) {
+    const { state, setAccentColor } = useUiState();
+    setAccentColor(accentColor);
+    applyAccentColor(accentColor);
+    await persistPreferences({
+      theme: state.theme,
+      locale: state.locale,
+      showHomeOnLaunch: state.showHomeOnLaunch,
+      accentColor: state.accentColor,
+      iconSize: state.iconSize
+    });
+  },
+
+  async setIconSize(iconSize: UiPreferences['iconSize'], persist = true) {
+    const { state, setIconSize } = useUiState();
+    setIconSize(iconSize);
+    applyIconSize(iconSize);
+    if (!persist) return;
+    await persistPreferences({
+      theme: state.theme,
+      locale: state.locale,
+      showHomeOnLaunch: state.showHomeOnLaunch,
+      accentColor: state.accentColor,
+      iconSize: state.iconSize
+    });
   }
 };

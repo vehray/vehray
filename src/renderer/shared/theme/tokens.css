@@ -10,6 +10,16 @@
   --app-text-subtle: #888888;
   --app-text-faint: #666666;
   --app-accent: rgba(0, 120, 212, 0.15);
+  --app-icon-size: 14px;
+  --app-icon-hit-size: 24px;
+  --app-sidebar-width: 33px;
+  --app-ui-font-size: 12px;
+  --app-ui-row-height: 26px;
+  --app-ui-control-height: 24px;
+  --app-header-height: 35px;
+  --app-logo-size: 16px;
+  --app-tabbar-height: 34px;
+  --app-statusbar-height: 24px;
   --app-scrollbar-track: #1f1f1f;
   --app-scrollbar-thumb: #555555;
   --app-scrollbar-thumb-hover: #6a6a6a;

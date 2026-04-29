@@ -28,7 +28,7 @@ defineEmits<{
 
 <style scoped>
 .main-sidebar {
-  width: 33px;
+  width: var(--app-sidebar-width);
   background-color: var(--app-bg-elevated);
   border-right: 1px solid var(--app-border);
   display: flex;
@@ -39,8 +39,8 @@ defineEmits<{
 }
 
 .sidebar-btn {
-  width: 24px;
-  height: 24px;
+  width: var(--app-icon-hit-size);
+  height: var(--app-icon-hit-size);
   border: none;
   background-color: transparent;
   border-radius: 3px;
@@ -50,6 +50,10 @@ defineEmits<{
   justify-content: center;
   color: var(--app-text-regular);
   transition: all 0.3s;
+}
+
+.sidebar-btn :deep(.el-icon) {
+  font-size: var(--app-icon-size);
 }
 
 .sidebar-btn:hover {

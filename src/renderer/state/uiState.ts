@@ -1,4 +1,5 @@
 import { reactive, readonly } from 'vue';
+export type IconSizeLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
 export interface FileTreeNode {
   name: string;
@@ -58,6 +59,9 @@ interface UiState {
   historyFiles: HistoryFileItem[];
   theme: 'dark' | 'light';
   locale: 'zh-CN' | 'zh-TW' | 'en-US' | 'ja-JP' | 'ko-KR';
+  showHomeOnLaunch: boolean;
+  accentColor: 'default' | 'blue' | 'green' | 'purple' | 'orange';
+  iconSize: IconSizeLevel;
 }
 
 const state = reactive<UiState>({
@@ -71,7 +75,10 @@ const state = reactive<UiState>({
   tabs: [{ id: 'home', title: '主页', content: 'home-content', dirty: false }],
   historyFiles: [],
   theme: 'dark',
-  locale: 'zh-CN'
+  locale: 'zh-CN',
+  showHomeOnLaunch: true,
+  accentColor: 'default',
+  iconSize: 4
 });
 
 const resetState = () => {
@@ -86,6 +93,9 @@ const resetState = () => {
   state.historyFiles = [];
   state.theme = 'dark';
   state.locale = 'zh-CN';
+  state.showHomeOnLaunch = true;
+  state.accentColor = 'default';
+  state.iconSize = 4;
 };
 
 export function useUiState() {
@@ -134,6 +144,18 @@ export function useUiState() {
 
   const setLocale = (locale: UiState['locale']) => {
     state.locale = locale;
+  };
+
+  const setShowHomeOnLaunch = (enabled: boolean) => {
+    state.showHomeOnLaunch = enabled;
+  };
+
+  const setAccentColor = (accentColor: UiState['accentColor']) => {
+    state.accentColor = accentColor;
+  };
+
+  const setIconSize = (iconSize: UiState['iconSize']) => {
+    state.iconSize = iconSize;
   };
 
   const ensureHomeTab = () => {
@@ -215,6 +237,9 @@ export function useUiState() {
     setRightPanelVisible,
     setTheme,
     setLocale,
+    setShowHomeOnLaunch,
+    setAccentColor,
+    setIconSize,
     ensureHomeTab,
     upsertTab,
     switchToTab,

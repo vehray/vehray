@@ -206,19 +206,19 @@ onUnmounted(() => {
   padding: 0 12px;
   border-bottom: 1px solid var(--app-border);
   background-color: var(--app-bg-elevated);
-  height: 34px;
+  height: var(--app-tabbar-height);
 }
 .activity-title {
   display: inline-flex;
   align-items: center;
   line-height: 1;
-  font-size: 12px;
+  font-size: var(--app-ui-font-size);
   font-weight: 500;
   color: var(--app-text-regular);
 }
 .activity-close-btn {
-  width: 20px;
-  height: 20px;
+  width: var(--app-icon-hit-size);
+  height: var(--app-icon-hit-size);
   border: none;
   background: transparent;
   color: var(--app-text-regular);
