@@ -32,6 +32,49 @@ contextBridge.exposeInMainWorld('electron', {
       return () => ipcRenderer.removeListener('lin:frame', listener);
     },
   },
+  pcanLin: {
+    listDevices: () => ipcRenderer.invoke('pcan-lin:list-devices'),
+    openDevice: (params: { deviceId: string; baudRate: number }) => ipcRenderer.invoke('pcan-lin:open-device', params),
+    closeDevice: (deviceId: string) => ipcRenderer.invoke('pcan-lin:close-device', deviceId),
+    sendFrame: (payload: { deviceId: string; id: number; data: number[]; checksumType?: 'classic' | 'enhanced' }) =>
+      ipcRenderer.invoke('pcan-lin:send-frame', payload),
+    getStatus: (deviceId: string) => ipcRenderer.invoke('pcan-lin:get-status', deviceId),
+    onFrame: (callback: (frame: any) => void) => {
+      const listener = (_event: any, frame: any) => callback(frame);
+      ipcRenderer.on('pcan-lin:frame', listener);
+      return () => ipcRenderer.removeListener('pcan-lin:frame', listener);
+    }
+  },
+  channel: {
+    list: () => ipcRenderer.invoke('channel:list'),
+    getDefaults: () => ipcRenderer.invoke('channel:get-defaults'),
+    setDefault: (params: { channelType: 'lin' | 'can' | 'serial'; channelId: string }) => ipcRenderer.invoke('channel:set-default', params),
+    listHardwareOptions: (channelType: 'lin' | 'can' | 'serial') => ipcRenderer.invoke('channel:list-hardware-options', channelType),
+    bindHardware: (params: { channelId: string; hardwareId: string }) => ipcRenderer.invoke('channel:bind-hardware', params),
+    unbindHardware: (channelId: string) => ipcRenderer.invoke('channel:unbind-hardware', channelId),
+    openLin: (params: { channelId: string; baudRate: number }) => ipcRenderer.invoke('channel:open-lin', params),
+    openDefaultLin: (params: { baudRate: number }) => ipcRenderer.invoke('channel:open-default-lin', params),
+    closeLin: (channelId: string) => ipcRenderer.invoke('channel:close-lin', channelId),
+    closeDefaultLin: () => ipcRenderer.invoke('channel:close-default-lin'),
+    sendLinFrame: (params: { channelId: string; id: number; data: number[]; checksumType?: 'classic' | 'enhanced' }) =>
+      ipcRenderer.invoke('channel:send-lin-frame', params),
+    sendDefaultLinFrame: (params: { id: number; data: number[]; checksumType?: 'classic' | 'enhanced' }) =>
+      ipcRenderer.invoke('channel:send-default-lin-frame', params),
+    getLinStatus: (channelId: string) => ipcRenderer.invoke('channel:get-lin-status', channelId),
+    getDefaultLinStatus: () => ipcRenderer.invoke('channel:get-default-lin-status'),
+    openCan: (params: { channelId: string; bitrate: number }) => ipcRenderer.invoke('channel:open-can', params),
+    openDefaultCan: (params: { bitrate: number }) => ipcRenderer.invoke('channel:open-default-can', params),
+    closeCan: (channelId: string) => ipcRenderer.invoke('channel:close-can', channelId),
+    closeDefaultCan: () => ipcRenderer.invoke('channel:close-default-can'),
+    getCanStatus: (channelId: string) => ipcRenderer.invoke('channel:get-can-status', channelId),
+    getDefaultCanStatus: () => ipcRenderer.invoke('channel:get-default-can-status'),
+    openSerial: (params: { channelId: string; baudRate: number }) => ipcRenderer.invoke('channel:open-serial', params),
+    openDefaultSerial: (params: { baudRate: number }) => ipcRenderer.invoke('channel:open-default-serial', params),
+    closeSerial: (channelId: string) => ipcRenderer.invoke('channel:close-serial', channelId),
+    closeDefaultSerial: () => ipcRenderer.invoke('channel:close-default-serial'),
+    getSerialStatus: (channelId: string) => ipcRenderer.invoke('channel:get-serial-status', channelId),
+    getDefaultSerialStatus: () => ipcRenderer.invoke('channel:get-default-serial-status')
+  },
   dialog: {
     openDirectory: () => ipcRenderer.invoke('dialog:openDirectory'),
     openFile: () => ipcRenderer.invoke('dialog:openFile'),

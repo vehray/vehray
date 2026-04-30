@@ -1,15 +1,16 @@
 <template>
   <div class="tab-panel" ref="tabPanelRootRef" tabindex="0" @mousedown="focusTabPanelRoot">
-    <div class="tab-bar">
+    <div v-if="tabs.length > 0" class="tab-bar">
       <div class="tab-item" :class="{ active: activeTabId === tab.id }" v-for="tab in tabs" :key="tab.id" @click="switchTab(tab.id)">
-        <span class="tab-title">{{ t(tab.titleKey, { index: tab.id }) }}</span>
-        <button class="tab-close" @click.stop="closeTab(tab.id)">
+        <span class="tab-title">{{ tab.title }}</span>
+        <button v-if="tab.id !== 'trace'" class="tab-close" @click.stop="closeTab(tab.id)">
           <el-icon><Close /></el-icon>
         </button>
       </div>
     </div>
     <div class="tab-content">
-      <div class="tab-content-placeholder">{{ t('tabs.bottomPanel.placeholder') }}</div>
+      <TraceView v-if="activeTabId === 'trace'" />
+      <div v-else class="tab-content-placeholder">{{ t('tabs.bottomPanel.placeholder') }}</div>
     </div>
   </div>
 </template>
@@ -18,19 +19,19 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { Close } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
+import TraceView from '../trace/TraceView.vue';
 
 interface Tab {
   id: string;
-  titleKey: string;
+  title: string;
   content: string;
 }
 
 const { t } = useI18n();
 const tabs = ref<Tab[]>([
-  { id: '1', titleKey: 'tabs.bottomPanel.fileTab', content: 'content1' },
-  { id: '2', titleKey: 'tabs.bottomPanel.fileTab', content: 'content2' }
+  { id: 'trace', title: 'Trace', content: 'trace-content' }
 ]);
-const activeTabId = ref('1');
+const activeTabId = ref('trace');
 const tabPanelRootRef = ref<HTMLElement | null>(null);
 
 const switchTab = (id: string) => {

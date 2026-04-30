@@ -30,6 +30,126 @@ declare global {
         onScanResult: (callback: (data: any) => void) => () => void;
         scanResultChoice: (continueScanning: boolean) => Promise<{ success: boolean; message: string }>;
       };
+      pcanLin: {
+        listDevices: () => Promise<{
+          id: string;
+          name: string;
+          hardware: 'PCAN-USB Pro';
+          channel: 'LIN1' | 'LIN2';
+          connected: boolean;
+          backend: 'mock' | 'native';
+        }[]>;
+        openDevice: (params: { deviceId: string; baudRate: number }) => Promise<{ success: boolean; message: string }>;
+        closeDevice: (deviceId: string) => Promise<{ success: boolean; message: string }>;
+        sendFrame: (payload: {
+          deviceId: string;
+          id: number;
+          data: number[];
+          checksumType?: 'classic' | 'enhanced';
+        }) => Promise<{ success: boolean; message: string }>;
+        getStatus: (deviceId: string) => Promise<{
+          success: boolean;
+          message: string;
+          opened: boolean;
+          baudRate?: number;
+          txCount?: number;
+          rxCount?: number;
+        }>;
+        onFrame: (callback: (frame: {
+          deviceId: string;
+          id: number;
+          direction: 'tx' | 'rx';
+          data: number[];
+          timestamp: number;
+          checksumType: 'classic' | 'enhanced';
+        }) => void) => () => void;
+      };
+      channel: {
+        list: () => Promise<Array<{
+          id: string;
+          name: string;
+          type: 'lin' | 'can' | 'serial';
+          enabled: boolean;
+          binding: { hardwareId: string | null; hardwareName: string | null };
+        }>>;
+        getDefaults: () => Promise<{ lin: string; can: string; serial: string }>;
+        setDefault: (params: { channelType: 'lin' | 'can' | 'serial'; channelId: string }) => Promise<{ success: boolean; message: string }>;
+        listHardwareOptions: (channelType: 'lin' | 'can' | 'serial') => Promise<Array<{
+          id: string;
+          name: string;
+          provider: string;
+          extra?: Record<string, string | number | boolean>;
+        }>>;
+        bindHardware: (params: { channelId: string; hardwareId: string }) => Promise<{ success: boolean; message: string }>;
+        unbindHardware: (channelId: string) => Promise<{ success: boolean; message: string }>;
+        openLin: (params: { channelId: string; baudRate: number }) => Promise<{ success: boolean; message: string }>;
+        openDefaultLin: (params: { baudRate: number }) => Promise<{ success: boolean; message: string }>;
+        closeLin: (channelId: string) => Promise<{ success: boolean; message: string }>;
+        closeDefaultLin: () => Promise<{ success: boolean; message: string }>;
+        sendLinFrame: (params: {
+          channelId: string;
+          id: number;
+          data: number[];
+          checksumType?: 'classic' | 'enhanced';
+        }) => Promise<{ success: boolean; message: string }>;
+        sendDefaultLinFrame: (params: {
+          id: number;
+          data: number[];
+          checksumType?: 'classic' | 'enhanced';
+        }) => Promise<{ success: boolean; message: string }>;
+        getLinStatus: (channelId: string) => Promise<{
+          success: boolean;
+          message: string;
+          opened?: boolean;
+          baudRate?: number;
+          txCount?: number;
+          rxCount?: number;
+          hardwareId?: string | null;
+          hardwareName?: string | null;
+        }>;
+        getDefaultLinStatus: () => Promise<{
+          success: boolean;
+          message: string;
+          opened?: boolean;
+          baudRate?: number;
+          txCount?: number;
+          rxCount?: number;
+          hardwareId?: string | null;
+          hardwareName?: string | null;
+        }>;
+        openCan: (params: { channelId: string; bitrate: number }) => Promise<{ success: boolean; message: string }>;
+        openDefaultCan: (params: { bitrate: number }) => Promise<{ success: boolean; message: string }>;
+        closeCan: (channelId: string) => Promise<{ success: boolean; message: string }>;
+        closeDefaultCan: () => Promise<{ success: boolean; message: string }>;
+        getCanStatus: (channelId: string) => Promise<{
+          success: boolean;
+          message: string;
+          opened?: boolean;
+          bitrate?: number;
+        }>;
+        getDefaultCanStatus: () => Promise<{
+          success: boolean;
+          message: string;
+          opened?: boolean;
+          bitrate?: number;
+        }>;
+        openSerial: (params: { channelId: string; baudRate: number }) => Promise<{ success: boolean; message: string }>;
+        openDefaultSerial: (params: { baudRate: number }) => Promise<{ success: boolean; message: string }>;
+        closeSerial: (channelId: string) => Promise<{ success: boolean; message: string }>;
+        closeDefaultSerial: () => Promise<{ success: boolean; message: string }>;
+        getSerialStatus: (channelId: string) => Promise<{
+          success: boolean;
+          message: string;
+          opened?: boolean;
+          deviceId?: string;
+        }>;
+        getDefaultSerialStatus: () => Promise<{
+          success: boolean;
+          message: string;
+          opened?: boolean;
+          deviceId?: string;
+        }>;
+      };
       dialog: {
         openDirectory: () => Promise<{ canceled: boolean; filePaths: string[] }>;
         openFile: () => Promise<{ canceled: boolean; filePaths: string[] }>;

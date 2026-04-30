@@ -2,6 +2,8 @@ import { app, BrowserWindow, ipcMain, Menu, shell, dialog } from 'electron';
 import { createWindow, createChildWindow } from './modules/app-window.ts';
 import { SerialPortManager } from './modules/serial-manager.ts';
 import { LinControllerManager } from './modules/lin-controller.ts';
+import { PcanLinManager } from './modules/pcan-lin-manager.ts';
+import { ChannelManager } from './modules/channel-manager.ts';
 import { SettingsManager } from './modules/settings-manager.ts';
 import { getScanManager } from './modules/scan-manager.ts';
 import { FileExplorerService } from './modules/file-explorer-service.ts';
@@ -489,6 +491,7 @@ app.on('ready', async () => {
   // 初始化串口监控
   if (mainWindow) {
     SerialPortManager.initializePortMonitoring(mainWindow);
+    PcanLinManager.bindMainWindow(mainWindow);
   }
   
   // 监听主窗口焦点事件，当设置窗口打开时让其闪烁
@@ -655,6 +658,131 @@ ipcMain.handle('lin:scan-result-choice', async (event, continueScanning: boolean
 });
 ipcMain.handle('lin:get-status', async (event) => {
   return await LinControllerManager.getCurrentStatus();
+});
+
+// PCAN-USB Pro LIN 模块 IPC
+ipcMain.handle('pcan-lin:list-devices', async () => {
+  return await PcanLinManager.listDevices();
+});
+
+ipcMain.handle('pcan-lin:open-device', async (_event, params) => {
+  return await PcanLinManager.openDevice(params);
+});
+
+ipcMain.handle('pcan-lin:close-device', async (_event, deviceId: string) => {
+  return await PcanLinManager.closeDevice(deviceId);
+});
+
+ipcMain.handle('pcan-lin:send-frame', async (_event, payload) => {
+  return await PcanLinManager.sendFrame(payload);
+});
+
+ipcMain.handle('pcan-lin:get-status', async (_event, deviceId: string) => {
+  return await PcanLinManager.getStatus(deviceId);
+});
+
+// 通道管理 IPC
+ipcMain.handle('channel:list', async () => {
+  return await ChannelManager.listChannels();
+});
+ipcMain.handle('channel:get-defaults', async () => {
+  return ChannelManager.getDefaultChannels();
+});
+ipcMain.handle('channel:set-default', async (_event, params: { channelType: 'lin' | 'can' | 'serial'; channelId: string }) => {
+  return ChannelManager.setDefaultChannel(params.channelType, params.channelId);
+});
+
+ipcMain.handle('channel:list-hardware-options', async (_event, channelType: 'lin' | 'can' | 'serial') => {
+  return await ChannelManager.listHardwareOptions(channelType);
+});
+
+ipcMain.handle('channel:bind-hardware', async (_event, params: { channelId: string; hardwareId: string }) => {
+  return await ChannelManager.bindHardware(params.channelId, params.hardwareId);
+});
+
+ipcMain.handle('channel:unbind-hardware', async (_event, channelId: string) => {
+  return await ChannelManager.unbindHardware(channelId);
+});
+
+ipcMain.handle('channel:open-lin', async (_event, params: { channelId: string; baudRate: number }) => {
+  return await ChannelManager.openLinChannel(params.channelId, params.baudRate);
+});
+ipcMain.handle('channel:open-default-lin', async (_event, params: { baudRate: number }) => {
+  return await ChannelManager.openDefaultLinChannel(params.baudRate);
+});
+
+ipcMain.handle('channel:close-lin', async (_event, channelId: string) => {
+  return await ChannelManager.closeLinChannel(channelId);
+});
+ipcMain.handle('channel:close-default-lin', async () => {
+  return await ChannelManager.closeDefaultLinChannel();
+});
+
+ipcMain.handle('channel:send-lin-frame', async (_event, params: {
+  channelId: string;
+  id: number;
+  data: number[];
+  checksumType?: 'classic' | 'enhanced';
+}) => {
+  return await ChannelManager.sendLinFrameByChannel(params);
+});
+ipcMain.handle('channel:send-default-lin-frame', async (_event, params: {
+  id: number;
+  data: number[];
+  checksumType?: 'classic' | 'enhanced';
+}) => {
+  return await ChannelManager.sendLinFrameByDefaultChannel(params);
+});
+
+ipcMain.handle('channel:get-lin-status', async (_event, channelId: string) => {
+  return await ChannelManager.getLinChannelStatus(channelId);
+});
+ipcMain.handle('channel:get-default-lin-status', async () => {
+  return await ChannelManager.getDefaultLinChannelStatus();
+});
+
+ipcMain.handle('channel:open-can', async (_event, params: { channelId: string; bitrate: number }) => {
+  return await ChannelManager.openCanChannel(params.channelId, params.bitrate);
+});
+ipcMain.handle('channel:open-default-can', async (_event, params: { bitrate: number }) => {
+  return await ChannelManager.openDefaultCanChannel(params.bitrate);
+});
+
+ipcMain.handle('channel:close-can', async (_event, channelId: string) => {
+  return await ChannelManager.closeCanChannel(channelId);
+});
+ipcMain.handle('channel:close-default-can', async () => {
+  return await ChannelManager.closeDefaultCanChannel();
+});
+
+ipcMain.handle('channel:get-can-status', async (_event, channelId: string) => {
+  return await ChannelManager.getCanChannelStatus(channelId);
+});
+ipcMain.handle('channel:get-default-can-status', async () => {
+  return await ChannelManager.getDefaultCanChannelStatus();
+});
+
+ipcMain.handle('channel:open-serial', async (_event, params: { channelId: string; baudRate: number }) => {
+  if (!mainWindow) return { success: false, message: '主窗口未初始化' };
+  return await ChannelManager.openSerialChannel(mainWindow, params.channelId, params.baudRate);
+});
+ipcMain.handle('channel:open-default-serial', async (_event, params: { baudRate: number }) => {
+  if (!mainWindow) return { success: false, message: '主窗口未初始化' };
+  return await ChannelManager.openDefaultSerialChannel(mainWindow, params.baudRate);
+});
+
+ipcMain.handle('channel:close-serial', async (_event, channelId: string) => {
+  return await ChannelManager.closeSerialChannel(channelId);
+});
+ipcMain.handle('channel:close-default-serial', async () => {
+  return await ChannelManager.closeDefaultSerialChannel();
+});
+
+ipcMain.handle('channel:get-serial-status', async (_event, channelId: string) => {
+  return await ChannelManager.getSerialChannelStatus(channelId);
+});
+ipcMain.handle('channel:get-default-serial-status', async () => {
+  return await ChannelManager.getDefaultSerialChannelStatus();
 });
 
 // 设置相关IPC处理

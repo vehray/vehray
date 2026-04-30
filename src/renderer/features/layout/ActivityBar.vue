@@ -1,6 +1,13 @@
 <template>
   <div class="activity-bar" :class="{ 'activity-bar-right': position === 'right' }" :style="panelStyle">
-    <div class="activity-bar-header">
+    <div
+      class="activity-bar-header"
+      :class="{ 'activity-bar-header-draggable': position === 'right' }"
+      :draggable="position === 'right'"
+      @dragstart="onHeaderDragStart"
+      @dragend="onHeaderDragEnd"
+      @contextmenu.prevent.stop="onHeaderContextMenu"
+    >
       <span class="activity-bar-title">{{ title }}</span>
       <div class="activity-bar-actions" :class="{ 'activity-bar-actions-right': position === 'right' }">
         <template v-if="position === 'left'">
@@ -68,9 +75,27 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'close'): void;
   (e: 'toggle-float'): void;
+  (e: 'header-drag-start', event: DragEvent): void;
+  (e: 'header-drag-end', event: DragEvent): void;
+  (e: 'header-contextmenu', event: MouseEvent): void;
 }>();
 
 const close = () => emit('close');
+
+const onHeaderDragStart = (event: DragEvent) => {
+  if (props.position !== 'right') return;
+  emit('header-drag-start', event);
+};
+
+const onHeaderDragEnd = (event: DragEvent) => {
+  if (props.position !== 'right') return;
+  emit('header-drag-end', event);
+};
+
+const onHeaderContextMenu = (event: MouseEvent) => {
+  if (props.position !== 'right') return;
+  emit('header-contextmenu', event);
+};
 const { t } = useI18n();
 const panelStyle = computed(() => ({
   width: `${props.customWidth}px`
@@ -104,6 +129,15 @@ const panelStyle = computed(() => ({
 
 .activity-bar-right .activity-bar-header {
   flex-direction: row-reverse;
+}
+
+.activity-bar-header-draggable {
+  cursor: grab;
+  user-select: none;
+}
+
+.activity-bar-header-draggable:active {
+  cursor: grabbing;
 }
 
 .activity-bar-title {

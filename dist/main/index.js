@@ -494,7 +494,7 @@ const deviceSerialPorts = /* @__PURE__ */ new Map();
 const deviceTypes = /* @__PURE__ */ new Map();
 let activeDeviceId = null;
 let lastPortList = [];
-let mainWindowRef = null;
+let mainWindowRef$1 = null;
 let portMonitoringInterval = null;
 let lastPortEventTime = /* @__PURE__ */ new Map();
 const PORT_EVENT_DEBOUNCE_TIME = 2e3;
@@ -792,7 +792,7 @@ class SerialPortManager {
   }
   // 初始化串口监控
   static initializePortMonitoring(mainWindow2) {
-    mainWindowRef = mainWindow2;
+    mainWindowRef$1 = mainWindow2;
     this.startPortMonitoring();
     logger.info("Serial port monitoring initialized");
   }
@@ -849,9 +849,9 @@ class SerialPortManager {
     }
     lastPortEventTime.set(eventKey, now);
     logger.info(`Serial port added: ${port.path} (${port.manufacturer})`);
-    if (mainWindowRef) {
+    if (mainWindowRef$1) {
       try {
-        mainWindowRef.webContents.send("serial:port-added", port);
+        mainWindowRef$1.webContents.send("serial:port-added", port);
         logger.debug(`Sent port added event for: ${port.path}`);
       } catch (error) {
         logger.error(`Error sending port added event: ${error instanceof Error ? error.message : String(error)}`);
@@ -874,9 +874,9 @@ class SerialPortManager {
     const affectedDevices = [];
     deviceSerialPorts.forEach((serialPort, deviceId) => {
     });
-    if (mainWindowRef) {
+    if (mainWindowRef$1) {
       try {
-        mainWindowRef.webContents.send("serial:port-removed", {
+        mainWindowRef$1.webContents.send("serial:port-removed", {
           port,
           affectedDevices
         });
@@ -2655,6 +2655,381 @@ class LinControllerManager {
     };
   }
 }
+const availableDevices = [
+  {
+    id: "pcanusbpro-lin1",
+    name: "PCAN-USB Pro LIN 1",
+    hardware: "PCAN-USB Pro",
+    channel: "LIN1",
+    connected: true,
+    backend: "mock"
+  },
+  {
+    id: "pcanusbpro-lin2",
+    name: "PCAN-USB Pro LIN 2",
+    hardware: "PCAN-USB Pro",
+    channel: "LIN2",
+    connected: true,
+    backend: "mock"
+  }
+];
+const openedSessions = /* @__PURE__ */ new Map();
+let mainWindowRef = null;
+const getDevice = (deviceId) => availableDevices.find((device) => device.id === deviceId);
+const emitFrame = (frame) => {
+  if (!mainWindowRef || mainWindowRef.isDestroyed()) return;
+  mainWindowRef.webContents.send("pcan-lin:frame", frame);
+};
+class PcanLinManager {
+  static bindMainWindow(mainWindow2) {
+    mainWindowRef = mainWindow2;
+  }
+  static async listDevices() {
+    return availableDevices;
+  }
+  static async openDevice(params) {
+    const { deviceId, baudRate } = params;
+    const target = getDevice(deviceId);
+    if (!target) {
+      return { success: false, message: `设备不存在: ${deviceId}` };
+    }
+    if (!target.connected) {
+      return { success: false, message: `设备未连接: ${deviceId}` };
+    }
+    if (baudRate < 1e3 || baudRate > 2e4) {
+      return { success: false, message: `LIN 波特率超出范围: ${baudRate}` };
+    }
+    openedSessions.set(deviceId, {
+      baudRate,
+      openedAt: Date.now(),
+      txCount: 0,
+      rxCount: 0
+    });
+    logger.info(`[pcan-lin] 打开设备: ${deviceId}, 波特率: ${baudRate}`);
+    return { success: true, message: `PCAN LIN 设备已打开: ${deviceId}` };
+  }
+  static async closeDevice(deviceId) {
+    if (!openedSessions.has(deviceId)) {
+      return { success: false, message: `设备未打开: ${deviceId}` };
+    }
+    openedSessions.delete(deviceId);
+    logger.info(`[pcan-lin] 关闭设备: ${deviceId}`);
+    return { success: true, message: `PCAN LIN 设备已关闭: ${deviceId}` };
+  }
+  static async sendFrame(payload) {
+    const session = openedSessions.get(payload.deviceId);
+    if (!session) {
+      return { success: false, message: `设备未打开: ${payload.deviceId}` };
+    }
+    if (payload.id < 0 || payload.id > 63) {
+      return { success: false, message: `LIN ID 超出范围: ${payload.id}` };
+    }
+    if (!Array.isArray(payload.data) || payload.data.length > 8) {
+      return { success: false, message: "LIN 数据长度必须为 0-8 字节" };
+    }
+    if (payload.data.some((byte) => byte < 0 || byte > 255)) {
+      return { success: false, message: "LIN 数据字节必须在 0-255 范围内" };
+    }
+    session.txCount += 1;
+    const checksumType = payload.checksumType ?? "enhanced";
+    emitFrame({
+      deviceId: payload.deviceId,
+      id: payload.id,
+      direction: "tx",
+      data: payload.data,
+      checksumType,
+      timestamp: Date.now()
+    });
+    setTimeout(() => {
+      const activeSession = openedSessions.get(payload.deviceId);
+      if (!activeSession) return;
+      activeSession.rxCount += 1;
+      emitFrame({
+        deviceId: payload.deviceId,
+        id: payload.id,
+        direction: "rx",
+        data: payload.data,
+        checksumType,
+        timestamp: Date.now()
+      });
+    }, 10);
+    return { success: true, message: "PCAN LIN 数据发送成功" };
+  }
+  static async getStatus(deviceId) {
+    const session = openedSessions.get(deviceId);
+    if (!session) {
+      return {
+        success: true,
+        message: "设备当前未打开",
+        opened: false
+      };
+    }
+    return {
+      success: true,
+      message: "设备状态获取成功",
+      opened: true,
+      baudRate: session.baudRate,
+      txCount: session.txCount,
+      rxCount: session.rxCount
+    };
+  }
+}
+const channels = [
+  {
+    id: "lin-primary",
+    name: "LIN 主通道",
+    type: "lin",
+    enabled: true,
+    binding: {
+      hardwareId: null,
+      hardwareName: null
+    }
+  },
+  {
+    id: "can-primary",
+    name: "CAN 主通道",
+    type: "can",
+    enabled: true,
+    binding: {
+      hardwareId: null,
+      hardwareName: null
+    }
+  },
+  {
+    id: "serial-primary",
+    name: "串口主通道",
+    type: "serial",
+    enabled: true,
+    binding: {
+      hardwareId: null,
+      hardwareName: null
+    }
+  }
+];
+const cloneChannels = () => channels.map((channel) => ({ ...channel, binding: { ...channel.binding } }));
+const canOpenSessions = /* @__PURE__ */ new Map();
+const serialChannelDeviceMap = /* @__PURE__ */ new Map();
+const defaultChannelByType = {
+  lin: "lin-primary",
+  can: "can-primary",
+  serial: "serial-primary"
+};
+class ChannelManager {
+  static getChannel(channelId) {
+    return channels.find((item) => item.id === channelId);
+  }
+  static getBoundHardware(channelId) {
+    const channel = this.getChannel(channelId);
+    if (!channel || !channel.binding.hardwareId) {
+      return null;
+    }
+    return { channel, hardwareId: channel.binding.hardwareId };
+  }
+  static async listChannels() {
+    return cloneChannels();
+  }
+  static getDefaultChannels() {
+    return { ...defaultChannelByType };
+  }
+  static getDefaultChannelId(channelType) {
+    return defaultChannelByType[channelType];
+  }
+  static setDefaultChannel(channelType, channelId) {
+    const channel = channels.find((item) => item.id === channelId);
+    if (!channel) return { success: false, message: `通道不存在: ${channelId}` };
+    if (channel.type !== channelType) return { success: false, message: `通道类型不匹配: ${channelId}` };
+    defaultChannelByType[channelType] = channelId;
+    return { success: true, message: `默认${channelType.toUpperCase()}通道已设置` };
+  }
+  static async listHardwareOptions(channelType) {
+    if (channelType === "lin") {
+      const pcanDevices = await PcanLinManager.listDevices();
+      return pcanDevices.map((device) => ({
+        id: device.id,
+        name: `${device.name}${device.connected ? "" : " (未连接)"}`,
+        provider: "PCAN",
+        extra: {
+          channel: device.channel,
+          connected: device.connected,
+          backend: device.backend
+        }
+      }));
+    }
+    if (channelType === "can") {
+      return [
+        { id: "pcanusbpro-can1", name: "PCAN-USB Pro CAN 1", provider: "PCAN", extra: { channel: "CAN1" } },
+        { id: "pcanusbpro-can2", name: "PCAN-USB Pro CAN 2", provider: "PCAN", extra: { channel: "CAN2" } }
+      ];
+    }
+    if (channelType === "serial") {
+      const serialPorts = await SerialPortManager.getPorts();
+      return serialPorts.map((port) => ({
+        id: `serial:${port.path}`,
+        name: `${port.path} (${port.manufacturer || "Unknown"})`,
+        provider: "SerialPort"
+      }));
+    }
+    return [];
+  }
+  static async bindHardware(channelId, hardwareId) {
+    const channel = this.getChannel(channelId);
+    if (!channel) {
+      return { success: false, message: `通道不存在: ${channelId}` };
+    }
+    const options = await this.listHardwareOptions(channel.type);
+    const target = options.find((option) => option.id === hardwareId);
+    if (!target) {
+      return { success: false, message: `硬件不存在: ${hardwareId}` };
+    }
+    channel.binding.hardwareId = target.id;
+    channel.binding.hardwareName = target.name;
+    return { success: true, message: `通道 ${channel.name} 已绑定 ${target.name}` };
+  }
+  static async unbindHardware(channelId) {
+    const channel = this.getChannel(channelId);
+    if (!channel) {
+      return { success: false, message: `通道不存在: ${channelId}` };
+    }
+    channel.binding.hardwareId = null;
+    channel.binding.hardwareName = null;
+    return { success: true, message: `通道 ${channel.name} 已解绑` };
+  }
+  static async openLinChannel(channelId, baudRate) {
+    const bound = this.getBoundHardware(channelId);
+    if (!bound) {
+      return { success: false, message: `通道未绑定硬件: ${channelId}` };
+    }
+    if (bound.channel.type !== "lin") {
+      return { success: false, message: `通道类型不是 LIN: ${channelId}` };
+    }
+    return await PcanLinManager.openDevice({ deviceId: bound.hardwareId, baudRate });
+  }
+  static async openDefaultLinChannel(baudRate) {
+    return this.openLinChannel(this.getDefaultChannelId("lin"), baudRate);
+  }
+  static async closeLinChannel(channelId) {
+    const bound = this.getBoundHardware(channelId);
+    if (!bound) {
+      return { success: false, message: `通道未绑定硬件: ${channelId}` };
+    }
+    if (bound.channel.type !== "lin") {
+      return { success: false, message: `通道类型不是 LIN: ${channelId}` };
+    }
+    return await PcanLinManager.closeDevice(bound.hardwareId);
+  }
+  static async closeDefaultLinChannel() {
+    return this.closeLinChannel(this.getDefaultChannelId("lin"));
+  }
+  static async sendLinFrameByChannel(params) {
+    const bound = this.getBoundHardware(params.channelId);
+    if (!bound) {
+      return { success: false, message: `通道未绑定硬件: ${params.channelId}` };
+    }
+    if (bound.channel.type !== "lin") {
+      return { success: false, message: `通道类型不是 LIN: ${params.channelId}` };
+    }
+    return await PcanLinManager.sendFrame({
+      deviceId: bound.hardwareId,
+      id: params.id,
+      data: params.data,
+      checksumType: params.checksumType
+    });
+  }
+  static async sendLinFrameByDefaultChannel(params) {
+    return this.sendLinFrameByChannel({
+      channelId: this.getDefaultChannelId("lin"),
+      id: params.id,
+      data: params.data,
+      checksumType: params.checksumType
+    });
+  }
+  static async getLinChannelStatus(channelId) {
+    const channel = this.getChannel(channelId);
+    if (!channel) {
+      return { success: false, message: `通道不存在: ${channelId}` };
+    }
+    if (channel.type !== "lin") {
+      return { success: false, message: `通道类型不是 LIN: ${channelId}` };
+    }
+    if (!channel.binding.hardwareId) {
+      return {
+        success: true,
+        message: "LIN 通道未绑定硬件",
+        opened: false,
+        hardwareId: null,
+        hardwareName: null
+      };
+    }
+    const status = await PcanLinManager.getStatus(channel.binding.hardwareId);
+    return {
+      ...status,
+      hardwareId: channel.binding.hardwareId,
+      hardwareName: channel.binding.hardwareName
+    };
+  }
+  static async getDefaultLinChannelStatus() {
+    return this.getLinChannelStatus(this.getDefaultChannelId("lin"));
+  }
+  static async openCanChannel(channelId, bitrate) {
+    const bound = this.getBoundHardware(channelId);
+    if (!bound) return { success: false, message: `通道未绑定硬件: ${channelId}` };
+    if (bound.channel.type !== "can") return { success: false, message: `通道类型不是 CAN: ${channelId}` };
+    if (bitrate < 1e4 || bitrate > 5e6) return { success: false, message: `CAN 波特率超出范围: ${bitrate}` };
+    canOpenSessions.set(channelId, { bitrate, openedAt: Date.now() });
+    return { success: true, message: `CAN 通道已打开: ${channelId}` };
+  }
+  static async openDefaultCanChannel(bitrate) {
+    return this.openCanChannel(this.getDefaultChannelId("can"), bitrate);
+  }
+  static async closeCanChannel(channelId) {
+    if (!canOpenSessions.has(channelId)) return { success: false, message: `CAN 通道未打开: ${channelId}` };
+    canOpenSessions.delete(channelId);
+    return { success: true, message: `CAN 通道已关闭: ${channelId}` };
+  }
+  static async closeDefaultCanChannel() {
+    return this.closeCanChannel(this.getDefaultChannelId("can"));
+  }
+  static async getCanChannelStatus(channelId) {
+    const session = canOpenSessions.get(channelId);
+    if (!session) return { success: true, message: "CAN 通道未打开", opened: false };
+    return { success: true, message: "CAN 通道状态获取成功", opened: true, bitrate: session.bitrate };
+  }
+  static async getDefaultCanChannelStatus() {
+    return this.getCanChannelStatus(this.getDefaultChannelId("can"));
+  }
+  static async openSerialChannel(mainWindow2, channelId, baudRate) {
+    const bound = this.getBoundHardware(channelId);
+    if (!bound) return { success: false, message: `通道未绑定硬件: ${channelId}` };
+    if (bound.channel.type !== "serial") return { success: false, message: `通道类型不是串口: ${channelId}` };
+    if (!bound.hardwareId.startsWith("serial:")) return { success: false, message: `无效串口硬件ID: ${bound.hardwareId}` };
+    const path2 = bound.hardwareId.replace(/^serial:/, "");
+    const deviceId = `channel-serial-${channelId}`;
+    serialChannelDeviceMap.set(channelId, deviceId);
+    return await SerialPortManager.openPort(path2, { deviceType: "Generic" }, mainWindow2, deviceId);
+  }
+  static async openDefaultSerialChannel(mainWindow2, baudRate) {
+    return this.openSerialChannel(mainWindow2, this.getDefaultChannelId("serial"), baudRate);
+  }
+  static async closeSerialChannel(channelId) {
+    const deviceId = serialChannelDeviceMap.get(channelId);
+    if (!deviceId) return { success: false, message: `串口通道未打开: ${channelId}` };
+    const result = await SerialPortManager.closePort(deviceId);
+    serialChannelDeviceMap.delete(channelId);
+    return result;
+  }
+  static async closeDefaultSerialChannel() {
+    return this.closeSerialChannel(this.getDefaultChannelId("serial"));
+  }
+  static async getSerialChannelStatus(channelId) {
+    const deviceId = serialChannelDeviceMap.get(channelId);
+    if (!deviceId) return { success: true, message: "串口通道未打开", opened: false };
+    const port = SerialPortManager.getCurrentPort(deviceId);
+    return { success: true, message: "串口通道状态获取成功", opened: Boolean(port?.isOpen), deviceId };
+  }
+  static async getDefaultSerialChannelStatus() {
+    return this.getSerialChannelStatus(this.getDefaultChannelId("serial"));
+  }
+}
 const toEntryType = (isDirectory) => isDirectory ? "directory" : "file";
 const isLdfFile$1 = (filePath) => path__default.extname(filePath).toLowerCase() === ".ldf";
 class FileExplorerService {
@@ -3100,6 +3475,7 @@ app.on("ready", async () => {
   mainWindow = createWindow();
   if (mainWindow) {
     SerialPortManager.initializePortMonitoring(mainWindow);
+    PcanLinManager.bindMainWindow(mainWindow);
   }
   if (mainWindow) {
     mainWindow.on("focus", () => {
@@ -3231,6 +3607,101 @@ ipcMain.handle("lin:scan-result-choice", async (event, continueScanning) => {
 });
 ipcMain.handle("lin:get-status", async (event) => {
   return await LinControllerManager.getCurrentStatus();
+});
+ipcMain.handle("pcan-lin:list-devices", async () => {
+  return await PcanLinManager.listDevices();
+});
+ipcMain.handle("pcan-lin:open-device", async (_event, params) => {
+  return await PcanLinManager.openDevice(params);
+});
+ipcMain.handle("pcan-lin:close-device", async (_event, deviceId) => {
+  return await PcanLinManager.closeDevice(deviceId);
+});
+ipcMain.handle("pcan-lin:send-frame", async (_event, payload) => {
+  return await PcanLinManager.sendFrame(payload);
+});
+ipcMain.handle("pcan-lin:get-status", async (_event, deviceId) => {
+  return await PcanLinManager.getStatus(deviceId);
+});
+ipcMain.handle("channel:list", async () => {
+  return await ChannelManager.listChannels();
+});
+ipcMain.handle("channel:get-defaults", async () => {
+  return ChannelManager.getDefaultChannels();
+});
+ipcMain.handle("channel:set-default", async (_event, params) => {
+  return ChannelManager.setDefaultChannel(params.channelType, params.channelId);
+});
+ipcMain.handle("channel:list-hardware-options", async (_event, channelType) => {
+  return await ChannelManager.listHardwareOptions(channelType);
+});
+ipcMain.handle("channel:bind-hardware", async (_event, params) => {
+  return await ChannelManager.bindHardware(params.channelId, params.hardwareId);
+});
+ipcMain.handle("channel:unbind-hardware", async (_event, channelId) => {
+  return await ChannelManager.unbindHardware(channelId);
+});
+ipcMain.handle("channel:open-lin", async (_event, params) => {
+  return await ChannelManager.openLinChannel(params.channelId, params.baudRate);
+});
+ipcMain.handle("channel:open-default-lin", async (_event, params) => {
+  return await ChannelManager.openDefaultLinChannel(params.baudRate);
+});
+ipcMain.handle("channel:close-lin", async (_event, channelId) => {
+  return await ChannelManager.closeLinChannel(channelId);
+});
+ipcMain.handle("channel:close-default-lin", async () => {
+  return await ChannelManager.closeDefaultLinChannel();
+});
+ipcMain.handle("channel:send-lin-frame", async (_event, params) => {
+  return await ChannelManager.sendLinFrameByChannel(params);
+});
+ipcMain.handle("channel:send-default-lin-frame", async (_event, params) => {
+  return await ChannelManager.sendLinFrameByDefaultChannel(params);
+});
+ipcMain.handle("channel:get-lin-status", async (_event, channelId) => {
+  return await ChannelManager.getLinChannelStatus(channelId);
+});
+ipcMain.handle("channel:get-default-lin-status", async () => {
+  return await ChannelManager.getDefaultLinChannelStatus();
+});
+ipcMain.handle("channel:open-can", async (_event, params) => {
+  return await ChannelManager.openCanChannel(params.channelId, params.bitrate);
+});
+ipcMain.handle("channel:open-default-can", async (_event, params) => {
+  return await ChannelManager.openDefaultCanChannel(params.bitrate);
+});
+ipcMain.handle("channel:close-can", async (_event, channelId) => {
+  return await ChannelManager.closeCanChannel(channelId);
+});
+ipcMain.handle("channel:close-default-can", async () => {
+  return await ChannelManager.closeDefaultCanChannel();
+});
+ipcMain.handle("channel:get-can-status", async (_event, channelId) => {
+  return await ChannelManager.getCanChannelStatus(channelId);
+});
+ipcMain.handle("channel:get-default-can-status", async () => {
+  return await ChannelManager.getDefaultCanChannelStatus();
+});
+ipcMain.handle("channel:open-serial", async (_event, params) => {
+  if (!mainWindow) return { success: false, message: "主窗口未初始化" };
+  return await ChannelManager.openSerialChannel(mainWindow, params.channelId, params.baudRate);
+});
+ipcMain.handle("channel:open-default-serial", async (_event, params) => {
+  if (!mainWindow) return { success: false, message: "主窗口未初始化" };
+  return await ChannelManager.openDefaultSerialChannel(mainWindow, params.baudRate);
+});
+ipcMain.handle("channel:close-serial", async (_event, channelId) => {
+  return await ChannelManager.closeSerialChannel(channelId);
+});
+ipcMain.handle("channel:close-default-serial", async () => {
+  return await ChannelManager.closeDefaultSerialChannel();
+});
+ipcMain.handle("channel:get-serial-status", async (_event, channelId) => {
+  return await ChannelManager.getSerialChannelStatus(channelId);
+});
+ipcMain.handle("channel:get-default-serial-status", async () => {
+  return await ChannelManager.getDefaultSerialChannelStatus();
 });
 ipcMain.handle("fs:writeSettings", (event, settings) => {
   return SettingsManager.saveSettings(settings);

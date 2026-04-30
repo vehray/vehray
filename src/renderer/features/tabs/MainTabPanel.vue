@@ -106,6 +106,7 @@
         <ProjectExplorer />
       </div>
       <AppSettingsView v-else-if="activeTabId === 'app-settings'" />
+      <TraceView v-else-if="activeTabId === 'trace'" />
       <div v-else-if="tabs.length > 0" class="tab-content-placeholder">
         {{ t('tabs.tabContentPlaceholder', { title: getActiveTab()?.title ?? '' }) }}
       </div>
@@ -152,6 +153,7 @@ import { electronBridge } from '../../services/electronBridge';
 import LdfEditorView from '../lin-ldf/components/LdfEditorView.vue';
 import AppSettingsView from '../settings/components/AppSettingsView.vue';
 import ProjectExplorer from '../explorer/ProjectExplorer.vue';
+import TraceView from '../trace/TraceView.vue';
 
 const { state, ensureHomeTab, switchToTab, closeTab: closeStateTab, upsertTab, reorderTabs } = useUiState();
 const { t } = useI18n();

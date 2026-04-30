@@ -81,6 +81,17 @@
         <button class="activity-context-item" @click="handleCloseLeftPanelFromMenu">关闭活动栏</button>
       </div>
       <div
+        v-if="!isSingleTabWindow && rightActivityMenuVisible"
+        class="activity-context-menu"
+        :style="{ left: `${rightActivityMenuX}px`, top: `${rightActivityMenuY}px` }"
+        @click.stop
+      >
+        <button class="activity-context-item" @click="handleToggleRightFloatingFromMenu">
+          {{ rightActivityPinned ? '还原停靠' : '浮动' }}
+        </button>
+        <button class="activity-context-item" @click="handleCloseRightPanelFromMenu">关闭活动栏</button>
+      </div>
+      <div
         v-if="!isSingleTabWindow && showLeftActivity && !leftActivityPinned"
         class="splitter left-splitter"
         :class="{
@@ -117,7 +128,7 @@
         </div>
       </div>
       <div
-        v-if="!isSingleTabWindow && showRightActivity"
+        v-if="!isSingleTabWindow && showRightActivity && !rightActivityPinned"
         class="splitter right-splitter"
         :class="{
           active: isRightSplitterActive,
@@ -129,7 +140,7 @@
         @mouseleave="isRightSplitterActive = false"
       />
       <div
-        v-if="!isSingleTabWindow && showRightActivity"
+        v-if="!isSingleTabWindow && showRightActivity && !rightActivityPinned"
         class="right-activity"
         :class="{ 'close-armed-panel': isRightCloseArmed || isRightMaxArmed, 'close-armed-side': isRightCloseArmed }"
       >
@@ -138,13 +149,43 @@
           :items="rightActivityItems"
           :custom-width="rightActivityWidth"
           position="right"
-          @close="closeRightActivity"
+          @close="closeRightActivityPanel"
           @toggle-float="handleRightActivityToggleFloat"
+          @header-drag-start="handleRightHeaderDragStart"
+          @header-drag-end="handleRightHeaderDragEnd"
+          @header-contextmenu="openRightActivityContextMenu"
         >
           <template #content>
             <PropertyTestPanel />
           </template>
         </ActivityBar>
+      </div>
+      <div
+        v-if="!isSingleTabWindow && showRightActivity && rightActivityPinned"
+        class="right-floating-panel"
+        :class="{ closing: rightFloatingClosing }"
+        :style="{ width: `${rightFloatWidth}px`, '--floating-close-ms': `${floatingCloseAnimationMs}ms` }"
+        @mousedown="refreshFloatingAutoClose"
+        @mousemove="refreshFloatingAutoClose"
+        @wheel.passive="refreshFloatingAutoClose"
+        @mouseenter="refreshFloatingAutoClose"
+      >
+        <ActivityBar
+          :title="t('layout.sidebar.properties')"
+          :items="rightActivityItems"
+          :custom-width="rightFloatWidth"
+          position="right"
+          @close="closeRightActivityPanel"
+          @toggle-float="handleRightActivityToggleFloat"
+          @header-drag-start="handleRightHeaderDragStart"
+          @header-drag-end="handleRightHeaderDragEnd"
+          @header-contextmenu="openRightActivityContextMenu"
+        >
+          <template #content>
+            <PropertyTestPanel />
+          </template>
+        </ActivityBar>
+        <div class="floating-resize-handle right-float-resize-handle" @mousedown.stop.prevent="startRightFloatResize"></div>
       </div>
     </div>
     <RightSidebar v-if="!isSingleTabWindow" @toggle-activity="uiActions.toggleRightPanel" />
@@ -180,12 +221,23 @@ const floatingClosing = ref(false);
 const leftActivityMenuVisible = ref(false);
 const leftActivityMenuX = ref(0);
 const leftActivityMenuY = ref(0);
+const rightActivityPinned = ref(false);
+const rightFloatWidth = ref(320);
+let rightFloatResizeState: { startX: number; startWidth: number } | null = null;
+const rightFloatingClosing = ref(false);
+const rightActivityMenuVisible = ref(false);
+const rightActivityMenuX = ref(0);
+const rightActivityMenuY = ref(0);
+const rightHeaderDragStartPoint = ref<{ x: number; y: number } | null>(null);
 const { t } = useI18n();
-const { state } = useUiState();
+const { state, upsertTab, switchToTab } = useUiState();
 const isSingleTabWindow = computed(() => state.windowMode === 'single-tab');
 
 const { currentView, showLeftActivity, showRightActivity, toggleLeftActivity, openLeftActivity, closeLeftActivity, closeRightActivity } =
   useLayoutPanels();
+
+const leftTakesLayoutSpace = computed(() => showLeftActivity.value && !leftActivityPinned.value);
+const rightTakesLayoutSpace = computed(() => showRightActivity.value && !rightActivityPinned.value);
 
 const {
   leftActivityWidth,
@@ -206,7 +258,14 @@ const {
   startRightDrag,
   startVerticalDrag,
   toggleBottomPanel
-} = usePanelLayout({ contentWrapper, mainArea, showLeftActivity, showRightActivity });
+} = usePanelLayout({
+  contentWrapper,
+  mainArea,
+  showLeftActivity,
+  showRightActivity,
+  leftTakesLayoutSpace,
+  rightTakesLayoutSpace
+});
 
 const handleSidebarClick = (view: string) => {
   currentView.value = view;
@@ -222,6 +281,15 @@ const handleSidebarClick = (view: string) => {
       return;
     }
     toggleLeftActivity();
+  }
+  if (view === 'trace') {
+    upsertTab({
+      id: 'trace',
+      title: 'Trace',
+      content: 'trace-view',
+      dirty: false
+    });
+    switchToTab('trace');
   }
 };
 
@@ -250,6 +318,31 @@ const closeLeftActivityPanel = () => {
   closeLeftActivity();
 };
 
+const closeRightActivityPanel = () => {
+  if (rightActivityPinned.value && showRightActivity.value && !rightFloatingClosing.value) {
+    rightFloatingClosing.value = true;
+    const duration = floatingCloseAnimationMs.value;
+    setTimeout(() => {
+      rightFloatingClosing.value = false;
+      rightActivityMenuVisible.value = false;
+      closeRightActivity();
+    }, duration);
+    return;
+  }
+  rightActivityMenuVisible.value = false;
+  closeRightActivity();
+};
+
+const toggleRightPinned = () => {
+  rightActivityPinned.value = !rightActivityPinned.value;
+  if (rightActivityPinned.value) {
+    rightFloatWidth.value = Math.max(260, rightActivityWidth.value);
+    return;
+  }
+  rightActivityWidth.value = Math.max(220, Math.min(560, rightFloatWidth.value));
+  clearFloatingAutoCloseTimer();
+};
+
 const floatingCloseAnimationMs = computed(() => {
   if (state.floatingCloseAnimationSpeed === 'fast') return 140;
   if (state.floatingCloseAnimationSpeed === 'slow') return 340;
@@ -268,19 +361,55 @@ const refreshFloatingAutoClose = () => {
 
 const handleDocumentPointerDownForFloatingAutoClose = (event: MouseEvent) => {
   if (!state.autoCloseFloatingOnIdle) return;
-  if (!leftActivityPinned.value || !showLeftActivity.value || floatingClosing.value) return;
-  if (leftFloatResizeState) return;
   const target = event.target as HTMLElement | null;
   if (!target) return;
-  // 点击浮动面板内部不关闭；点击其他区域立即关闭
-  if (target.closest('.left-floating-panel')) return;
-  closeLeftActivityPanel();
+  if (leftFloatResizeState || rightFloatResizeState) return;
+  if (target.closest('.activity-context-menu')) return;
+
+  const inLeftFloat = Boolean(target.closest('.left-floating-panel'));
+  const inRightFloat = Boolean(target.closest('.right-floating-panel'));
+
+  if (leftActivityPinned.value && showLeftActivity.value && !floatingClosing.value) {
+    if (!inLeftFloat && !inRightFloat) {
+      closeLeftActivityPanel();
+    }
+  }
+  if (rightActivityPinned.value && showRightActivity.value && !rightFloatingClosing.value) {
+    if (!inRightFloat && !inLeftFloat) {
+      closeRightActivityPanel();
+    }
+  }
 };
 
 const stopLeftFloatResize = () => {
   leftFloatResizeState = null;
   document.removeEventListener('mousemove', onLeftFloatResize);
   document.removeEventListener('mouseup', stopLeftFloatResize);
+};
+
+const stopRightFloatResize = () => {
+  rightFloatResizeState = null;
+  document.removeEventListener('mousemove', onRightFloatResize);
+  document.removeEventListener('mouseup', stopRightFloatResize);
+};
+
+const onRightFloatResize = (event: MouseEvent) => {
+  if (!rightFloatResizeState || !contentWrapper.value) return;
+  const wrapperRect = contentWrapper.value.getBoundingClientRect();
+  const delta = rightFloatResizeState.startX - event.clientX;
+  const minWidth = 260;
+  const maxWidth = Math.max(minWidth, wrapperRect.width - 8);
+  rightFloatWidth.value = Math.min(maxWidth, Math.max(minWidth, rightFloatResizeState.startWidth + delta));
+};
+
+const startRightFloatResize = (event: MouseEvent) => {
+  if (!rightActivityPinned.value) return;
+  rightFloatResizeState = {
+    startX: event.clientX,
+    startWidth: rightFloatWidth.value
+  };
+  document.addEventListener('mousemove', onRightFloatResize);
+  document.addEventListener('mouseup', stopRightFloatResize);
 };
 
 const onLeftFloatResize = (event: MouseEvent) => {
@@ -368,11 +497,47 @@ const handleExplorerHeaderDragEnd = async (event: DragEvent) => {
   await handleOpenLeftPanelInNewWindow();
 };
 
-const closeLeftActivityContextMenu = () => {
+const closeActivityContextMenus = () => {
   leftActivityMenuVisible.value = false;
+  rightActivityMenuVisible.value = false;
 };
 
-const handleRightActivityToggleFloat = () => {};
+const openRightActivityContextMenu = (event: MouseEvent) => {
+  rightActivityMenuVisible.value = true;
+  rightActivityMenuX.value = event.clientX;
+  rightActivityMenuY.value = event.clientY;
+};
+
+const handleToggleRightFloatingFromMenu = () => {
+  toggleRightPinned();
+  rightActivityMenuVisible.value = false;
+};
+
+const handleCloseRightPanelFromMenu = () => {
+  closeRightActivityPanel();
+  rightActivityMenuVisible.value = false;
+};
+
+const handleRightHeaderDragStart = (event: DragEvent) => {
+  rightHeaderDragStartPoint.value = { x: event.screenX, y: event.screenY };
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', 'properties-header');
+  }
+};
+
+const handleRightHeaderDragEnd = (event: DragEvent) => {
+  const start = rightHeaderDragStartPoint.value;
+  rightHeaderDragStartPoint.value = null;
+  if (!start) return;
+  const movedDistance = Math.hypot(event.screenX - start.x, event.screenY - start.y);
+  if (movedDistance < 24) return;
+  // 属性面板暂不支持拖出独立窗口；预留与左侧一致的拖拽距离阈值
+};
+
+const handleRightActivityToggleFloat = () => {
+  toggleRightPinned();
+};
 
 const handleToggleExplorerShortcut = () => {
   if (explorerDetachedVisible.value) {
@@ -441,13 +606,14 @@ onMounted(() => {
     explorerDetachedVisible.value = Boolean(visible);
   }) ?? null;
   clearFloatingAutoCloseTimer();
-  document.addEventListener('click', closeLeftActivityContextMenu);
+  document.addEventListener('click', closeActivityContextMenus);
   document.addEventListener('mousedown', handleDocumentPointerDownForFloatingAutoClose);
 });
 
 onUnmounted(() => {
   clearFloatingAutoCloseTimer();
   stopLeftFloatResize();
+  stopRightFloatResize();
   disposeToggleExplorerShortcut?.();
   disposeTogglePropertiesShortcut?.();
   disposeToggleBottomPanelShortcut?.();
@@ -472,14 +638,25 @@ onUnmounted(() => {
     window.electron?.ipcRenderer?.off?.('layout:explorer-detached-state', explorerDetachedStateListener);
     explorerDetachedStateListener = null;
   }
-  document.removeEventListener('click', closeLeftActivityContextMenu);
+  document.removeEventListener('click', closeActivityContextMenus);
   document.removeEventListener('mousedown', handleDocumentPointerDownForFloatingAutoClose);
 });
 
 watch(
-  () => [state.autoCloseFloatingOnIdle, state.floatingCloseAnimationSpeed, leftActivityPinned.value, showLeftActivity.value] as const,
+  () =>
+    [
+      state.autoCloseFloatingOnIdle,
+      state.floatingCloseAnimationSpeed,
+      leftActivityPinned.value,
+      showLeftActivity.value,
+      rightActivityPinned.value,
+      showRightActivity.value
+    ] as const,
   () => {
-    if (!state.autoCloseFloatingOnIdle || !leftActivityPinned.value || !showLeftActivity.value) {
+    if (
+      !state.autoCloseFloatingOnIdle ||
+      ((!leftActivityPinned.value || !showLeftActivity.value) && (!rightActivityPinned.value || !showRightActivity.value))
+    ) {
       clearFloatingAutoCloseTimer();
     }
   }
@@ -508,6 +685,29 @@ watch(
   opacity: 0;
   transform: translateX(-12px) scale(0.985);
   pointer-events: none;
+}
+.right-floating-panel {
+  position: absolute;
+  z-index: 120;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  min-height: 260px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px 0 0 6px;
+  background-color: var(--app-bg);
+  overflow: hidden;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+  transition: opacity var(--floating-close-ms, 220ms) ease, transform var(--floating-close-ms, 220ms) ease;
+}
+.right-floating-panel.closing {
+  opacity: 0;
+  transform: translateX(12px) scale(0.985);
+  pointer-events: none;
+}
+.right-float-resize-handle {
+  left: 0;
+  right: auto;
 }
 .activity-header {
   display: flex;

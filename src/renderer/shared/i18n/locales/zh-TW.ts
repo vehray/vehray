@@ -10,6 +10,7 @@ export default {
     sidebar: {
       home: '主頁',
       file: '檔案',
+      trace: 'Trace',
       properties: '屬性'
     },
     header: {

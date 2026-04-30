@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { usePanelLayout } from '../../src/renderer/features/layout/composables/usePanelLayout';
+import { LAYOUT_CONSTANTS } from '../../src/renderer/shared/constants';
 
 describe('usePanelLayout', () => {
   it('左右面板都可见时会约束左右宽度并保留中心区域', () => {
@@ -12,19 +13,27 @@ describe('usePanelLayout', () => {
     const mainArea = ref<HTMLElement | null>(mainAreaEl);
     const showLeftActivity = ref(true);
     const showRightActivity = ref(true);
+    const leftTakesLayoutSpace = ref(true);
+    const rightTakesLayoutSpace = ref(true);
 
     const layout = usePanelLayout({
       contentWrapper,
       mainArea,
       showLeftActivity,
-      showRightActivity
+      showRightActivity,
+      leftTakesLayoutSpace,
+      rightTakesLayoutSpace
     });
 
     layout.leftActivityWidth.value = 700;
     layout.calculateActivityWidth();
 
-    expect(layout.rightActivityWidth.value).toBeGreaterThanOrEqual(170);
-    expect(layout.leftActivityWidth.value).toBeLessThanOrEqual(349);
+    const minSide = Math.max(
+      Math.floor((wrapper.offsetWidth - 8) * (LAYOUT_CONSTANTS.MIN_SIDE_PERCENT / 100)),
+      LAYOUT_CONSTANTS.MIN_SIDE_WIDTH_PX
+    );
+    expect(layout.rightActivityWidth.value).toBeGreaterThanOrEqual(minSide);
+    expect(layout.leftActivityWidth.value).toBeLessThanOrEqual(LAYOUT_CONSTANTS.MAX_SIDE_WIDTH_PX);
   });
 
   it('左侧拖拽会更新左栏宽度', () => {
@@ -42,12 +51,16 @@ describe('usePanelLayout', () => {
     const mainArea = ref<HTMLElement | null>(mainAreaEl);
     const showLeftActivity = ref(true);
     const showRightActivity = ref(true);
+    const leftTakesLayoutSpace = ref(true);
+    const rightTakesLayoutSpace = ref(true);
 
     const layout = usePanelLayout({
       contentWrapper,
       mainArea,
       showLeftActivity,
-      showRightActivity
+      showRightActivity,
+      leftTakesLayoutSpace,
+      rightTakesLayoutSpace
     });
 
     layout.leftActivityWidth.value = 300;
@@ -55,7 +68,7 @@ describe('usePanelLayout', () => {
     document.dispatchEvent(new MouseEvent('mousemove', { clientX: 240 }));
     document.dispatchEvent(new MouseEvent('mouseup'));
 
-    expect(layout.leftActivityWidth.value).toBeGreaterThan(300);
+    expect(layout.leftActivityWidth.value).toBe(LAYOUT_CONSTANTS.MAX_SIDE_WIDTH_PX);
     vi.unstubAllGlobals();
   });
 
@@ -75,12 +88,16 @@ describe('usePanelLayout', () => {
     const mainArea = ref<HTMLElement | null>(mainAreaEl);
     const showLeftActivity = ref(true);
     const showRightActivity = ref(true);
+    const leftTakesLayoutSpace = ref(true);
+    const rightTakesLayoutSpace = ref(true);
 
     const layout = usePanelLayout({
       contentWrapper,
       mainArea,
       showLeftActivity,
-      showRightActivity
+      showRightActivity,
+      leftTakesLayoutSpace,
+      rightTakesLayoutSpace
     });
 
     layout.tabPanelHeight.value = 200;
@@ -108,12 +125,16 @@ describe('usePanelLayout', () => {
     const mainArea = ref<HTMLElement | null>(mainAreaEl);
     const showLeftActivity = ref(true);
     const showRightActivity = ref(true);
+    const leftTakesLayoutSpace = ref(true);
+    const rightTakesLayoutSpace = ref(true);
 
     const layout = usePanelLayout({
       contentWrapper,
       mainArea,
       showLeftActivity,
-      showRightActivity
+      showRightActivity,
+      leftTakesLayoutSpace,
+      rightTakesLayoutSpace
     });
 
     layout.tabPanelHeight.value = 180;
@@ -140,12 +161,16 @@ describe('usePanelLayout', () => {
     const mainArea = ref<HTMLElement | null>(mainAreaEl);
     const showLeftActivity = ref(true);
     const showRightActivity = ref(true);
+    const leftTakesLayoutSpace = ref(true);
+    const rightTakesLayoutSpace = ref(true);
 
     const layout = usePanelLayout({
       contentWrapper,
       mainArea,
       showLeftActivity,
-      showRightActivity
+      showRightActivity,
+      leftTakesLayoutSpace,
+      rightTakesLayoutSpace
     });
 
     layout.leftActivityWidth.value = 260;
@@ -172,12 +197,16 @@ describe('usePanelLayout', () => {
     const mainArea = ref<HTMLElement | null>(mainAreaEl);
     const showLeftActivity = ref(true);
     const showRightActivity = ref(true);
+    const leftTakesLayoutSpace = ref(true);
+    const rightTakesLayoutSpace = ref(true);
 
     const layout = usePanelLayout({
       contentWrapper,
       mainArea,
       showLeftActivity,
-      showRightActivity
+      showRightActivity,
+      leftTakesLayoutSpace,
+      rightTakesLayoutSpace
     });
 
     layout.rightActivityWidth.value = 260;

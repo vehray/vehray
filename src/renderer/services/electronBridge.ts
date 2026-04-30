@@ -21,6 +21,7 @@ type ExplorerContextActionPayload = {
   targetType: ExplorerContextTargetType;
 };
 type ExplorerContextActionCallback = (payload: ExplorerContextActionPayload) => void;
+type ChannelType = 'lin' | 'can' | 'serial';
 
 const FOLDER_OPENED_CHANNEL = 'folder-opened';
 
@@ -240,5 +241,229 @@ export const electronBridge = {
     if (!hasFs() || !window.electron.fs.writeSettings) return false;
     const response = await window.electron.fs.writeSettings(settings);
     return Boolean(response?.success);
+  },
+
+  async listChannels(): Promise<Array<{
+    id: string;
+    name: string;
+    type: ChannelType;
+    enabled: boolean;
+    binding: { hardwareId: string | null; hardwareName: string | null };
+  }>> {
+    if (!hasElectron() || !window.electron.channel?.list) return [];
+    return await window.electron.channel.list();
+  },
+
+  async getDefaultChannels(): Promise<{ lin: string; can: string; serial: string } | null> {
+    if (!hasElectron() || !window.electron.channel?.getDefaults) return null;
+    return await window.electron.channel.getDefaults();
+  },
+
+  async setDefaultChannel(params: { channelType: 'lin' | 'can' | 'serial'; channelId: string }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.setDefault) return false;
+    const result = await window.electron.channel.setDefault(params);
+    return Boolean(result?.success);
+  },
+
+  async listChannelHardwareOptions(channelType: ChannelType): Promise<Array<{
+    id: string;
+    name: string;
+    provider: string;
+    extra?: Record<string, string | number | boolean>;
+  }>> {
+    if (!hasElectron() || !window.electron.channel?.listHardwareOptions) return [];
+    return await window.electron.channel.listHardwareOptions(channelType);
+  },
+
+  async bindChannelHardware(params: { channelId: string; hardwareId: string }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.bindHardware) return false;
+    const result = await window.electron.channel.bindHardware(params);
+    return Boolean(result?.success);
+  },
+
+  async unbindChannelHardware(channelId: string): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.unbindHardware) return false;
+    const result = await window.electron.channel.unbindHardware(channelId);
+    return Boolean(result?.success);
+  },
+
+  async openLinChannel(params: { channelId: string; baudRate: number }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.openLin) return false;
+    const result = await window.electron.channel.openLin(params);
+    return Boolean(result?.success);
+  },
+  async openDefaultLinChannel(params: { baudRate: number }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.openDefaultLin) return false;
+    const result = await window.electron.channel.openDefaultLin(params);
+    return Boolean(result?.success);
+  },
+
+  async closeLinChannel(channelId: string): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.closeLin) return false;
+    const result = await window.electron.channel.closeLin(channelId);
+    return Boolean(result?.success);
+  },
+  async closeDefaultLinChannel(): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.closeDefaultLin) return false;
+    const result = await window.electron.channel.closeDefaultLin();
+    return Boolean(result?.success);
+  },
+
+  async sendLinFrameByChannel(params: {
+    channelId: string;
+    id: number;
+    data: number[];
+    checksumType?: 'classic' | 'enhanced';
+  }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.sendLinFrame) return false;
+    const result = await window.electron.channel.sendLinFrame(params);
+    return Boolean(result?.success);
+  },
+  async sendLinFrameByDefaultChannel(params: {
+    id: number;
+    data: number[];
+    checksumType?: 'classic' | 'enhanced';
+  }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.sendDefaultLinFrame) return false;
+    const result = await window.electron.channel.sendDefaultLinFrame(params);
+    return Boolean(result?.success);
+  },
+
+  async getLinChannelStatus(channelId: string): Promise<{
+    success: boolean;
+    message: string;
+    opened?: boolean;
+    baudRate?: number;
+    txCount?: number;
+    rxCount?: number;
+    hardwareId?: string | null;
+    hardwareName?: string | null;
+  } | null> {
+    if (!hasElectron() || !window.electron.channel?.getLinStatus) return null;
+    return await window.electron.channel.getLinStatus(channelId);
+  },
+  async getDefaultLinChannelStatus(): Promise<{
+    success: boolean;
+    message: string;
+    opened?: boolean;
+    baudRate?: number;
+    txCount?: number;
+    rxCount?: number;
+    hardwareId?: string | null;
+    hardwareName?: string | null;
+  } | null> {
+    if (!hasElectron() || !window.electron.channel?.getDefaultLinStatus) return null;
+    return await window.electron.channel.getDefaultLinStatus();
+  },
+
+  async openCanChannel(params: { channelId: string; bitrate: number }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.openCan) return false;
+    const result = await window.electron.channel.openCan(params);
+    return Boolean(result?.success);
+  },
+  async openDefaultCanChannel(params: { bitrate: number }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.openDefaultCan) return false;
+    const result = await window.electron.channel.openDefaultCan(params);
+    return Boolean(result?.success);
+  },
+
+  async closeCanChannel(channelId: string): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.closeCan) return false;
+    const result = await window.electron.channel.closeCan(channelId);
+    return Boolean(result?.success);
+  },
+  async closeDefaultCanChannel(): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.closeDefaultCan) return false;
+    const result = await window.electron.channel.closeDefaultCan();
+    return Boolean(result?.success);
+  },
+
+  async getCanChannelStatus(channelId: string): Promise<{ success: boolean; message: string; opened?: boolean; bitrate?: number } | null> {
+    if (!hasElectron() || !window.electron.channel?.getCanStatus) return null;
+    return await window.electron.channel.getCanStatus(channelId);
+  },
+  async getDefaultCanChannelStatus(): Promise<{ success: boolean; message: string; opened?: boolean; bitrate?: number } | null> {
+    if (!hasElectron() || !window.electron.channel?.getDefaultCanStatus) return null;
+    return await window.electron.channel.getDefaultCanStatus();
+  },
+
+  async openSerialChannel(params: { channelId: string; baudRate: number }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.openSerial) return false;
+    const result = await window.electron.channel.openSerial(params);
+    return Boolean(result?.success);
+  },
+  async openDefaultSerialChannel(params: { baudRate: number }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.openDefaultSerial) return false;
+    const result = await window.electron.channel.openDefaultSerial(params);
+    return Boolean(result?.success);
+  },
+
+  async closeSerialChannel(channelId: string): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.closeSerial) return false;
+    const result = await window.electron.channel.closeSerial(channelId);
+    return Boolean(result?.success);
+  },
+  async closeDefaultSerialChannel(): Promise<boolean> {
+    if (!hasElectron() || !window.electron.channel?.closeDefaultSerial) return false;
+    const result = await window.electron.channel.closeDefaultSerial();
+    return Boolean(result?.success);
+  },
+
+  async getSerialChannelStatus(channelId: string): Promise<{ success: boolean; message: string; opened?: boolean; deviceId?: string } | null> {
+    if (!hasElectron() || !window.electron.channel?.getSerialStatus) return null;
+    return await window.electron.channel.getSerialStatus(channelId);
+  },
+  async getDefaultSerialChannelStatus(): Promise<{ success: boolean; message: string; opened?: boolean; deviceId?: string } | null> {
+    if (!hasElectron() || !window.electron.channel?.getDefaultSerialStatus) return null;
+    return await window.electron.channel.getDefaultSerialStatus();
+  },
+
+  async listPcanLinDevices(): Promise<{
+    id: string;
+    name: string;
+    hardware: 'PCAN-USB Pro';
+    channel: 'LIN1' | 'LIN2';
+    connected: boolean;
+    backend: 'mock' | 'native';
+  }[]> {
+    if (!hasElectron() || !window.electron.pcanLin?.listDevices) return [];
+    return await window.electron.pcanLin.listDevices();
+  },
+
+  async openPcanLinDevice(params: { deviceId: string; baudRate: number }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.pcanLin?.openDevice) return false;
+    const result = await window.electron.pcanLin.openDevice(params);
+    return Boolean(result?.success);
+  },
+
+  async closePcanLinDevice(deviceId: string): Promise<boolean> {
+    if (!hasElectron() || !window.electron.pcanLin?.closeDevice) return false;
+    const result = await window.electron.pcanLin.closeDevice(deviceId);
+    return Boolean(result?.success);
+  },
+
+  async sendPcanLinFrame(payload: {
+    deviceId: string;
+    id: number;
+    data: number[];
+    checksumType?: 'classic' | 'enhanced';
+  }): Promise<boolean> {
+    if (!hasElectron() || !window.electron.pcanLin?.sendFrame) return false;
+    const result = await window.electron.pcanLin.sendFrame(payload);
+    return Boolean(result?.success);
+  },
+
+  subscribePcanLinFrame(
+    callback: (frame: {
+      deviceId: string;
+      id: number;
+      direction: 'tx' | 'rx';
+      data: number[];
+      timestamp: number;
+      checksumType: 'classic' | 'enhanced';
+    }) => void
+  ): () => void {
+    if (!hasElectron() || !window.electron.pcanLin?.onFrame) return () => {};
+    return window.electron.pcanLin.onFrame(callback);
   }
 };

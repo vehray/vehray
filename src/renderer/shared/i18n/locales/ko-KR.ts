@@ -253,6 +253,7 @@ export default {
       ...enUS.layout.sidebar,
       home: '홈',
       file: '파일',
+      trace: 'Trace',
       properties: '속성'
     }
   },

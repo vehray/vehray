@@ -6,6 +6,7 @@
       <button type="button" class="tree-node" :class="{ active: activeNode === 'workspace' }" @click="activeNode = 'workspace'">工作区与文件</button>
       <button type="button" class="tree-node" :class="{ active: activeNode === 'appearance' }" @click="activeNode = 'appearance'">界面（UI）</button>
       <button type="button" class="tree-node" :class="{ active: activeNode === 'interaction' }" @click="activeNode = 'interaction'">交互</button>
+      <button type="button" class="tree-node" :class="{ active: activeNode === 'channel' }" @click="handleEnterChannelNode">通道管理</button>
       <button type="button" class="tree-node" :class="{ active: activeNode === 'basic' }" @click="activeNode = 'basic'">基础</button>
     </aside>
 
@@ -129,7 +130,7 @@
           <label class="setting-row switch-row"><span>关闭标签前确认</span><input type="checkbox" checked disabled /></label>
           <label class="setting-row"><span>拖拽行为（标签/面板）</span><select disabled><option>允许</option></select></label>
           <label class="setting-row switch-row">
-            <span>主页面“浮动覆盖主区域”自动关闭（立即）</span>
+            <span>主页面左右侧栏浮动时，点击外部区域立即关闭（含关闭动画）</span>
             <el-switch :model-value="state.autoCloseFloatingOnIdle" @change="handleAutoCloseFloatingOnIdleChange" />
           </label>
           <label class="setting-row">
@@ -142,6 +143,102 @@
           </label>
           <label class="setting-row"><span>双击打开/单击预览（如果后续有）</span><select disabled><option>双击打开</option></select></label>
           <label class="setting-row switch-row"><span>快捷键提示显示</span><input type="checkbox" checked disabled /></label>
+        </div>
+      </template>
+
+      <template v-else-if="activeNode === 'channel'">
+        <h2>通道管理</h2>
+        <p class="settings-desc">统一管理 LIN/CAN/串口通道，并将通道绑定到具体硬件。当前优先支持 PCAN LIN。</p>
+        <div class="settings-group">
+          <div class="channel-shortcut-title">默认通道快捷操作</div>
+          <div class="channel-shortcut-row">
+            <span>默认 LIN（{{ defaultChannels.lin }}）</span>
+            <button type="button" class="size-reset-btn" @click="handleQuickOpenDefaultLin">打开</button>
+            <button type="button" class="size-reset-btn" @click="handleQuickCloseDefaultLin">关闭</button>
+            <button type="button" class="size-reset-btn" @click="handleQuickSendDefaultLinTest">发送测试帧</button>
+            <span class="channel-status">
+              {{ defaultLinStatus.opened ? '已打开' : '未打开' }} / TX: {{ defaultLinStatus.txCount || 0 }} RX: {{ defaultLinStatus.rxCount || 0 }}
+            </span>
+          </div>
+          <div class="channel-shortcut-row">
+            <span>默认 CAN（{{ defaultChannels.can }}）</span>
+            <button type="button" class="size-reset-btn" @click="handleQuickOpenDefaultCan">打开</button>
+            <button type="button" class="size-reset-btn" @click="handleQuickCloseDefaultCan">关闭</button>
+            <span class="channel-status">{{ defaultCanStatus.opened ? '已打开' : '未打开' }}</span>
+          </div>
+          <div class="channel-shortcut-row">
+            <span>默认串口（{{ defaultChannels.serial }}）</span>
+            <button type="button" class="size-reset-btn" @click="handleQuickOpenDefaultSerial">打开</button>
+            <button type="button" class="size-reset-btn" @click="handleQuickCloseDefaultSerial">关闭</button>
+            <span class="channel-status">{{ defaultSerialStatus.opened ? '已打开' : '未打开' }}</span>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="channel-row" v-for="channel in channels" :key="channel.id">
+            <div class="channel-info">
+              <div class="channel-name">{{ channel.name }}</div>
+              <div class="channel-meta">
+                类型：{{ channel.type.toUpperCase() }}｜当前绑定：{{ channel.binding.hardwareName || '未绑定' }}｜默认：{{ defaultChannels[channel.type] === channel.id ? '是' : '否' }}
+              </div>
+            </div>
+            <div class="channel-actions">
+              <template v-if="channel.type === 'lin'">
+                <select
+                  :value="linSelections[channel.id] || ''"
+                  @change="handleLinSelectionChange(channel.id, $event)"
+                >
+                  <option value="">请选择硬件</option>
+                  <option v-for="item in linHardwareOptions" :key="item.id" :value="item.id">{{ item.name }}</option>
+                </select>
+                <button type="button" class="size-reset-btn" @click="handleBindLinChannel(channel.id)">绑定</button>
+                <button type="button" class="size-reset-btn" @click="handleUnbindChannel(channel.id)">解绑</button>
+                <button type="button" class="size-reset-btn" @click="handleSetDefaultChannel('lin', channel.id)">设为默认</button>
+                <select :value="linBaudRates[channel.id]" @change="handleLinBaudRateChange(channel.id, $event)">
+                  <option :value="9600">9600</option>
+                  <option :value="10400">10400</option>
+                  <option :value="19200">19200</option>
+                </select>
+                <button type="button" class="size-reset-btn" @click="handleOpenLinChannel(channel.id)">打开</button>
+                <button type="button" class="size-reset-btn" @click="handleCloseLinChannel(channel.id)">关闭</button>
+                <button type="button" class="size-reset-btn" @click="handleSendLinTestFrame(channel.id)">发送测试帧</button>
+                <span class="channel-status">
+                  {{ linStatusMap[channel.id]?.opened ? '已打开' : '未打开' }} / TX: {{ linStatusMap[channel.id]?.txCount || 0 }} RX: {{ linStatusMap[channel.id]?.rxCount || 0 }}
+                </span>
+              </template>
+              <template v-else-if="channel.type === 'can'">
+                <select :value="canSelections[channel.id] || ''" @change="handleCanSelectionChange(channel.id, $event)">
+                  <option value="">请选择硬件</option>
+                  <option v-for="item in canHardwareOptions" :key="item.id" :value="item.id">{{ item.name }}</option>
+                </select>
+                <button type="button" class="size-reset-btn" @click="handleBindCanChannel(channel.id)">绑定</button>
+                <button type="button" class="size-reset-btn" @click="handleSetDefaultChannel('can', channel.id)">设为默认</button>
+                <select :value="canBitrates[channel.id]" @change="handleCanBitrateChange(channel.id, $event)">
+                  <option :value="125000">125K</option>
+                  <option :value="500000">500K</option>
+                  <option :value="1000000">1M</option>
+                </select>
+                <button type="button" class="size-reset-btn" @click="handleOpenCanChannel(channel.id)">打开</button>
+                <button type="button" class="size-reset-btn" @click="handleCloseCanChannel(channel.id)">关闭</button>
+                <span class="channel-status">{{ canStatusMap[channel.id]?.opened ? '已打开' : '未打开' }}</span>
+              </template>
+              <template v-else>
+                <select :value="serialSelections[channel.id] || ''" @change="handleSerialSelectionChange(channel.id, $event)">
+                  <option value="">请选择串口</option>
+                  <option v-for="item in serialHardwareOptions" :key="item.id" :value="item.id">{{ item.name }}</option>
+                </select>
+                <button type="button" class="size-reset-btn" @click="handleBindSerialChannel(channel.id)">绑定</button>
+                <button type="button" class="size-reset-btn" @click="handleSetDefaultChannel('serial', channel.id)">设为默认</button>
+                <select :value="serialBaudRates[channel.id]" @change="handleSerialBaudRateChange(channel.id, $event)">
+                  <option :value="9600">9600</option>
+                  <option :value="115200">115200</option>
+                  <option :value="460800">460800</option>
+                </select>
+                <button type="button" class="size-reset-btn" @click="handleOpenSerialChannel(channel.id)">打开</button>
+                <button type="button" class="size-reset-btn" @click="handleCloseSerialChannel(channel.id)">关闭</button>
+                <span class="channel-status">{{ serialStatusMap[channel.id]?.opened ? '已打开' : '未打开' }}</span>
+              </template>
+            </div>
+          </div>
         </div>
       </template>
 
@@ -160,15 +257,51 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useUiState } from '../../../state/uiState';
 import { uiActions } from '../../../services/uiActions';
+import { electronBridge } from '../../../services/electronBridge';
 
 type LocaleType = 'zh-CN' | 'zh-TW' | 'en-US' | 'ja-JP' | 'ko-KR';
 type AccentColorType = 'default' | 'blue' | 'green' | 'purple' | 'orange';
 type IconLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+type ChannelType = 'lin' | 'can' | 'serial';
+type ChannelPreferences = {
+  defaults: Record<ChannelType, string>;
+  linBaudRates: Record<string, number>;
+  canBitrates: Record<string, number>;
+  serialBaudRates: Record<string, number>;
+};
+const CHANNEL_SETTINGS_KEY = 'channelPreferences';
 
-const activeNode = ref<'startup' | 'workspace' | 'appearance' | 'interaction' | 'basic'>('startup');
+const activeNode = ref<'startup' | 'workspace' | 'appearance' | 'interaction' | 'channel' | 'basic'>('startup');
+const channels = ref<Array<{
+  id: string;
+  name: string;
+  type: 'lin' | 'can' | 'serial';
+  enabled: boolean;
+  binding: { hardwareId: string | null; hardwareName: string | null };
+}>>([]);
+const linHardwareOptions = ref<Array<{ id: string; name: string }>>([]);
+const canHardwareOptions = ref<Array<{ id: string; name: string }>>([]);
+const serialHardwareOptions = ref<Array<{ id: string; name: string }>>([]);
+const linSelections = reactive<Record<string, string>>({});
+const linBaudRates = reactive<Record<string, number>>({});
+const linStatusMap = reactive<Record<string, { opened?: boolean; txCount?: number; rxCount?: number; hardwareName?: string | null }>>({});
+const canSelections = reactive<Record<string, string>>({});
+const canBitrates = reactive<Record<string, number>>({});
+const canStatusMap = reactive<Record<string, { opened?: boolean; bitrate?: number }>>({});
+const serialSelections = reactive<Record<string, string>>({});
+const serialBaudRates = reactive<Record<string, number>>({});
+const serialStatusMap = reactive<Record<string, { opened?: boolean }>>({});
+const defaultChannels = reactive<Record<ChannelType, string>>({
+  lin: 'lin-primary',
+  can: 'can-primary',
+  serial: 'serial-primary'
+});
+const defaultLinStatus = reactive<{ opened?: boolean; txCount?: number; rxCount?: number }>({});
+const defaultCanStatus = reactive<{ opened?: boolean; bitrate?: number }>({});
+const defaultSerialStatus = reactive<{ opened?: boolean }>({});
 const { state } = useUiState();
 const accentOptions: Array<{ value: AccentColorType; label: string; color: string }> = [
   { value: 'default', label: '默认', color: '#6b7280' },
@@ -219,6 +352,325 @@ const currentIconSizeLabel = computed(() => {
   if (state.iconSize <= 7) return '舒适';
   return '宽松';
 });
+
+const loadChannels = async () => {
+  channels.value = await electronBridge.listChannels();
+  channels.value.forEach((channel) => {
+    linSelections[channel.id] = channel.binding.hardwareId || '';
+    if (!linBaudRates[channel.id]) {
+      linBaudRates[channel.id] = 19200;
+    }
+    canSelections[channel.id] = channel.binding.hardwareId || '';
+    if (!canBitrates[channel.id]) {
+      canBitrates[channel.id] = 500000;
+    }
+    serialSelections[channel.id] = channel.binding.hardwareId || '';
+    if (!serialBaudRates[channel.id]) {
+      serialBaudRates[channel.id] = 115200;
+    }
+  });
+};
+
+const persistChannelPreferences = async () => {
+  const settings = (await electronBridge.readSettings<Record<string, unknown>>()) ?? {};
+  const payload: ChannelPreferences = {
+    defaults: { ...defaultChannels },
+    linBaudRates: { ...linBaudRates },
+    canBitrates: { ...canBitrates },
+    serialBaudRates: { ...serialBaudRates }
+  };
+  await electronBridge.writeSettings({
+    ...settings,
+    [CHANNEL_SETTINGS_KEY]: payload
+  });
+};
+
+const loadChannelPreferences = async () => {
+  const settings = (await electronBridge.readSettings<Record<string, unknown>>()) ?? {};
+  const saved = (settings[CHANNEL_SETTINGS_KEY] as Partial<ChannelPreferences> | undefined) ?? {};
+  if (saved.defaults?.lin) defaultChannels.lin = saved.defaults.lin;
+  if (saved.defaults?.can) defaultChannels.can = saved.defaults.can;
+  if (saved.defaults?.serial) defaultChannels.serial = saved.defaults.serial;
+  if (saved.linBaudRates) Object.assign(linBaudRates, saved.linBaudRates);
+  if (saved.canBitrates) Object.assign(canBitrates, saved.canBitrates);
+  if (saved.serialBaudRates) Object.assign(serialBaudRates, saved.serialBaudRates);
+};
+
+const loadLinHardwareOptions = async () => {
+  const options = await electronBridge.listChannelHardwareOptions('lin');
+  linHardwareOptions.value = options.map((item) => ({ id: item.id, name: item.name }));
+};
+
+const loadCanHardwareOptions = async () => {
+  const options = await electronBridge.listChannelHardwareOptions('can');
+  canHardwareOptions.value = options.map((item) => ({ id: item.id, name: item.name }));
+};
+
+const loadSerialHardwareOptions = async () => {
+  const options = await electronBridge.listChannelHardwareOptions('serial');
+  serialHardwareOptions.value = options.map((item) => ({ id: item.id, name: item.name }));
+};
+
+const handleEnterChannelNode = async () => {
+  activeNode.value = 'channel';
+  await Promise.all([loadChannels(), loadLinHardwareOptions(), loadCanHardwareOptions(), loadSerialHardwareOptions()]);
+};
+
+const handleLinSelectionChange = (channelId: string, event: Event) => {
+  linSelections[channelId] = (event.target as HTMLSelectElement).value;
+};
+const handleCanSelectionChange = (channelId: string, event: Event) => {
+  canSelections[channelId] = (event.target as HTMLSelectElement).value;
+};
+const handleSerialSelectionChange = (channelId: string, event: Event) => {
+  serialSelections[channelId] = (event.target as HTMLSelectElement).value;
+};
+
+const handleLinBaudRateChange = (channelId: string, event: Event) => {
+  linBaudRates[channelId] = Number((event.target as HTMLSelectElement).value);
+  void persistChannelPreferences();
+};
+const handleCanBitrateChange = (channelId: string, event: Event) => {
+  canBitrates[channelId] = Number((event.target as HTMLSelectElement).value);
+  void persistChannelPreferences();
+};
+const handleSerialBaudRateChange = (channelId: string, event: Event) => {
+  serialBaudRates[channelId] = Number((event.target as HTMLSelectElement).value);
+  void persistChannelPreferences();
+};
+
+const handleBindLinChannel = async (channelId: string) => {
+  const hardwareId = linSelections[channelId];
+  if (!hardwareId) return;
+  await electronBridge.bindChannelHardware({ channelId, hardwareId });
+  await loadChannels();
+  await refreshLinStatus(channelId);
+  await persistChannelPreferences();
+};
+
+const handleUnbindChannel = async (channelId: string) => {
+  await electronBridge.unbindChannelHardware(channelId);
+  linSelections[channelId] = '';
+  linStatusMap[channelId] = { opened: false };
+  await loadChannels();
+  await persistChannelPreferences();
+};
+
+const handleSetDefaultChannel = async (channelType: ChannelType, channelId: string) => {
+  const success = await electronBridge.setDefaultChannel({ channelType, channelId });
+  if (!success) return;
+  defaultChannels[channelType] = channelId;
+  await refreshDefaultStatuses();
+  await persistChannelPreferences();
+};
+
+const refreshLinStatus = async (channelId: string) => {
+  const status = defaultChannels.lin === channelId
+    ? await electronBridge.getDefaultLinChannelStatus()
+    : await electronBridge.getLinChannelStatus(channelId);
+  if (!status) return;
+  linStatusMap[channelId] = {
+    opened: status.opened,
+    txCount: status.txCount,
+    rxCount: status.rxCount,
+    hardwareName: status.hardwareName
+  };
+};
+
+const handleOpenLinChannel = async (channelId: string) => {
+  const baudRate = linBaudRates[channelId] || 19200;
+  if (defaultChannels.lin === channelId) {
+    await electronBridge.openDefaultLinChannel({ baudRate });
+  } else {
+    await electronBridge.openLinChannel({ channelId, baudRate });
+  }
+  await refreshLinStatus(channelId);
+};
+
+const handleCloseLinChannel = async (channelId: string) => {
+  if (defaultChannels.lin === channelId) {
+    await electronBridge.closeDefaultLinChannel();
+  } else {
+    await electronBridge.closeLinChannel(channelId);
+  }
+  await refreshLinStatus(channelId);
+};
+
+const handleSendLinTestFrame = async (channelId: string) => {
+  if (defaultChannels.lin === channelId) {
+    await electronBridge.sendLinFrameByDefaultChannel({
+      id: 0x12,
+      data: [0x01, 0x02, 0x03, 0x04],
+      checksumType: 'enhanced'
+    });
+  } else {
+    await electronBridge.sendLinFrameByChannel({
+      channelId,
+      id: 0x12,
+      data: [0x01, 0x02, 0x03, 0x04],
+      checksumType: 'enhanced'
+    });
+  }
+  await refreshLinStatus(channelId);
+};
+
+const refreshCanStatus = async (channelId: string) => {
+  const status = defaultChannels.can === channelId
+    ? await electronBridge.getDefaultCanChannelStatus()
+    : await electronBridge.getCanChannelStatus(channelId);
+  if (!status) return;
+  canStatusMap[channelId] = {
+    opened: status.opened,
+    bitrate: status.bitrate
+  };
+};
+
+const refreshSerialStatus = async (channelId: string) => {
+  const status = defaultChannels.serial === channelId
+    ? await electronBridge.getDefaultSerialChannelStatus()
+    : await electronBridge.getSerialChannelStatus(channelId);
+  if (!status) return;
+  serialStatusMap[channelId] = {
+    opened: status.opened
+  };
+};
+
+const handleBindCanChannel = async (channelId: string) => {
+  const hardwareId = canSelections[channelId];
+  if (!hardwareId) return;
+  await electronBridge.bindChannelHardware({ channelId, hardwareId });
+  await loadChannels();
+  await refreshCanStatus(channelId);
+  await persistChannelPreferences();
+};
+
+const handleOpenCanChannel = async (channelId: string) => {
+  const bitrate = canBitrates[channelId] || 500000;
+  if (defaultChannels.can === channelId) {
+    await electronBridge.openDefaultCanChannel({ bitrate });
+  } else {
+    await electronBridge.openCanChannel({ channelId, bitrate });
+  }
+  await refreshCanStatus(channelId);
+};
+
+const handleCloseCanChannel = async (channelId: string) => {
+  if (defaultChannels.can === channelId) {
+    await electronBridge.closeDefaultCanChannel();
+  } else {
+    await electronBridge.closeCanChannel(channelId);
+  }
+  await refreshCanStatus(channelId);
+};
+
+const handleBindSerialChannel = async (channelId: string) => {
+  const hardwareId = serialSelections[channelId];
+  if (!hardwareId) return;
+  await electronBridge.bindChannelHardware({ channelId, hardwareId });
+  await loadChannels();
+  await refreshSerialStatus(channelId);
+  await persistChannelPreferences();
+};
+
+const handleOpenSerialChannel = async (channelId: string) => {
+  const baudRate = serialBaudRates[channelId] || 115200;
+  if (defaultChannels.serial === channelId) {
+    await electronBridge.openDefaultSerialChannel({ baudRate });
+  } else {
+    await electronBridge.openSerialChannel({ channelId, baudRate });
+  }
+  await refreshSerialStatus(channelId);
+};
+
+const handleCloseSerialChannel = async (channelId: string) => {
+  if (defaultChannels.serial === channelId) {
+    await electronBridge.closeDefaultSerialChannel();
+  } else {
+    await electronBridge.closeSerialChannel(channelId);
+  }
+  await refreshSerialStatus(channelId);
+};
+
+const refreshDefaultStatuses = async () => {
+  const [lin, can, serial] = await Promise.all([
+    electronBridge.getDefaultLinChannelStatus(),
+    electronBridge.getDefaultCanChannelStatus(),
+    electronBridge.getDefaultSerialChannelStatus()
+  ]);
+  if (lin) {
+    defaultLinStatus.opened = lin.opened;
+    defaultLinStatus.txCount = lin.txCount;
+    defaultLinStatus.rxCount = lin.rxCount;
+  }
+  if (can) {
+    defaultCanStatus.opened = can.opened;
+    defaultCanStatus.bitrate = can.bitrate;
+  }
+  if (serial) {
+    defaultSerialStatus.opened = serial.opened;
+  }
+};
+
+const handleQuickOpenDefaultLin = async () => {
+  const baudRate = linBaudRates[defaultChannels.lin] || 19200;
+  await electronBridge.openDefaultLinChannel({ baudRate });
+  await refreshDefaultStatuses();
+  await refreshLinStatus(defaultChannels.lin);
+};
+
+const handleQuickCloseDefaultLin = async () => {
+  await electronBridge.closeDefaultLinChannel();
+  await refreshDefaultStatuses();
+  await refreshLinStatus(defaultChannels.lin);
+};
+
+const handleQuickSendDefaultLinTest = async () => {
+  await electronBridge.sendLinFrameByDefaultChannel({
+    id: 0x22,
+    data: [0x10, 0x20, 0x30, 0x40],
+    checksumType: 'enhanced'
+  });
+  await refreshDefaultStatuses();
+  await refreshLinStatus(defaultChannels.lin);
+};
+
+const handleQuickOpenDefaultCan = async () => {
+  const bitrate = canBitrates[defaultChannels.can] || 500000;
+  await electronBridge.openDefaultCanChannel({ bitrate });
+  await refreshDefaultStatuses();
+  await refreshCanStatus(defaultChannels.can);
+};
+
+const handleQuickCloseDefaultCan = async () => {
+  await electronBridge.closeDefaultCanChannel();
+  await refreshDefaultStatuses();
+  await refreshCanStatus(defaultChannels.can);
+};
+
+const handleQuickOpenDefaultSerial = async () => {
+  const baudRate = serialBaudRates[defaultChannels.serial] || 115200;
+  await electronBridge.openDefaultSerialChannel({ baudRate });
+  await refreshDefaultStatuses();
+  await refreshSerialStatus(defaultChannels.serial);
+};
+
+const handleQuickCloseDefaultSerial = async () => {
+  await electronBridge.closeDefaultSerialChannel();
+  await refreshDefaultStatuses();
+  await refreshSerialStatus(defaultChannels.serial);
+};
+
+onMounted(async () => {
+  await loadChannelPreferences();
+  const defaults = await electronBridge.getDefaultChannels();
+  if (defaults) {
+    defaultChannels.lin = defaults.lin;
+    defaultChannels.can = defaults.can;
+    defaultChannels.serial = defaults.serial;
+  }
+  await loadChannels();
+  await refreshDefaultStatuses();
+});
 </script>
 
 <style scoped>
@@ -246,4 +698,16 @@ const currentIconSizeLabel = computed(() => {
 .size-btn,.size-reset-btn { border: 1px solid var(--app-border); background: var(--app-bg-elevated); color: var(--app-text-regular); border-radius: 6px; height: 24px; line-height: 22px; padding: 0 8px; cursor: pointer; }
 .size-btn { width: 24px; padding: 0; }
 .setting-row :disabled,.size-reset-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.channel-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; }
+.channel-row + .channel-row { border-top: 1px solid var(--app-border); }
+.channel-info { display: flex; flex-direction: column; gap: 4px; }
+.channel-name { color: var(--app-text-primary); font-size: 13px; font-weight: 600; }
+.channel-meta { color: var(--app-text-muted); font-size: 12px; }
+.channel-actions { display: flex; align-items: center; gap: 8px; }
+.channel-actions select { min-width: 260px; height: 30px; border: 1px solid var(--app-border); border-radius: 6px; background: var(--app-bg); color: var(--app-text-primary); padding: 0 8px; }
+.channel-status { color: var(--app-text-muted); font-size: 12px; min-width: 180px; text-align: right; }
+.channel-todo { margin-right: 12px; }
+.channel-shortcut-title { color: var(--app-text-primary); font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.channel-shortcut-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+.channel-shortcut-row + .channel-shortcut-row { border-top: 1px solid var(--app-border); }
 </style>

@@ -6,10 +6,15 @@ interface UsePanelLayoutOptions {
   mainArea: Ref<HTMLElement | null>;
   showLeftActivity: Ref<boolean>;
   showRightActivity: Ref<boolean>;
+  /** 为 true 时左侧面板参与分栏宽度（浮动为 false） */
+  leftTakesLayoutSpace: Ref<boolean>;
+  /** 为 true 时右侧面板参与分栏宽度（浮动为 false） */
+  rightTakesLayoutSpace: Ref<boolean>;
 }
 
 export function usePanelLayout(options: UsePanelLayoutOptions) {
-  const { contentWrapper, mainArea, showLeftActivity, showRightActivity } = options;
+  const { contentWrapper, mainArea, showLeftActivity, showRightActivity, leftTakesLayoutSpace, rightTakesLayoutSpace } =
+    options;
   const closeDragThreshold = 36;
   const closeRecoverThreshold = 16;
 
@@ -54,8 +59,8 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
   const getContainerWidth = () => {
     if (!contentWrapper.value) return 0;
     const horizontalSplitters =
-      (showLeftActivity.value ? LAYOUT_CONSTANTS.HORIZONTAL_SPLITTER_SIZE : 0) +
-      (showRightActivity.value ? LAYOUT_CONSTANTS.HORIZONTAL_SPLITTER_SIZE : 0);
+      (leftTakesLayoutSpace.value ? LAYOUT_CONSTANTS.HORIZONTAL_SPLITTER_SIZE : 0) +
+      (rightTakesLayoutSpace.value ? LAYOUT_CONSTANTS.HORIZONTAL_SPLITTER_SIZE : 0);
     return contentWrapper.value.offsetWidth - horizontalSplitters;
   };
 
@@ -105,7 +110,10 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
     const availableWidth = getContainerWidth();
     if (availableWidth <= 0) return;
 
-    if (showLeftActivity.value && showRightActivity.value) {
+    const leftInLayout = leftTakesLayoutSpace.value;
+    const rightInLayout = rightTakesLayoutSpace.value;
+
+    if (leftInLayout && rightInLayout) {
       let nextLeftWidth = clampLeftWidth(Math.round(availableWidth * leftWidthRatio), availableWidth, rightActivityWidth.value);
       let nextRightWidth = clampRightWidth(
         Math.round(availableWidth * rightWidthRatio),
@@ -121,7 +129,7 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
       return;
     }
 
-    if (showLeftActivity.value) {
+    if (leftInLayout) {
       const minLeftWidth = getMinLeftWidth(availableWidth);
       const maxLeftWidth = Math.max(
         minLeftWidth,
@@ -133,7 +141,7 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
       return;
     }
 
-    if (showRightActivity.value) {
+    if (rightInLayout) {
       const minRightWidth = getMinRightWidth(availableWidth);
       const maxRightWidth = Math.max(
         minRightWidth,
@@ -150,11 +158,11 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
     if (availableWidth <= 0) return;
 
     const minSideWidth = getMinSideWidth(availableWidth);
-    if (showLeftActivity.value) {
+    if (leftTakesLayoutSpace.value) {
       leftActivityWidth.value = minSideWidth;
       leftWidthRatio = minSideWidth / availableWidth;
     }
-    if (showRightActivity.value) {
+    if (rightTakesLayoutSpace.value) {
       rightActivityWidth.value = minSideWidth;
       rightWidthRatio = minSideWidth / availableWidth;
     }
@@ -229,7 +237,8 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
       const deltaX = latestLeftClientX - leftDragStartX;
       const newWidth = leftDragStartWidth + deltaX;
       const minLeftWidth = getMinLeftWidth(containerWidth);
-      const maxLeftWidth = getLeftMaxWidth(containerWidth, rightActivityWidth.value);
+      const layoutRightW = rightTakesLayoutSpace.value ? rightActivityWidth.value : 0;
+      const maxLeftWidth = getLeftMaxWidth(containerWidth, layoutRightW);
       const closeBoundary = minLeftWidth - closeDragThreshold;
       const recoverBoundary = minLeftWidth - closeRecoverThreshold;
       if (newWidth < closeBoundary) {
@@ -238,7 +247,7 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
         isLeftCloseArmed.value = false;
       }
       isLeftMaxArmed.value = newWidth > maxLeftWidth;
-      leftActivityWidth.value = clampLeftWidth(newWidth, containerWidth, rightActivityWidth.value);
+      leftActivityWidth.value = clampLeftWidth(newWidth, containerWidth, layoutRightW);
       leftWidthRatio = leftActivityWidth.value / containerWidth;
     });
   };
@@ -288,7 +297,8 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
       const deltaX = rightDragStartX - latestRightClientX;
       const newWidth = rightDragStartWidth + deltaX;
       const minRightWidth = getMinRightWidth(containerWidth);
-      const maxRightWidth = getRightMaxWidth(containerWidth, leftActivityWidth.value);
+      const layoutLeftW = leftTakesLayoutSpace.value ? leftActivityWidth.value : 0;
+      const maxRightWidth = getRightMaxWidth(containerWidth, layoutLeftW);
       const closeBoundary = minRightWidth - closeDragThreshold;
       const recoverBoundary = minRightWidth - closeRecoverThreshold;
       if (newWidth < closeBoundary) {
@@ -297,7 +307,7 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
         isRightCloseArmed.value = false;
       }
       isRightMaxArmed.value = newWidth > maxRightWidth;
-      rightActivityWidth.value = clampRightWidth(newWidth, containerWidth, leftActivityWidth.value);
+      rightActivityWidth.value = clampRightWidth(newWidth, containerWidth, layoutLeftW);
       rightWidthRatio = rightActivityWidth.value / containerWidth;
     });
   };
@@ -401,6 +411,10 @@ export function usePanelLayout(options: UsePanelLayoutOptions) {
     if (visible && !previous) {
       resetSideWidthsToMinimum();
     }
+  });
+
+  watch([leftTakesLayoutSpace, rightTakesLayoutSpace], () => {
+    calculateActivityWidth();
   });
 
   onUnmounted(() => {

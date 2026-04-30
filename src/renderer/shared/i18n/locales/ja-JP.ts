@@ -253,6 +253,7 @@ export default {
       ...enUS.layout.sidebar,
       home: 'ホーム',
       file: 'ファイル',
+      trace: 'Trace',
       properties: 'プロパティ'
     }
   },

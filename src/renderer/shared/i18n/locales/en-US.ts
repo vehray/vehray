@@ -10,6 +10,7 @@ export default {
     sidebar: {
       home: 'Home',
       file: 'Files',
+      trace: 'Trace',
       properties: 'Properties'
     },
     header: {
